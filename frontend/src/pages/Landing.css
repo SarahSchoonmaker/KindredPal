@@ -1,0 +1,336 @@
+/* Landing Page - Complete Beautiful Design */
+
+.landing-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+}
+
+/* Header */
+.landing-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 3rem;
+  background: white;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.landing-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #2b6cb0;
+  font-size: 1.8rem;
+  font-weight: 700;
+  font-family: "Crimson Pro", serif;
+}
+
+.landing-logo-icon {
+  background: linear-gradient(135deg, #4299e1, #2b6cb0);
+  color: white;
+  padding: 0.5rem;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.landing-nav {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.nav-btn {
+  padding: 0.75rem 1.5rem;
+  background: transparent;
+  color: #2b6cb0;
+  border: 2px solid #e2e8f0;
+  border-radius: 50px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  font-family: "DM Sans", sans-serif;
+  font-size: 1rem;
+}
+
+.nav-btn:hover {
+  background: #f7fafc;
+  border-color: #4299e1;
+}
+
+.nav-btn.primary {
+  background: linear-gradient(135deg, #4299e1, #2b6cb0);
+  color: white;
+  border-color: #4299e1;
+}
+
+.nav-btn.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(66, 153, 225, 0.3);
+}
+
+/* Hero Section */
+.landing-hero {
+  background: linear-gradient(135deg, #4299e1 0%, #2b6cb0 50%, #48bb78 100%);
+  padding: 8rem 2rem;
+  text-align: center;
+  color: white;
+}
+
+.landing-hero h1 {
+  font-family: "Crimson Pro", serif;
+  font-size: 4.5rem;
+  font-weight: 700;
+  margin: 0 0 1.5rem 0;
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.15);
+  line-height: 1.2;
+}
+
+.landing-hero p {
+  font-size: 1.5rem;
+  max-width: 800px;
+  margin: 0 auto 3rem auto;
+  line-height: 1.8;
+  opacity: 0.95;
+}
+
+.hero-buttons {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.btn-get-started,
+.btn-login {
+  padding: 1.25rem 3rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 180px;
+  font-family: "DM Sans", sans-serif;
+}
+
+.btn-get-started {
+  background: white;
+  color: #2b6cb0;
+  border: 2px solid white;
+}
+
+.btn-get-started:hover {
+  background: rgba(255, 255, 255, 0.95);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.btn-login {
+  background: transparent;
+  color: white;
+  border: 2px solid white;
+}
+
+.btn-login:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px rgba(255, 255, 255, 0.25);
+}
+
+/* Features Section */
+.landing-features {
+  padding: 6rem 2rem;
+  background: #f7fafc;
+}
+
+.features-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2.5rem;
+}
+
+.feature-card {
+  background: white;
+  padding: 2.5rem;
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s;
+}
+
+.feature-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+}
+
+.feature-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 1.5rem;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.feature-card h3 {
+  font-family: "Crimson Pro", serif;
+  font-size: 1.8rem;
+  color: #2d2d2d;
+  margin: 0 0 1rem 0;
+}
+
+.feature-card p {
+  color: #666;
+  line-height: 1.7;
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+/* CTA Section */
+.landing-cta {
+  background: linear-gradient(135deg, #2b6cb0, #4299e1);
+  padding: 6rem 2rem;
+  text-align: center;
+  color: white;
+}
+
+.landing-cta h2 {
+  font-family: "Crimson Pro", serif;
+  font-size: 3rem;
+  margin: 0 0 1rem 0;
+  font-weight: 700;
+}
+
+.landing-cta p {
+  font-size: 1.3rem;
+  margin: 0 auto 2.5rem;
+  max-width: 700px;
+  opacity: 0.95;
+}
+
+.btn-cta {
+  padding: 1.25rem 3rem;
+  background: white;
+  color: #2b6cb0;
+  border: 2px solid white;
+  border-radius: 50px;
+  font-weight: 600;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  font-family: "DM Sans", sans-serif;
+}
+
+.btn-cta:hover {
+  background: rgba(255, 255, 255, 0.95);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+/* Footer */
+.landing-footer {
+  background: #2d2d2d;
+  color: white;
+  padding: 2.5rem 2rem;
+  text-align: center;
+}
+
+.footer-content {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.footer-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  font-family: "Crimson Pro", serif;
+}
+
+.landing-footer p {
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0;
+}
+
+/* Mobile Responsive */
+@media (max-width: 968px) {
+  .landing-header {
+    padding: 1rem 1.5rem;
+  }
+
+  .landing-logo {
+    font-size: 1.4rem;
+  }
+
+  .landing-hero {
+    padding: 5rem 1.5rem;
+  }
+
+  .landing-hero h1 {
+    font-size: 3rem;
+  }
+
+  .landing-hero p {
+    font-size: 1.2rem;
+  }
+
+  .hero-buttons {
+    flex-direction: column;
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
+  }
+
+  .btn-get-started,
+  .btn-login {
+    width: 100%;
+  }
+
+  .features-container {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-cta h2 {
+    font-size: 2rem;
+  }
+
+  .landing-cta p {
+    font-size: 1.1rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .landing-hero h1 {
+    font-size: 2.5rem;
+  }
+
+  .nav-btn {
+    padding: 0.6rem 1.2rem;
+    font-size: 0.9rem;
+  }
+}

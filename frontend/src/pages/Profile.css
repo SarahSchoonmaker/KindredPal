@@ -1,0 +1,560 @@
+/* Profile Page - Complete Beautiful Styling */
+
+.profile-page {
+  min-height: 100vh;
+  background: #f7fafc;
+  padding: 2rem;
+}
+
+.profile-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+/* Header */
+.profile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2rem 3rem;
+  background: linear-gradient(135deg, #4299e1, #2b6cb0);
+  color: white;
+}
+
+.profile-header h1 {
+  font-family: "Crimson Pro", serif;
+  font-size: 2.5rem;
+  margin: 0;
+}
+
+.btn-edit,
+.btn-save,
+.btn-cancel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  border: none;
+  font-size: 1rem;
+}
+
+.btn-edit {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+}
+
+.btn-edit:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.edit-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.btn-save {
+  background: #48bb78;
+  color: white;
+}
+
+.btn-save:hover {
+  background: #38a169;
+  transform: scale(1.05);
+}
+
+.btn-cancel {
+  background: #e53e3e;
+  color: white;
+}
+
+.btn-cancel:hover {
+  background: #c53030;
+  transform: scale(1.05);
+}
+
+/* Profile Content */
+.profile-content {
+  padding: 3rem;
+}
+
+/* Section */
+.profile-section {
+  margin-bottom: 3rem;
+  padding: 2rem;
+  background: #f7fafc;
+  border-radius: 16px;
+}
+
+.profile-section h2 {
+  font-family: "Crimson Pro", serif;
+  font-size: 1.8rem;
+  color: #2d2d2d;
+  margin: 0 0 1.5rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Photos Section */
+.photo-section {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+}
+
+.main-photo-container {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.main-photo {
+  width: 250px;
+  height: 250px;
+  border-radius: 20px;
+  object-fit: cover;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.photo-edit-btn {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #4299e1, #2b6cb0);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.photo-edit-btn:hover {
+  transform: translateX(-50%) scale(1.05);
+  box-shadow: 0 4px 15px rgba(66, 153, 225, 0.4);
+}
+
+.additional-photos {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.additional-photo {
+  width: 150px;
+  height: 150px;
+  border-radius: 12px;
+  object-fit: cover;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Form Fields */
+.form-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-field label {
+  font-weight: 600;
+  color: #2d2d2d;
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.form-field input,
+.form-field textarea {
+  padding: 0.75rem 1rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 1rem;
+  transition: border-color 0.3s;
+  font-family: "DM Sans", sans-serif;
+}
+
+.form-field input:focus,
+.form-field textarea:focus {
+  outline: none;
+  border-color: #4299e1;
+}
+
+.form-field textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* Info Display */
+.info-display {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.info-display p {
+  font-size: 1.1rem;
+  color: #2d2d2d;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.info-display strong {
+  color: #4299e1;
+  font-weight: 600;
+}
+
+/* Email Notifications Section */
+.email-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.email-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s;
+}
+
+.email-toggle:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.toggle-info {
+  flex: 1;
+}
+
+.toggle-info strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 1.1rem;
+  color: #2d2d2d;
+}
+
+.toggle-info p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+/* Toggle Switch */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 56px;
+  height: 30px;
+  flex-shrink: 0;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #cbd5e0;
+  transition: 0.3s;
+  border-radius: 30px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 22px;
+  width: 22px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+  background: linear-gradient(135deg, #4299e1, #2b6cb0);
+}
+
+input:checked + .toggle-slider:before {
+  transform: translateX(26px);
+}
+
+input:disabled + .toggle-slider {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Values Display */
+.values-display {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.value-item {
+  font-size: 1.1rem;
+  color: #2d2d2d;
+  line-height: 1.6;
+}
+
+.value-item strong {
+  color: #4299e1;
+  font-weight: 600;
+}
+
+/* Tags Display */
+.tags-display {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.tag {
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, #4299e1, #2b6cb0);
+  color: white;
+  border-radius: 20px;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+/* Danger Zone */
+.danger-zone {
+  border: 2px solid #fed7d7;
+  background: #fff5f5;
+}
+
+.danger-zone h2 {
+  color: #e53e3e;
+}
+
+.danger-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 2rem;
+}
+
+.danger-info {
+  flex: 1;
+}
+
+.danger-info strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+  color: #2d2d2d;
+}
+
+.danger-info p {
+  margin: 0;
+  color: #666;
+  line-height: 1.6;
+}
+
+.btn-delete {
+  padding: 0.75rem 1.5rem;
+  background: white;
+  color: #e53e3e;
+  border: 2px solid #e53e3e;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  white-space: nowrap;
+}
+
+.btn-delete:hover {
+  background: #e53e3e;
+  color: white;
+  transform: scale(1.05);
+}
+
+/* Delete Confirmation Modal */
+.delete-confirm-modal {
+  max-width: 500px;
+  text-align: center;
+  padding: 3rem;
+}
+
+.delete-confirm-modal h2 {
+  color: #e53e3e;
+  margin: 0 0 1rem 0;
+  font-size: 2rem;
+}
+
+.delete-confirm-modal p {
+  color: #666;
+  margin: 0 0 2rem 0;
+  line-height: 1.6;
+}
+
+.delete-confirm-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.btn-delete-confirm {
+  flex: 1;
+  padding: 1rem;
+  background: #e53e3e;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-delete-confirm:hover {
+  background: #c53030;
+  transform: scale(1.02);
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 2rem;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 20px;
+  padding: 2rem;
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: #f7fafc;
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.modal-close:hover {
+  background: #e2e8f0;
+}
+
+/* Mobile Responsive */
+@media (max-width: 968px) {
+  .profile-page {
+    padding: 1rem;
+  }
+
+  .profile-header {
+    padding: 1.5rem 2rem;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+
+  .profile-header h1 {
+    font-size: 2rem;
+  }
+
+  .profile-content {
+    padding: 2rem 1.5rem;
+  }
+
+  .profile-section {
+    padding: 1.5rem;
+  }
+
+  .photo-section {
+    flex-direction: column;
+  }
+
+  .main-photo {
+    width: 100%;
+    max-width: 300px;
+    height: auto;
+    aspect-ratio: 1;
+  }
+
+  .form-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .danger-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .btn-delete {
+    width: 100%;
+  }
+
+  .delete-confirm-actions {
+    flex-direction: column;
+  }
+
+  .email-toggle {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .profile-header h1 {
+    font-size: 1.75rem;
+  }
+
+  .profile-section h2 {
+    font-size: 1.5rem;
+  }
+
+  .modal-content {
+    padding: 1.5rem;
+  }
+}

@@ -1,0 +1,246 @@
+.auth-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #4299e1 0%, #2b6cb0 50%, #48bb78 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.auth-container {
+  width: 100%;
+  max-width: 500px;
+}
+
+.signup-card {
+  max-width: 800px !important;
+}
+
+.auth-card {
+  background: white;
+  padding: 3rem;
+  border-radius: 25px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.auth-card h2 {
+  font-family: "Crimson Pro", serif;
+  font-size: 2.5rem;
+  color: #2d2d2d;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.auth-subtitle {
+  color: #666;
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #2d2d2d;
+  font-weight: 500;
+}
+
+.form-input,
+.form-select {
+  width: 100%;
+  padding: 0.875rem 1.25rem;
+  border: 2px solid #e8e8e8;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-family: "DM Sans", sans-serif;
+  transition: border-color 0.3s;
+}
+
+.form-input:focus,
+.form-select:focus {
+  outline: none;
+  border-color: #2b6cb0;
+}
+
+.form-textarea {
+  width: 100%;
+  padding: 0.875rem 1.25rem;
+  border: 2px solid #e8e8e8;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-family: "DM Sans", sans-serif;
+  min-height: 100px;
+  resize: vertical;
+}
+
+.form-textarea:focus {
+  outline: none;
+  border-color: #2b6cb0;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+/* NEW: Grid layout for checkbox cards */
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+/* NEW: Beautiful checkbox cards */
+.checkbox-card {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1rem;
+  border: 2px solid #e8e8e8;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 0.95rem;
+  background: white;
+}
+
+.checkbox-card:hover {
+  border-color: #2b6cb0;
+  background: rgba(43, 108, 176, 0.05);
+  transform: translateY(-2px);
+}
+
+.checkbox-card.selected {
+  border-color: #2b6cb0;
+  background: linear-gradient(
+    135deg,
+    rgba(66, 153, 225, 0.1),
+    rgba(72, 187, 120, 0.1)
+  );
+  font-weight: 600;
+}
+
+.checkbox-card input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+
+.checkbox-card span {
+  flex: 1;
+}
+
+.checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 2px solid #e8e8e8;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 0.9rem;
+}
+
+.checkbox-label:hover {
+  border-color: #2b6cb0;
+}
+
+.checkbox-label input {
+  margin: 0;
+}
+
+.checkbox-label input:checked + span {
+  font-weight: 600;
+}
+
+.auth-link {
+  text-align: center;
+  margin-top: 1.5rem;
+  color: #666;
+}
+
+.auth-link a {
+  color: #2b6cb0;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.auth-link a:hover {
+  text-decoration: underline;
+}
+
+.progress-bar {
+  height: 6px;
+  background: #e8e8e8;
+  border-radius: 3px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4299e1, #2b6cb0);
+  transition: width 0.3s;
+}
+
+.step-indicator {
+  text-align: center;
+  color: #666;
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+}
+
+.form-step h3 {
+  font-family: "Crimson Pro", serif;
+  font-size: 1.8rem;
+  margin-bottom: 1rem;
+  color: #2d2d2d;
+}
+
+.form-help {
+  color: #2b6cb0;
+  font-size: 0.95rem;
+  margin-bottom: 1.5rem;
+  padding: 0.75rem 1rem;
+  background: rgba(66, 153, 225, 0.1);
+  border-radius: 12px;
+  border-left: 4px solid #2b6cb0;
+}
+
+.button-group {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.button-group .btn {
+  flex: 1;
+}
+
+@media (max-width: 768px) {
+  .auth-card {
+    padding: 2rem 1.5rem;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .checkbox-grid {
+    grid-template-columns: 1fr;
+  }
+}
