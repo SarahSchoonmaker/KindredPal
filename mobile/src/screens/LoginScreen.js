@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { View, StyleSheet, ScrollView, Image } from "react-native";
 import { Text, TextInput, Button, Card } from "react-native-paper";
+import { authAPI } from "../services/api";
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
@@ -8,15 +9,30 @@ export default function LoginScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert("Error", "Please enter email and password");
+      return;
+    }
+
     setLoading(true);
     try {
-      // TODO: Add API call here
-      console.log("Login:", email);
+      console.log("🔐 Logging in:", email);
+      const response = await authAPI.login(email, password);
 
-      // For now, navigate to Discover
-      navigation.replace("MainTabs");
+      if (response.data.token) {
+        // IMPORTANT: Store token BEFORE navigating
+        global.authToken = response.data.token;
+        console.log("✅ Login successful! Token saved.");
+
+        // Navigate to main app
+        navigation.replace("MainTabs");
+      }
     } catch (error) {
-      console.error("Login error:", error);
+      console.error("❌ Login error:", error);
+      Alert.alert(
+        "Login Failed",
+        error.response?.data?.message || "Invalid email or password",
+      );
     } finally {
       setLoading(false);
     }

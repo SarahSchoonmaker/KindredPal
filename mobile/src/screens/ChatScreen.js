@@ -6,56 +6,141 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { Text, TextInput, IconButton } from "react-native-paper";
+import { Text, TextInput, ActivityIndicator } from "react-native-paper";
 import { Send } from "lucide-react-native";
+import { messageAPI } from "../services/api";
+import io from "socket.io-client";
+
+const SOCKET_URL = "https://kindredpal-production.up.railway.app";
 
 export default function ChatScreen({ route }) {
   const { match } = route.params;
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   const scrollViewRef = useRef();
+  const socketRef = useRef();
 
-  // Mock messages - later use Socket.IO
   useEffect(() => {
-    setMessages([
-      {
-        id: 1,
-        text: "Hey! How are you doing?",
-        sender: "them",
-        timestamp: new Date(Date.now() - 3600000),
-      },
-      {
-        id: 2,
-        text: "Hi! I'm doing great, thanks! How about you?",
-        sender: "me",
-        timestamp: new Date(Date.now() - 3000000),
-      },
-      {
-        id: 3,
-        text: "Pretty good! I saw we both love fitness. Do you have a favorite workout?",
-        sender: "them",
-        timestamp: new Date(Date.now() - 2400000),
-      },
-    ]);
+    fetchMessages();
+    setupSocket();
+
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+    };
   }, []);
 
-  const handleSend = () => {
+  const setupSocket = () => {
+    const token = global.authToken;
+    if (!token) return;
+
+    socketRef.current = io(SOCKET_URL, {
+      auth: { token },
+      transports: ["websocket"],
+    });
+
+    socketRef.current.on("connect", () => {
+      console.log("🔌 Socket connected");
+    });
+
+    socketRef.current.on("new-message", (message) => {
+      console.log("📨 New message received:", message);
+      if (message.senderId === match._id || message.recipientId === match._id) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: message._id,
+            text: message.content,
+            sender: message.senderId === match._id ? "them" : "me",
+            timestamp: new Date(message.createdAt),
+          },
+        ]);
+        scrollToBottom();
+      }
+    });
+
+    socketRef.current.on("disconnect", () => {
+      console.log("🔌 Socket disconnected");
+    });
+  };
+
+  const fetchMessages = async () => {
+    try {
+      console.log("📥 Fetching messages with:", match._id);
+      const response = await messageAPI.getMessages(match._id);
+      const messagesData = response.data || [];
+
+      const formattedMessages = messagesData.map((msg) => ({
+        id: msg._id,
+        text: msg.content,
+        sender: msg.senderId === match._id ? "them" : "me",
+        timestamp: new Date(msg.createdAt),
+      }));
+
+      console.log("✅ Loaded", formattedMessages.length, "messages");
+      setMessages(formattedMessages);
+
+      // Mark messages as read
+      setTimeout(() => {
+        messagesData
+          .filter((msg) => msg.senderId === match._id && !msg.read)
+          .forEach((msg) => {
+            messageAPI
+              .markAsRead(msg._id)
+              .catch((err) => console.error("Error marking as read:", err));
+          });
+      }, 1000);
+    } catch (error) {
+      console.error("❌ Error fetching messages:", error);
+    } finally {
+      setLoading(false);
+      setTimeout(scrollToBottom, 100);
+    }
+  };
+
+  const handleSend = async () => {
     if (!newMessage.trim()) return;
 
-    const message = {
-      id: Date.now(),
-      text: newMessage.trim(),
+    const messageText = newMessage.trim();
+    const tempId = Date.now();
+
+    // Optimistic update
+    const optimisticMessage = {
+      id: tempId,
+      text: messageText,
       sender: "me",
       timestamp: new Date(),
     };
 
-    setMessages([...messages, message]);
+    setMessages((prev) => [...prev, optimisticMessage]);
     setNewMessage("");
+    scrollToBottom();
 
-    // TODO: Send via Socket.IO to backend
-    // socket.emit('send-message', { recipientId: match.id, content: message.text });
+    setSending(true);
+    try {
+      const response = await messageAPI.sendMessage(match._id, messageText);
+      console.log("✅ Message sent:", response.data);
 
-    // Scroll to bottom
+      // Update with real message from server
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === tempId ? { ...msg, id: response.data._id } : msg,
+        ),
+      );
+    } catch (error) {
+      console.error("❌ Error sending message:", error);
+      // Remove failed message
+      setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
+      setNewMessage(messageText); // Restore message text
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const scrollToBottom = () => {
     setTimeout(() => {
       scrollViewRef.current?.scrollToEnd({ animated: true });
     }, 100);
@@ -68,6 +153,15 @@ export default function ChatScreen({ route }) {
     });
   };
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#2B6CB0" />
+        <Text style={styles.loadingText}>Loading chat...</Text>
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -79,21 +173,42 @@ export default function ChatScreen({ route }) {
         ref={scrollViewRef}
         style={styles.messagesContainer}
         contentContainerStyle={styles.messagesContent}
+        onContentSizeChange={scrollToBottom}
       >
-        {messages.map((message) => (
-          <View
-            key={message.id}
-            style={[
-              styles.messageBubble,
-              message.sender === "me" ? styles.myMessage : styles.theirMessage,
-            ]}
-          >
-            <Text style={styles.messageText}>{message.text}</Text>
-            <Text style={styles.messageTime}>
-              {formatTime(message.timestamp)}
-            </Text>
+        {messages.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No messages yet. Say hello! 👋</Text>
           </View>
-        ))}
+        ) : (
+          messages.map((message) => (
+            <View
+              key={message.id}
+              style={[
+                styles.messageBubble,
+                message.sender === "me"
+                  ? styles.myMessage
+                  : styles.theirMessage,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.messageText,
+                  message.sender === "me" && styles.myMessageText,
+                ]}
+              >
+                {message.text}
+              </Text>
+              <Text
+                style={[
+                  styles.messageTime,
+                  message.sender === "me" && styles.myMessageTime,
+                ]}
+              >
+                {formatTime(message.timestamp)}
+              </Text>
+            </View>
+          ))
+        )}
       </ScrollView>
 
       {/* Input */}
@@ -106,13 +221,20 @@ export default function ChatScreen({ route }) {
           style={styles.input}
           multiline
           maxLength={1000}
+          disabled={sending}
           right={
             <TextInput.Icon
-              icon={() => <Send size={24} color="#2B6CB0" />}
+              icon={() => (
+                <Send
+                  size={24}
+                  color={newMessage.trim() ? "#2B6CB0" : "#999"}
+                />
+              )}
               onPress={handleSend}
-              disabled={!newMessage.trim()}
+              disabled={!newMessage.trim() || sending}
             />
           }
+          onSubmitEditing={handleSend}
         />
       </View>
     </KeyboardAvoidingView>
@@ -124,12 +246,32 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F7FAFC",
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F7FAFC",
+  },
+  loadingText: {
+    marginTop: 16,
+    color: "#666",
+  },
   messagesContainer: {
     flex: 1,
   },
   messagesContent: {
     padding: 16,
     paddingBottom: 8,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  emptyText: {
+    color: "#999",
+    fontSize: 16,
   },
   messageBubble: {
     maxWidth: "75%",
@@ -151,11 +293,16 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: "#2d2d2d",
   },
+  myMessageText: {
+    color: "white",
+  },
   messageTime: {
     fontSize: 11,
     marginTop: 4,
-    opacity: 0.7,
     color: "#666",
+  },
+  myMessageTime: {
+    color: "rgba(255, 255, 255, 0.8)",
   },
   inputContainer: {
     padding: 12,

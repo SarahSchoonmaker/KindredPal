@@ -13,8 +13,9 @@ import {
   Button,
   IconButton,
   ActivityIndicator,
+  FAB,
 } from "react-native-paper";
-import { Heart, X } from "lucide-react-native";
+import { Heart, X, SlidersHorizontal } from "lucide-react-native";
 import { userAPI, swipeAPI } from "../services/api";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -26,7 +27,6 @@ export default function DiscoverScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const position = new Animated.ValueXY();
 
-  // Fetch real users from API
   useEffect(() => {
     fetchProfiles();
   }, []);
@@ -35,8 +35,13 @@ export default function DiscoverScreen({ navigation }) {
     try {
       console.log("📥 Fetching real users from API...");
       const response = await userAPI.getDiscover();
-      console.log("✅ Found", response.data.length, "users");
-      setProfiles(response.data);
+
+      const users = Array.isArray(response.data)
+        ? response.data
+        : response.data.users || [];
+
+      console.log("✅ Found", users.length, "users");
+      setProfiles(users);
     } catch (error) {
       console.error("❌ Error fetching profiles:", error);
       Alert.alert("Error", "Could not load profiles. Please try again.");
@@ -95,7 +100,6 @@ export default function DiscoverScreen({ navigation }) {
       console.log("❤️ Liked:", profile.name);
       const response = await swipeAPI.like(profile._id);
 
-      // Check if it's a match!
       if (response.data.match) {
         Alert.alert(
           "🎉 It's a Match!",
@@ -177,7 +181,6 @@ export default function DiscoverScreen({ navigation }) {
       );
     }
 
-    // Show next card behind current one
     return (
       <View key={profile._id} style={[styles.cardContainer, styles.nextCard]}>
         <Card style={styles.card}>
@@ -202,14 +205,25 @@ export default function DiscoverScreen({ navigation }) {
   if (currentIndex >= profiles.length) {
     return (
       <View style={styles.emptyContainer}>
+        <SlidersHorizontal size={64} color="#CBD5E0" />
         <Text variant="headlineMedium" style={styles.emptyTitle}>
-          That's everyone for now! 🎉
+          {profiles.length === 0 ? "No Matches Yet" : "That's Everyone!"}
         </Text>
         <Text variant="bodyLarge" style={styles.emptyText}>
-          Check back later for more matches
+          {profiles.length === 0
+            ? "Adjust your search preferences to find more people"
+            : "Check back later for more matches or adjust your preferences"}
         </Text>
         <Button
           mode="contained"
+          icon={() => <SlidersHorizontal size={20} color="white" />}
+          onPress={() => navigation.navigate("Preferences")}
+          style={styles.preferencesButton}
+        >
+          Search Preferences
+        </Button>
+        <Button
+          mode="outlined"
           onPress={() => {
             setCurrentIndex(0);
             fetchProfiles();
@@ -250,6 +264,14 @@ export default function DiscoverScreen({ navigation }) {
       <View style={styles.hint}>
         <Text style={styles.hintText}>← Swipe or tap buttons →</Text>
       </View>
+
+      {/* Preferences FAB */}
+      <FAB
+        icon={() => <SlidersHorizontal size={20} color="white" />}
+        style={styles.fab}
+        onPress={() => navigation.navigate("Preferences")}
+        color="white"
+      />
     </View>
   );
 }
@@ -278,6 +300,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     textAlign: "center",
+    marginTop: 24,
     marginBottom: 16,
     color: "#2B6CB0",
   },
@@ -285,9 +308,14 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 32,
     color: "#666",
+    paddingHorizontal: 20,
   },
   button: {
-    marginTop: 16,
+    marginTop: 12,
+  },
+  preferencesButton: {
+    backgroundColor: "#2B6CB0",
+    marginBottom: 12,
   },
   cardContainer: {
     position: "absolute",
@@ -370,5 +398,11 @@ const styles = StyleSheet.create({
   hintText: {
     color: "#999",
     fontSize: 14,
+  },
+  fab: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    backgroundColor: "#2B6CB0",
   },
 });

@@ -55,7 +55,6 @@ export default function EditProfileScreen({ navigation }) {
     "Apolitical",
     "Prefer not to say",
   ];
-
   const religionOptions = [
     "Christian",
     "Jewish",

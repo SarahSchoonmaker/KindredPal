@@ -4,6 +4,8 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { PaperProvider, MD3LightTheme } from "react-native-paper";
 import { Heart, MessageCircle, User, Home } from "lucide-react-native";
+import PreferencesScreen from "./src/screens/PreferencesScreen";
+import EditProfileScreen from "./src/screens/EditProfileScreen";
 
 // Screens
 import LoginScreen from "./src/screens/LoginScreen";
@@ -114,6 +116,24 @@ export default function App() {
             component={ChatScreen}
             options={{
               title: "Chat",
+              headerStyle: { backgroundColor: "#2B6CB0" },
+              headerTintColor: "#fff",
+            }}
+          />
+          <Stack.Screen
+            name="Preferences"
+            component={PreferencesScreen}
+            options={{
+              title: "Search Preferences",
+              headerStyle: { backgroundColor: "#2B6CB0" },
+              headerTintColor: "#fff",
+            }}
+          />
+          <Stack.Screen
+            name="EditProfile"
+            component={EditProfileScreen}
+            options={{
+              title: "Edit Profile",
               headerStyle: { backgroundColor: "#2B6CB0" },
               headerTintColor: "#fff",
             }}

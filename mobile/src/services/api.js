@@ -1,6 +1,7 @@
 import axios from "axios";
 
 const API_URL = "https://kindredpal-production.up.railway.app/api";
+
 const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -8,10 +9,11 @@ const api = axios.create({
   },
 });
 
-// Add token to requests
+// Add token to requests - FIXED for React Native
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
+    // React Native doesn't have localStorage, use global instead
+    const token = global.authToken;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -22,23 +24,35 @@ api.interceptors.request.use(
   },
 );
 
-// User API endpoints
+// Auth API
+export const authAPI = {
+  login: (email, password) => api.post("/auth/login", { email, password }),
+  signup: (userData) => api.post("/auth/signup", userData),
+  getProfile: () => api.get("/auth/profile"),
+};
+
+// User API
 export const userAPI = {
-  getDiscoverUsers: () => api.get("/users/discover"),
-  likeUser: (userId) => api.post(`/users/like/${userId}`),
-  passUser: (userId) => api.post(`/users/pass/${userId}`),
-  updateProfile: (data) => api.put("/users/profile", data),
+  // RENAMED to match DiscoverScreen
+  getDiscover: () => api.get("/users/discover"),
+  getProfile: (userId) => api.get(`/users/${userId}`),
   getMatches: () => api.get("/users/matches"),
-  getUserProfile: (userId) => api.get(`/users/profile/${userId}`),
+  updateProfile: (data) => api.put("/users/profile", data),
+  deleteAccount: () => api.delete("/users/account"),
   getLikesYou: () => api.get("/users/likes-you"),
+  getPreferences: () => api.get("/users/preferences"),
 
   updateNotificationSettings: (settings) =>
     api.put("/users/notification-settings", settings),
-
-  deleteAccount: () => api.delete("/users/account"),
 };
 
-// Message API endpoints
+// Swipe API - FIXED endpoints
+export const swipeAPI = {
+  like: (userId) => api.post("/users/like", { likedUserId: userId }),
+  pass: (userId) => api.post("/users/pass", { passedUserId: userId }),
+};
+
+// Message API
 export const messageAPI = {
   getConversations: () => api.get("/messages/conversations"),
   getMessages: (userId) => api.get(`/messages/${userId}`),
@@ -46,8 +60,6 @@ export const messageAPI = {
     api.post("/messages", { recipientId, content }),
   markAsRead: (messageId) => api.put(`/messages/${messageId}/read`),
   getUnreadCount: () => api.get("/messages/unread/count"),
-
-  // ADD THIS NEW METHOD:
   getUnreadCountForUser: (userId) =>
     api.get(`/messages/unread/count/${userId}`),
 };
