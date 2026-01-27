@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Camera, Edit2, Save, X, Trash2, Mail } from "lucide-react";
+import { Camera, Edit2, Save, X, Trash2, Mail, UserMinus } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { userAPI } from "../services/api";
+import api from "../services/api";
 import PhotoUpload from "../components/PhotoUpload";
 import "./Profile.css";
 
@@ -12,20 +13,20 @@ const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isMatch, setIsMatch] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     age: "",
     city: "",
     state: "",
     bio: "",
-    politicalBeliefs: [],
+    politicalBeliefs: "",
     religion: "",
     causes: [],
-    lifeStage: [],
-    lookingFor: [],
+    lifeStage: "",
+    lookingFor: "",
     profilePhoto: "",
     additionalPhotos: [],
-    // NEW: Email notification settings
     emailNotifications: {
       newMatch: true,
       newMessage: true,
@@ -33,27 +34,50 @@ const Profile = () => {
   });
 
   useEffect(() => {
-    if (user) {
-      setFormData({
-        name: user.name || "",
-        age: user.age || "",
-        city: user.city || "",
-        state: user.state || "",
-        bio: user.bio || "",
-        politicalBeliefs: user.politicalBeliefs || [],
-        religion: user.religion || "",
-        causes: user.causes || [],
-        lifeStage: user.lifeStage || [],
-        lookingFor: user.lookingFor || [],
-        profilePhoto: user.profilePhoto || "",
-        additionalPhotos: user.additionalPhotos || [],
-        emailNotifications: user.emailNotifications || {
-          newMatch: true,
-          newMessage: true,
-        },
-      });
-    }
+    const fetchUserData = async () => {
+      if (user) {
+        setFormData({
+          name: user.name || "",
+          age: user.age || "",
+          city: user.city || "",
+          state: user.state || "",
+          bio: user.bio || "",
+          politicalBeliefs: user.politicalBeliefs || "",
+          religion: user.religion || "",
+          causes: user.causes || [],
+          lifeStage: user.lifeStage || "",
+          lookingFor: user.lookingFor || "",
+          profilePhoto: user.profilePhoto || "",
+          additionalPhotos: user.additionalPhotos || [],
+          emailNotifications: user.emailNotifications || {
+            newMatch: true,
+            newMessage: true,
+          },
+        });
+      }
+    };
+
+    fetchUserData();
   }, [user]);
+
+  const handleUnmatch = async (userId, userName) => {
+    if (
+      !window.confirm(
+        `Are you sure you want to unmatch with ${userName}? This cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await api.post(`/users/unmatch/${userId}`);
+      alert("Unmatched successfully");
+      navigate("/matches");
+    } catch (error) {
+      console.error("Error unmatching:", error);
+      alert("Failed to unmatch");
+    }
+  };
 
   const handleSave = async () => {
     try {
@@ -113,26 +137,28 @@ const Profile = () => {
         {/* Header */}
         <div className="profile-header">
           <h1>My Profile</h1>
-          {!isEditing ? (
-            <button className="btn-edit" onClick={() => setIsEditing(true)}>
-              <Edit2 size={20} />
-              <span>Edit Profile</span>
-            </button>
-          ) : (
-            <div className="edit-actions">
-              <button className="btn-save" onClick={handleSave}>
-                <Save size={20} />
-                <span>Save</span>
+          <div className="header-actions">
+            {!isEditing ? (
+              <button className="btn-edit" onClick={() => setIsEditing(true)}>
+                <Edit2 size={20} />
+                <span>Edit Profile</span>
               </button>
-              <button
-                className="btn-cancel"
-                onClick={() => setIsEditing(false)}
-              >
-                <X size={20} />
-                <span>Cancel</span>
-              </button>
-            </div>
-          )}
+            ) : (
+              <div className="edit-actions">
+                <button className="btn-save" onClick={handleSave}>
+                  <Save size={20} />
+                  <span>Save</span>
+                </button>
+                <button
+                  className="btn-cancel"
+                  onClick={() => setIsEditing(false)}
+                >
+                  <X size={20} />
+                  <span>Cancel</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Profile Content */}
@@ -172,6 +198,7 @@ const Profile = () => {
               )}
             </div>
           </section>
+
           {/* Basic Info */}
           <section className="profile-section">
             <h2>Basic Information</h2>
@@ -237,8 +264,7 @@ const Profile = () => {
               </div>
             )}
           </section>
-          // Replace the Email Notifications section in your Profile.js with
-          this:
+
           {/* Email Notifications */}
           <section className="profile-section">
             <h2>
@@ -259,7 +285,6 @@ const Profile = () => {
                       const newValue = !formData.emailNotifications.newMatch;
                       handleEmailToggle("newMatch");
 
-                      // Auto-save when toggled
                       try {
                         const updated = {
                           ...formData.emailNotifications,
@@ -289,7 +314,6 @@ const Profile = () => {
                       const newValue = !formData.emailNotifications.newMessage;
                       handleEmailToggle("newMessage");
 
-                      // Auto-save when toggled
                       try {
                         const updated = {
                           ...formData.emailNotifications,
@@ -307,6 +331,7 @@ const Profile = () => {
               </div>
             </div>
           </section>
+
           {/* Values Section - Only show in view mode */}
           {!isEditing && (
             <>
@@ -317,8 +342,7 @@ const Profile = () => {
                     <strong>Religion:</strong> {user.religion}
                   </div>
                   <div className="value-item">
-                    <strong>Political Beliefs:</strong>{" "}
-                    {user.politicalBeliefs?.join(", ")}
+                    <strong>Political Beliefs:</strong> {user.politicalBeliefs}
                   </div>
                   <div className="value-item">
                     <strong>Causes I Care About:</strong>{" "}
@@ -330,26 +354,19 @@ const Profile = () => {
               <section className="profile-section">
                 <h2>Life Stage</h2>
                 <div className="tags-display">
-                  {user.lifeStage?.map((stage) => (
-                    <span key={stage} className="tag">
-                      {stage}
-                    </span>
-                  ))}
+                  <span className="tag">{user.lifeStage}</span>
                 </div>
               </section>
 
               <section className="profile-section">
                 <h2>Looking For</h2>
                 <div className="tags-display">
-                  {user.lookingFor?.map((goal) => (
-                    <span key={goal} className="tag">
-                      {goal}
-                    </span>
-                  ))}
+                  <span className="tag">{user.lookingFor}</span>
                 </div>
               </section>
             </>
           )}
+
           {/* Danger Zone */}
           <section className="profile-section danger-zone">
             <h2>

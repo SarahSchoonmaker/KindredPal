@@ -1,130 +1,399 @@
-/* Add these to your existing Discover.css */
+/* frontend/src/pages/Discover.css */
 
-/* Photo Carousel Navigation */
-.card-image-section {
-  position: relative;
-  height: 400px;
-  overflow: hidden;
+.discover-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%);
+  padding: 40px 20px;
 }
 
 .discover-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  max-width: 1100px;
-  margin: 0 auto 32px auto;
-  padding: 0 16px;
-}
-
-/* center version (used on empty state) */
-.discover-header--center {
-  justify-content: center;
   text-align: center;
+  margin-bottom: 40px;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
-.photo-nav {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  background: rgba(0, 0, 0, 0.5);
-  color: white;
-  border: none;
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
+.discover-header h1 {
+  font-size: 36px;
+  color: #1e3a8a;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.discover-header p {
+  font-size: 18px;
+  color: #475569;
+  margin-bottom: 16px;
+}
+
+.likes-remaining {
+  font-size: 16px;
+  color: #2b6cb0;
+  font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s;
-  z-index: 10;
+  gap: 6px;
 }
 
-.photo-nav:hover {
-  background: rgba(0, 0, 0, 0.7);
-  transform: translateY(-50%) scale(1.1);
+/* Loading and Empty States */
+.loading,
+.no-more-users {
+  text-align: center;
+  color: #475569;
+  font-size: 20px;
+  padding: 60px 20px;
+  max-width: 600px;
+  margin: 0 auto;
 }
 
-.photo-nav-prev {
-  left: 15px;
-}
-
-.photo-nav-next {
-  right: 15px;
-}
-
-/* Photo Indicators (Dots) */
-.photo-indicators {
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 8px;
-  z-index: 10;
-}
-
-.photo-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.5);
-  border: none;
-  cursor: pointer;
-  transition: all 0.3s;
-  padding: 0;
-}
-
-.photo-dot:hover {
-  background: rgba(255, 255, 255, 0.8);
-  transform: scale(1.2);
-}
-
-.photo-dot.active {
+.no-more-users {
   background: white;
-  width: 12px;
-  height: 12px;
+  border-radius: 16px;
+  padding: 60px 40px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-/* Photo Counter */
-.photo-counter {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  background: rgba(0, 0, 0, 0.6);
-  color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  z-index: 10;
+.no-more-users h2 {
+  font-size: 28px;
+  color: #1e3a8a;
+  margin-bottom: 16px;
 }
 
-/* Image transitions */
-.card-image {
+/* Users Grid */
+.users-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Small User Cards */
+.user-card-small {
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  border: 2px solid transparent;
+}
+
+.user-card-small:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 32px rgba(43, 108, 176, 0.2);
+  border-color: #2b6cb0;
+}
+
+/* Card Image */
+.card-image-small {
+  position: relative;
+  height: 300px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);
+}
+
+.card-image-small img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: opacity 0.3s ease-in-out;
+  transition: transform 0.3s;
 }
 
-/* Mobile adjustments */
+.user-card-small:hover .card-image-small img {
+  transform: scale(1.05);
+}
+
+.match-badge {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: linear-gradient(135deg, #2b6cb0 0%, #3b82f6 100%);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 24px;
+  font-weight: 700;
+  font-size: 14px;
+  box-shadow: 0 4px 12px rgba(43, 108, 176, 0.4);
+}
+
+/* Card Info */
+.card-info-small {
+  padding: 20px;
+  flex: 1;
+}
+
+.card-info-small h3 {
+  font-size: 22px;
+  color: #1e3a8a;
+  margin: 0 0 8px 0;
+  font-weight: 700;
+}
+
+.location-small {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.location-small svg {
+  flex-shrink: 0;
+  color: #2b6cb0;
+}
+
+.bio-preview {
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+.tags-small {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-small {
+  background: linear-gradient(135deg, #dbeafe 0%, #e0f2fe 100%);
+  color: #1e40af;
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid #bfdbfe;
+}
+
+/* Card Actions */
+.card-actions-small {
+  display: flex;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 2px solid #f1f5f9;
+  background: #f8fafc;
+}
+
+.action-btn-small {
+  flex: 1;
+  height: 52px;
+  border-radius: 12px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.action-btn-small:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.action-btn-small:active {
+  transform: translateY(0);
+}
+
+.action-btn-small:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.pass-btn {
+  background: white;
+  color: #64748b;
+  border: 2px solid #e2e8f0;
+}
+
+.pass-btn:hover:not(:disabled) {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #475569;
+}
+
+.like-btn {
+  background: linear-gradient(135deg, #2b6cb0 0%, #3b82f6 100%);
+  color: white;
+  border: 2px solid #2b6cb0;
+}
+
+.like-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #1e4d7a 0%, #2563eb 100%);
+  border-color: #1e4d7a;
+}
+
+/* Match Modal */
+.match-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.match-modal {
+  background: white;
+  border-radius: 24px;
+  padding: 48px;
+  max-width: 500px;
+  width: 90%;
+  text-align: center;
+  animation: slideUp 0.4s;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.match-modal h2 {
+  font-size: 32px;
+  color: #1e3a8a;
+  margin-bottom: 16px;
+  font-weight: 700;
+}
+
+.match-modal p {
+  font-size: 18px;
+  color: #64748b;
+  margin-bottom: 32px;
+}
+
+.match-users {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 32px;
+}
+
+.match-user {
+  text-align: center;
+}
+
+.match-user-photo {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid #2b6cb0;
+  margin-bottom: 12px;
+  box-shadow: 0 8px 24px rgba(43, 108, 176, 0.3);
+}
+
+.match-user-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1e3a8a;
+}
+
+.match-modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.btn-primary,
+.btn-secondary {
+  padding: 16px 32px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #2b6cb0 0%, #3b82f6 100%);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #1e4d7a 0%, #2563eb 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(43, 108, 176, 0.4);
+}
+
+.btn-secondary {
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 2px solid #e2e8f0;
+}
+
+.btn-secondary:hover {
+  background-color: #e2e8f0;
+  border-color: #cbd5e1;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
-  .photo-nav {
-    width: 40px;
-    height: 40px;
+  .discover-page {
+    padding: 20px 10px;
   }
 
-  .photo-nav-prev {
-    left: 10px;
+  .users-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    padding: 0 10px;
   }
 
-  .photo-nav-next {
-    right: 10px;
+  .discover-header h1 {
+    font-size: 28px;
   }
 
-  .photo-counter {
-    font-size: 0.75rem;
-    padding: 0.4rem 0.8rem;
+  .discover-header p {
+    font-size: 16px;
+  }
+
+  .card-image-small {
+    height: 260px;
+  }
+
+  .match-user-photo {
+    width: 120px;
+    height: 120px;
+  }
+
+  .match-modal {
+    padding: 32px 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .users-grid {
+    grid-template-columns: 1fr;
   }
 }

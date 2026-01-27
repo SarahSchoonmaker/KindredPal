@@ -16,6 +16,8 @@ import Messages from "./pages/Messages";
 import Profile from "./pages/Profile";
 import LikesYou from "./pages/LikesYou";
 import UserProfile from "./pages/UserProfile";
+import MeetupsPage from "./pages/MeetupsPage";
+import MeetupDetailsPage from "./pages/MeetupDetailsPage";
 
 import "./App.css";
 
@@ -82,6 +84,8 @@ function AppRoutes() {
           <Route path="matches" element={<Matches />} />
           <Route path="messages" element={<Messages />} />
           <Route path="messages/:userId" element={<Messages />} />
+          <Route path="meetups" element={<MeetupsPage />} />
+          <Route path="meetups/:meetupId" element={<MeetupDetailsPage />} />
           <Route path="profile" element={<Profile />} />
           <Route path="profile/:userId" element={<UserProfile />} />
         </Route>

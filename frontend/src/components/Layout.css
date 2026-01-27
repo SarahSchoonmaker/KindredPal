@@ -121,6 +121,29 @@
   animation: pulse 2s infinite;
 }
 
+/* Make Meetups button special */
+.meetups-link {
+  background: linear-gradient(135deg, #2b6cb0 0%, #68a57d 100%);
+  color: white !important;
+  border-radius: 8px;
+  padding: 8px 16px;
+  transition: all 0.3s;
+}
+
+.meetups-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(43, 108, 176, 0.4);
+}
+
+.meetups-link.active {
+  background: linear-gradient(135deg, #1e4d7a 0%, #558964 100%);
+}
+
+.meetups-link svg,
+.meetups-link span {
+  color: white !important;
+}
+
 /* Pulse animation for badge */
 @keyframes pulse {
   0%,

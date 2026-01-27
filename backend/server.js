@@ -8,6 +8,7 @@ const { Server } = require("socket.io");
 const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/users");
 const messageRoutes = require("./routes/messages");
+const meetupRoutes = require("./routes/meetups");
 
 const app = express();
 const server = http.createServer(app);
@@ -17,6 +18,8 @@ const io = new Server(server, {
     methods: ["GET", "POST"],
   },
 });
+
+app.use("/api/meetups", meetupRoutes);
 
 // Middleware
 app.use(cors());

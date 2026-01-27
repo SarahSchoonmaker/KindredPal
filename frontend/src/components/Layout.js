@@ -8,6 +8,7 @@ import {
   LogOut,
   Home,
   Heart,
+  Calendar,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import "./Layout.css";
@@ -59,6 +60,10 @@ const Layout = () => {
               )}
             </div>
             <span>Messages</span>
+          </NavLink>
+          <NavLink to="/meetups" className="app-nav-link meetups-link">
+            <Calendar size={20} />
+            <span>Meetups</span>
           </NavLink>
           <NavLink to="/profile" className="app-nav-link">
             <User size={20} />

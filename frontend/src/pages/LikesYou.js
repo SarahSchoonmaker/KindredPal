@@ -1,206 +1,168 @@
+// frontend/src/pages/LikesYou.jsx
 import React, { useState, useEffect } from "react";
+import { Users, UserPlus, MapPin, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Heart, MapPin, Sparkles } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
-import { userAPI } from "../services/api";
+import api from "../services/api";
 import "./LikesYou.css";
 
-const LikesYou = () => {
+function LikesYou() {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [likesYou, setLikesYou] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [dailyLikes, setDailyLikes] = useState(10);
+  const [dailyLikesRemaining, setDailyLikesRemaining] = useState(10);
 
   useEffect(() => {
-    loadLikesYou();
+    fetchLikesYou();
   }, []);
 
-  const loadLikesYou = async () => {
+  const fetchLikesYou = async () => {
     try {
-      const response = await userAPI.getLikesYou();
-      setLikesYou(response.data.users);
-      setDailyLikes(response.data.dailyLikesRemaining);
+      const response = await api.get("/users/likes-you");
+      setUsers(response.data.users || []);
+      setDailyLikesRemaining(response.data.dailyLikesRemaining);
     } catch (error) {
-      console.error("Error loading likes:", error);
+      console.error("Error fetching likes:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLikeBack = async (userId) => {
-    if (dailyLikes <= 0) {
-      alert(
-        "You've reached your daily like limit. Upgrade to premium for unlimited likes!",
-      );
-      return;
-    }
+  const handleLike = async (userId, e) => {
+    e.stopPropagation();
 
     try {
-      const response = await userAPI.likeUser(userId);
-      setDailyLikes(response.data.dailyLikesRemaining);
-
-      if (response.data.isMatch) {
-        // Show success and redirect to messages
-        alert(
-          `It's a Match! You can now message ${response.data.matchedUser.name}`,
-        );
-        navigate(`/messages/${userId}`);
-      } else {
-        // Remove from likes you list
-        setLikesYou((prev) => prev.filter((u) => u._id !== userId));
-      }
+      await api.post(`/users/like/${userId}`);
+      setUsers((prev) => prev.filter((u) => u._id !== userId));
     } catch (error) {
-      console.error("Error liking back:", error);
+      console.error("Error liking user:", error);
+      alert(error.response?.data?.message || "Error connecting");
     }
   };
 
-  const handlePass = async (userId) => {
+  const handlePass = async (userId, e) => {
+    e.stopPropagation();
+
     try {
-      await userAPI.passUser(userId);
-      // Remove from list
-      setLikesYou((prev) => prev.filter((u) => u._id !== userId));
+      await api.post(`/users/pass/${userId}`);
+      setUsers((prev) => prev.filter((u) => u._id !== userId));
     } catch (error) {
-      console.error("Error passing:", error);
+      console.error("Error passing user:", error);
     }
   };
 
-  const viewProfile = (userId) => {
+  const handleCardClick = (userId) => {
     navigate(`/profile/${userId}`);
   };
 
   if (loading) {
     return (
       <div className="likes-you-page">
-        <div className="loading-spinner">
-          <div className="spinner"></div>
-          <p>Loading your admirers...</p>
-        </div>
+        <div className="loading">Loading...</div>
       </div>
     );
   }
 
   return (
     <div className="likes-you-page">
-      {/* Header */}
       <div className="likes-you-header">
-        <div>
-          <h1>
-            <Sparkles size={32} />
-            People Who Like You
-          </h1>
-          <p className="subtitle">
-            {likesYou.length > 0
-              ? `${likesYou.length} ${likesYou.length === 1 ? "person" : "people"} interested in connecting with you!`
-              : "No one has liked you yet. Keep browsing!"}
+        <Users size={40} />
+        <h1>People Who Like You</h1>
+        {users.length === 0 ? (
+          <p>No one has liked you yet. Keep browsing!</p>
+        ) : (
+          <p>
+            {users.length} {users.length === 1 ? "person" : "people"} interested
+            in connecting
           </p>
-        </div>
-        <div className="likes-badge">
-          <Heart size={18} fill="#fff" />
-          <span>{dailyLikes} likes left today</span>
-        </div>
+        )}
       </div>
 
-      {/* Empty State */}
-      {likesYou.length === 0 ? (
+      {users.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-icon">💝</div>
+          <div className="empty-icon">
+            <UserPlus size={80} strokeWidth={1.5} />
+          </div>
           <h2>No Likes Yet</h2>
           <p>When someone likes you, they'll appear here.</p>
-          <p>Keep updating your profile and browsing to get noticed!</p>
-          <button className="btn-primary" onClick={() => navigate("/discover")}>
+          <p className="empty-tip">
+            Keep updating your profile and browsing to get noticed!
+          </p>
+          <button
+            className="btn-discover"
+            onClick={() => navigate("/discover")}
+          >
             Go to Discover
           </button>
         </div>
       ) : (
-        /* Grid of People */
-        <div className="likes-grid">
-          {likesYou.map((person) => (
-            <div key={person._id} className="like-card">
-              {/* Profile Image */}
-              <div
-                className="like-card-image"
-                onClick={() => viewProfile(person._id)}
-              >
-                <img src={person.profilePhoto} alt={person.name} />
-                <div className="match-badge-small">
-                  {person.matchScore}% Match
-                </div>
+        <div className="users-grid">
+          {users.map((user) => (
+            <div
+              key={user._id}
+              className="user-card-small"
+              onClick={() => handleCardClick(user._id)}
+            >
+              <div className="card-image-small">
+                <img src={user.profilePhoto} alt={user.name} />
+                <div className="match-badge">{user.matchScore}% Match</div>
               </div>
 
-              {/* Info */}
-              <div className="like-card-content">
-                <h3 className="person-name">
-                  {person.name}, {person.age}
+              <div className="card-info-small">
+                <h3>
+                  {user.name}, {user.age}
                 </h3>
-                <div className="person-location">
+                <div className="location-small">
                   <MapPin size={14} />
                   <span>
-                    {person.city}, {person.state}
+                    {user.city}, {user.state}
                   </span>
                 </div>
 
-                {/* Bio Preview */}
-                <p className="bio-preview">
-                  {person.bio.length > 80
-                    ? `${person.bio.substring(0, 80)}...`
-                    : person.bio}
-                </p>
+                {user.bio && (
+                  <p className="bio-preview">{user.bio.substring(0, 100)}...</p>
+                )}
 
-                {/* Life Stage Tags */}
-                {person.lifeStage && person.lifeStage.length > 0 && (
-                  <div className="tags-preview">
-                    {person.lifeStage.slice(0, 2).map((stage) => (
-                      <span key={stage} className="tag-small">
-                        {stage}
+                {user.causes && user.causes.length > 0 && (
+                  <div className="tags-small">
+                    {user.causes.slice(0, 2).map((cause, idx) => (
+                      <span key={idx} className="tag-small">
+                        {cause}
                       </span>
                     ))}
-                    {person.lifeStage.length > 2 && (
+                    {user.causes.length > 2 && (
                       <span className="tag-small">
-                        +{person.lifeStage.length - 2}
+                        +{user.causes.length - 2} more
                       </span>
                     )}
                   </div>
                 )}
+              </div>
 
-                {/* Action Buttons */}
-                <div className="like-card-actions">
-                  <button
-                    className="btn-pass"
-                    onClick={() => handlePass(person._id)}
-                    title="Not interested"
-                  >
-                    Pass
-                  </button>
-                  <button
-                    className="btn-like-back"
-                    onClick={() => handleLikeBack(person._id)}
-                    disabled={dailyLikes <= 0}
-                    title="Like them back"
-                  >
-                    <Heart size={18} />
-                    Like Back
-                  </button>
-                </div>
+              <div className="card-actions-small">
+                <button
+                  className="action-btn-small pass-btn"
+                  onClick={(e) => handlePass(user._id, e)}
+                  title="Pass"
+                >
+                  <X size={20} />
+                  Pass
+                </button>
+                <button
+                  className="action-btn-small like-btn"
+                  onClick={(e) => handleLike(user._id, e)}
+                  disabled={dailyLikesRemaining <= 0}
+                  title="Connect Back"
+                >
+                  <UserPlus size={20} />
+                  Connect
+                </button>
               </div>
             </div>
           ))}
         </div>
       )}
-
-      {/* Upgrade CTA (if free user) */}
-      {/* {!user?.isPremium && likesYou.length > 0 && (
-        <div className="upgrade-cta">
-          <h3>Want to see more?</h3>
-          <p>
-            Upgrade to Premium to see everyone who likes you and get unlimited
-            likes!
-          </p>
-          <button className="btn-upgrade">Upgrade to Premium</button>
-        </div>
-      )} */}
     </div>
   );
-};
+}
 
 export default LikesYou;

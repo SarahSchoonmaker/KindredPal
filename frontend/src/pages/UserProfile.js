@@ -1,29 +1,61 @@
+// frontend/src/pages/UserProfile.jsx
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, MessageCircle } from "lucide-react";
-import { userAPI } from "../services/api";
+import { MapPin, MessageCircle, UserMinus, ArrowLeft } from "lucide-react";
+import api from "../services/api";
 import "./UserProfile.css";
 
-const UserProfile = () => {
+function UserProfile() {
   const { userId } = useParams();
   const navigate = useNavigate();
-  const [profile, setProfile] = useState(null);
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isMatch, setIsMatch] = useState(false);
 
   useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        const response = await userAPI.getUserProfile(userId);
-        setProfile(response.data);
-      } catch (error) {
-        console.error("Error loading profile:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadProfile();
+    fetchUserProfile();
+    checkIfMatch();
   }, [userId]);
+
+  const fetchUserProfile = async () => {
+    try {
+      const response = await api.get(`/users/${userId}`);
+      setUser(response.data);
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const checkIfMatch = async () => {
+    try {
+      const response = await api.get("/users/matches");
+      const matches = response.data;
+      setIsMatch(matches.some((match) => match._id === userId));
+    } catch (error) {
+      console.error("Error checking match status:", error);
+    }
+  };
+
+  const handleUnmatch = async () => {
+    if (
+      !window.confirm(
+        `Are you sure you want to unmatch with ${user.name}? This cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await api.post(`/users/unmatch/${userId}`);
+      alert("Unmatched successfully");
+      navigate("/matches");
+    } catch (error) {
+      console.error("Error unmatching:", error);
+      alert("Failed to unmatch");
+    }
+  };
 
   const handleMessage = () => {
     navigate(`/messages/${userId}`);
@@ -31,156 +63,149 @@ const UserProfile = () => {
 
   if (loading) {
     return (
-      <div className="user-profile-container">
+      <div className="user-profile-page">
         <div className="loading">Loading profile...</div>
       </div>
     );
   }
 
-  if (!profile) {
+  if (!user) {
     return (
-      <div className="user-profile-container">
-        <div className="error">Profile not found</div>
+      <div className="user-profile-page">
+        <div className="error">User not found</div>
       </div>
     );
   }
 
   return (
-    <div className="user-profile-container">
-      <div className="profile-wrapper">
-        {/* Header with Back Button */}
-        <div className="profile-top-bar">
-          <button className="back-btn" onClick={() => navigate(-1)}>
-            <ArrowLeft size={20} />
-            <span>Back</span>
-          </button>
-          <button className="message-btn" onClick={handleMessage}>
-            <MessageCircle size={20} />
-            <span>Message</span>
-          </button>
-        </div>
+    <div className="user-profile-page">
+      <button className="back-btn" onClick={() => navigate(-1)}>
+        <ArrowLeft size={20} />
+        Back
+      </button>
 
-        {/* Profile Card */}
-        <div className="user-profile-card">
-          {/* Hero Section with Photo */}
-          <div className="profile-hero">
-            <img
-              src={profile.profilePhoto}
-              alt={profile.name}
-              className="profile-hero-image"
-            />
-            <div className="profile-hero-overlay">
-              <h1>
-                {profile.name}, {profile.age}
-              </h1>
-              <div className="profile-location">
-                <MapPin size={18} />
-                <span>
-                  {profile.city}, {profile.state}
-                </span>
-              </div>
+      <div className="profile-container">
+        {/* Profile Header */}
+        <div className="profile-header-section">
+          <img
+            src={user.profilePhoto}
+            alt={user.name}
+            className="profile-photo"
+          />
+          <div className="profile-header-info">
+            <h1>
+              {user.name}, {user.age}
+            </h1>
+            <div className="location">
+              <MapPin size={18} />
+              <span>
+                {user.city}, {user.state}
+              </span>
             </div>
           </div>
+        </div>
 
-          {/* Profile Content */}
-          <div className="profile-content">
-            {/* Bio */}
-            <section className="profile-section">
-              <h3 className="section-title">About</h3>
-              <p className="bio-text">{profile.bio}</p>
-            </section>
+        {/* Message Button Only */}
+        {isMatch && (
+          <div className="action-buttons">
+            <button className="btn-message" onClick={handleMessage}>
+              <MessageCircle size={20} />
+              Send Message
+            </button>
+          </div>
+        )}
 
-            {/* Photo Gallery */}
-            {profile.additionalPhotos &&
-              profile.additionalPhotos.length > 0 && (
-                <section className="profile-section">
-                  <h3 className="section-title">Photos</h3>
-                  <div className="photo-gallery">
-                    {profile.additionalPhotos.map((photo, index) => (
-                      <div key={index} className="photo-gallery-item">
-                        <img src={photo} alt={`${profile.name} ${index + 1}`} />
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )}
+        {/* Bio */}
+        {user.bio && (
+          <section className="profile-section">
+            <h2>About</h2>
+            <p className="bio">{user.bio}</p>
+          </section>
+        )}
 
-            {/* Life Stage */}
-            {profile.lifeStage && profile.lifeStage.length > 0 && (
-              <section className="profile-section">
-                <h3 className="section-title">Life Stage</h3>
-                <div className="tags-container">
-                  {profile.lifeStage.map((stage) => (
-                    <span key={stage} className="tag tag-blue">
-                      {stage}
-                    </span>
-                  ))}
-                </div>
-              </section>
-            )}
+        {/* Causes */}
+        {user.causes && user.causes.length > 0 && (
+          <section className="profile-section">
+            <h2>Causes I Care About</h2>
+            <div className="tags">
+              {user.causes.map((cause, index) => (
+                <span key={index} className="tag">
+                  {cause}
+                </span>
+              ))}
+            </div>
+          </section>
+        )}
 
-            {/* Looking For */}
-            {profile.lookingFor && profile.lookingFor.length > 0 && (
-              <section className="profile-section">
-                <h3 className="section-title">Looking For</h3>
-                <div className="tags-container">
-                  {profile.lookingFor.map((goal) => (
-                    <span key={goal} className="tag tag-green">
-                      {goal}
-                    </span>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Values & Beliefs */}
-            <section className="profile-section">
-              <h3 className="section-title">Values & Beliefs</h3>
-              <div className="values-grid">
-                {profile.religion && (
-                  <div className="value-item">
-                    <span className="value-label">Religion</span>
-                    <span className="value-text">{profile.religion}</span>
-                  </div>
-                )}
-                {profile.politicalBeliefs &&
-                  profile.politicalBeliefs.length > 0 && (
-                    <div className="value-item">
-                      <span className="value-label">Political Beliefs</span>
-                      <span className="value-text">
-                        {profile.politicalBeliefs.join(", ")}
-                      </span>
-                    </div>
-                  )}
+        {/* Values */}
+        <section className="profile-section">
+          <h2>My Values</h2>
+          <div className="values-grid">
+            {user.religion && (
+              <div className="value-item">
+                <strong>Religion:</strong>
+                <span>{user.religion}</span>
               </div>
-            </section>
-
-            {/* Causes */}
-            {profile.causes && profile.causes.length > 0 && (
-              <section className="profile-section">
-                <h3 className="section-title">Passionate About</h3>
-                <div className="tags-container">
-                  {profile.causes.map((cause) => (
-                    <span key={cause} className="tag tag-accent">
-                      {cause}
-                    </span>
-                  ))}
-                </div>
-              </section>
             )}
+            {user.politicalBeliefs && (
+              <div className="value-item">
+                <strong>Political Beliefs:</strong>
+                <span>{user.politicalBeliefs}</span>
+              </div>
+            )}
+            {user.lifeStage && (
+              <div className="value-item">
+                <strong>Life Stage:</strong>
+                <span>{user.lifeStage}</span>
+              </div>
+            )}
+            {user.lookingFor && (
+              <div className="value-item">
+                <strong>Looking For:</strong>
+                <span>{user.lookingFor}</span>
+              </div>
+            )}
+          </div>
+        </section>
 
-            {/* Action Button */}
-            <div className="profile-actions">
-              <button className="btn-message-large" onClick={handleMessage}>
-                <MessageCircle size={20} />
-                Send Message
+        {/* Additional Photos */}
+        {user.additionalPhotos && user.additionalPhotos.length > 0 && (
+          <section className="profile-section">
+            <h2>More Photos</h2>
+            <div className="additional-photos">
+              {user.additionalPhotos.map((photo, index) => (
+                <img
+                  key={index}
+                  src={photo}
+                  alt={`${user.name} ${index + 1}`}
+                  className="additional-photo"
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Unmatch Section at Bottom */}
+        {isMatch && (
+          <section className="unmatch-section">
+            <div className="unmatch-content">
+              <div className="unmatch-info">
+                <strong>Unmatch with {user.name}?</strong>
+                <p>
+                  This will permanently remove your connection. You won't be
+                  able to message each other anymore.
+                </p>
+              </div>
+              <button className="btn-unmatch-bottom" onClick={handleUnmatch}>
+                <UserMinus size={20} />
+                Unmatch
               </button>
             </div>
-          </div>
-        </div>
+          </section>
+        )}
       </div>
     </div>
   );
-};
+}
 
 export default UserProfile;

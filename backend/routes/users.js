@@ -54,6 +54,139 @@ router.get("/discover", auth, async (req, res) => {
   }
 });
 
+// Get matches
+router.get("/matches", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId).populate(
+      "matches",
+      "-password",
+    );
+    res.json(user.matches);
+  } catch (error) {
+    console.error("Get matches error:", error);
+    res.status(500).json({ message: "Error fetching matches" });
+  }
+});
+
+// Get users who liked you
+router.get("/likes-you", auth, async (req, res) => {
+  try {
+    console.log("📥 Getting users who liked:", req.userId);
+
+    const currentUser = await User.findById(req.userId);
+    if (!currentUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Reset daily likes if needed
+    currentUser.resetDailyLikesIfNeeded();
+    await currentUser.save();
+
+    // Find users who liked you (but you haven't liked back yet)
+    const usersWhoLikedYou = await User.find({
+      likes: currentUser._id, // They have you in their likes
+      _id: {
+        $nin: [
+          ...currentUser.likes, // Exclude users you already liked
+          ...currentUser.matches, // Exclude existing matches
+          ...currentUser.passed, // Exclude users you passed on
+        ],
+      },
+    }).select("-password");
+
+    console.log("✅ Found", usersWhoLikedYou.length, "users who liked you");
+
+    // Calculate match scores
+    const usersWithScores = usersWhoLikedYou.map((user) => ({
+      ...user.toObject(),
+      matchScore: currentUser.calculateMatchScore(user),
+    }));
+
+    // Sort by match score
+    usersWithScores.sort((a, b) => b.matchScore - a.matchScore);
+
+    res.json({
+      users: usersWithScores,
+      dailyLikesRemaining: currentUser.dailyLikes.count,
+    });
+  } catch (error) {
+    console.error("❌ Get likes you error:", error);
+    res.status(500).json({ message: "Error fetching likes" });
+  }
+});
+
+// Get search preferences
+router.get("/preferences", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId);
+    res.json({
+      searchPreferences: user.searchPreferences || {
+        ageRange: { min: 35, max: 55 },
+        maxDistance: 50,
+        lifeStage: [],
+        politics: [],
+        religion: [],
+        lookingFor: "either",
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Get another user's profile (for viewing matches)
+router.get("/profile/:userId", auth, async (req, res) => {
+  try {
+    console.log("📥 Getting profile for user:", req.params.userId);
+
+    const currentUser = await User.findById(req.userId);
+    const targetUser = await User.findById(req.params.userId).select(
+      "-password",
+    );
+
+    if (!targetUser) {
+      console.log("❌ Target user not found");
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Check if they're matched (only allow viewing matched profiles)
+    const isMatch = currentUser.matches.includes(targetUser._id);
+
+    if (!isMatch) {
+      console.log("❌ Not matched - access denied");
+      return res
+        .status(403)
+        .json({ message: "You can only view profiles of your matches" });
+    }
+
+    console.log("✅ Returning profile for:", targetUser.name);
+
+    res.json(targetUser.toObject());
+  } catch (error) {
+    console.error("❌ Get user profile error:", error);
+    res.status(500).json({ message: "Error fetching profile" });
+  }
+});
+
+// Get user by ID (for viewing profiles) - MUST BE AFTER SPECIFIC ROUTES
+router.get("/:userId", auth, async (req, res) => {
+  try {
+    console.log("📥 Getting user by ID:", req.params.userId);
+
+    const user = await User.findById(req.params.userId).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    console.log("✅ Returning user:", user.name);
+    res.json(user);
+  } catch (error) {
+    console.error("❌ Error fetching user:", error);
+    res.status(500).json({ message: "Error fetching user" });
+  }
+});
+
 // Like a user
 router.post("/like/:userId", auth, async (req, res) => {
   try {
@@ -132,10 +265,56 @@ router.post("/pass/:userId", auth, async (req, res) => {
   }
 });
 
-// Update profile
-// In backend/routes/users.js
-// Make sure this is in your profile update route:
+// Unmatch with a user
+router.post("/unmatch/:userId", auth, async (req, res) => {
+  try {
+    const currentUser = await User.findById(req.userId);
+    const targetUser = await User.findById(req.params.userId);
 
+    if (!targetUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Check if they are matched
+    if (!currentUser.matches.includes(targetUser._id)) {
+      return res.status(400).json({ message: "Not matched with this user" });
+    }
+
+    // Remove from both users' matches
+    currentUser.matches = currentUser.matches.filter(
+      (id) => !id.equals(targetUser._id),
+    );
+    targetUser.matches = targetUser.matches.filter(
+      (id) => !id.equals(currentUser._id),
+    );
+
+    // Also remove from likes if present
+    currentUser.likes = currentUser.likes.filter(
+      (id) => !id.equals(targetUser._id),
+    );
+    targetUser.likes = targetUser.likes.filter(
+      (id) => !id.equals(currentUser._id),
+    );
+
+    await currentUser.save();
+    await targetUser.save();
+
+    console.log("✅ Unmatched:", currentUser.name, "and", targetUser.name);
+
+    res.json({
+      message: "Successfully unmatched",
+      unmatchedUser: {
+        _id: targetUser._id,
+        name: targetUser.name,
+      },
+    });
+  } catch (error) {
+    console.error("Unmatch error:", error);
+    res.status(500).json({ message: "Error unmatching user" });
+  }
+});
+
+// Update profile
 router.put("/profile", auth, async (req, res) => {
   try {
     console.log("📥 Profile update request");
@@ -154,8 +333,8 @@ router.put("/profile", auth, async (req, res) => {
       "causes",
       "lifeStage",
       "lookingFor",
-      "profilePhoto", // ← MAKE SURE THESE ARE HERE
-      "additionalPhotos", // ← MAKE SURE THESE ARE HERE
+      "profilePhoto",
+      "additionalPhotos",
     ];
 
     const updates = {};
@@ -201,103 +380,6 @@ router.put("/profile", auth, async (req, res) => {
     });
   }
 });
-
-// Get matches
-router.get("/matches", auth, async (req, res) => {
-  try {
-    const user = await User.findById(req.userId).populate(
-      "matches",
-      "-password",
-    );
-    res.json(user.matches);
-  } catch (error) {
-    console.error("Get matches error:", error);
-    res.status(500).json({ message: "Error fetching matches" });
-  }
-});
-
-// Get users who liked you
-router.get("/likes-you", auth, async (req, res) => {
-  try {
-    console.log("📥 Getting users who liked:", req.userId);
-
-    const currentUser = await User.findById(req.userId);
-    if (!currentUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    // Reset daily likes if needed
-    currentUser.resetDailyLikesIfNeeded();
-    await currentUser.save();
-
-    // Find users who liked you (but you haven't liked back yet)
-    const usersWhoLikedYou = await User.find({
-      likes: currentUser._id, // They have you in their likes
-      _id: {
-        $nin: [
-          ...currentUser.likes, // Exclude users you already liked
-          ...currentUser.matches, // Exclude existing matches
-          ...currentUser.passed, // Exclude users you passed on
-        ],
-      },
-    }).select("-password");
-
-    console.log("✅ Found", usersWhoLikedYou.length, "users who liked you");
-
-    // Calculate match scores
-    const usersWithScores = usersWhoLikedYou.map((user) => ({
-      ...user.toObject(),
-      matchScore: currentUser.calculateMatchScore(user),
-    }));
-
-    // Sort by match score
-    usersWithScores.sort((a, b) => b.matchScore - a.matchScore);
-
-    res.json({
-      users: usersWithScores,
-      dailyLikesRemaining: currentUser.dailyLikes.count,
-    });
-  } catch (error) {
-    console.error("❌ Get likes you error:", error);
-    res.status(500).json({ message: "Error fetching likes" });
-  }
-});
-
-// Get another user's profile (for viewing matches)
-router.get("/profile/:userId", auth, async (req, res) => {
-  try {
-    console.log("📥 Getting profile for user:", req.params.userId);
-
-    const currentUser = await User.findById(req.userId);
-    const targetUser = await User.findById(req.params.userId).select(
-      "-password",
-    );
-
-    if (!targetUser) {
-      console.log("❌ Target user not found");
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    // Check if they're matched (only allow viewing matched profiles)
-    const isMatch = currentUser.matches.includes(targetUser._id);
-
-    if (!isMatch) {
-      console.log("❌ Not matched - access denied");
-      return res
-        .status(403)
-        .json({ message: "You can only view profiles of your matches" });
-    }
-
-    console.log("✅ Returning profile for:", targetUser.name);
-
-    res.json(targetUser.toObject());
-  } catch (error) {
-    console.error("❌ Get user profile error:", error);
-    res.status(500).json({ message: "Error fetching profile" });
-  }
-});
-
-// Add these routes to backend/routes/users.js
 
 // Update notification settings
 router.put("/notification-settings", auth, async (req, res) => {
