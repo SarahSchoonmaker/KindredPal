@@ -490,34 +490,18 @@ userSchema.methods.calculateMatchScore = function (otherUser) {
   return totalWeight > 0 ? Math.round((score / totalWeight) * 100) : 0;
 };
 
-// Reset daily likes if 24 hours have passed
-userSchema.methods.resetDailyLikesIfNeeded = function () {
-  if (this.hasUnlimitedLikes()) {
-    this.dailyLikes.count = 999;
-    return;
-  }
-
-  const now = new Date();
-  const lastReset = new Date(this.dailyLikes.lastReset);
-  const hoursSinceReset = (now - lastReset) / (1000 * 60 * 60);
-
-  if (hoursSinceReset >= 24) {
-    this.dailyLikes.count = 10;
-    this.dailyLikes.lastReset = now;
-  }
-};
-
 // Remove sensitive data from JSON response
 userSchema.methods.toJSON = function () {
   const user = this.toObject();
   delete user.password;
-  delete user.subscription.stripeCustomerId;
-  delete user.subscription.stripeSubscriptionId;
+
+  // Safely delete stripe data if subscription exists
+  if (user.subscription) {
+    delete user.subscription.stripeCustomerId;
+    delete user.subscription.stripeSubscriptionId;
+  }
+
   return user;
 };
-
-// Add to backend/routes/users.js (at the end before module.exports)
-
-// Unmatch with a user
 
 module.exports = mongoose.model("User", userSchema);

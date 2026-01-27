@@ -12,6 +12,7 @@ import {
   UserMinus,
 } from "lucide-react";
 import api from "../services/api";
+import EditMeetupModal from "../components/EditMeetupModal";
 import "./MeetupDetailsPage.css";
 
 function MeetupDetailsPage() {
@@ -20,6 +21,7 @@ function MeetupDetailsPage() {
   const [meetup, setMeetup] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
     fetchMeetupDetails();
@@ -73,6 +75,10 @@ function MeetupDetailsPage() {
       console.error("Error unmatching:", error);
       alert("Failed to unmatch");
     }
+  };
+
+  const handleEdit = () => {
+    setShowEditModal(true);
   };
 
   const handleDelete = async () => {
@@ -157,7 +163,7 @@ function MeetupDetailsPage() {
 
           {isCreator && (
             <div className="creator-actions">
-              <button className="btn-icon" title="Edit">
+              <button className="btn-icon" title="Edit" onClick={handleEdit}>
                 <Edit size={20} />
               </button>
               <button
@@ -360,6 +366,18 @@ function MeetupDetailsPage() {
           </div>
         </div>
       </div>
+
+      {/* Edit Modal - MOVED INSIDE THE RETURN */}
+      {showEditModal && (
+        <EditMeetupModal
+          meetup={meetup}
+          onClose={() => setShowEditModal(false)}
+          onUpdate={() => {
+            setShowEditModal(false);
+            fetchMeetupDetails();
+          }}
+        />
+      )}
     </div>
   );
 }

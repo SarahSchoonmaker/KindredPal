@@ -3,7 +3,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { PaperProvider, MD3LightTheme } from "react-native-paper";
-import { Heart, MessageCircle, User, Home } from "lucide-react-native";
+import { Heart, MessageCircle, User, Calendar } from "lucide-react-native";
 import PreferencesScreen from "./src/screens/PreferencesScreen";
 import EditProfileScreen from "./src/screens/EditProfileScreen";
 
@@ -14,6 +14,8 @@ import DiscoverScreen from "./src/screens/DiscoverScreen";
 import MessagesScreen from "./src/screens/MessagesScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
 import ChatScreen from "./src/screens/ChatScreen";
+import MeetupsScreen from "./src/screens/MeetupsScreen";
+import MeetupDetailsScreen from "./src/screens/MeetupsDetailScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -67,6 +69,16 @@ function MainTabs() {
           tabBarLabel: "Messages",
           tabBarIcon: ({ color, size }) => (
             <MessageCircle color={color} size={size} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Meetups"
+        component={MeetupsScreen}
+        options={{
+          tabBarLabel: "Meetups",
+          tabBarIcon: ({ color, size }) => (
+            <Calendar color={color} size={size} />
           ),
         }}
       />
@@ -134,6 +146,15 @@ export default function App() {
             component={EditProfileScreen}
             options={{
               title: "Edit Profile",
+              headerStyle: { backgroundColor: "#2B6CB0" },
+              headerTintColor: "#fff",
+            }}
+          />
+          <Stack.Screen
+            name="MeetupDetails"
+            component={MeetupDetailsScreen}
+            options={{
+              title: "Meetup Details",
               headerStyle: { backgroundColor: "#2B6CB0" },
               headerTintColor: "#fff",
             }}

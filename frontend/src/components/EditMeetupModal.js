@@ -1,24 +1,23 @@
-// frontend/src/components/CreateMeetupModal.jsx
 import React, { useState, useEffect } from "react";
 import { X, Calendar, MapPin, Users, Tag } from "lucide-react";
 import api from "../services/api";
-import "./CreateMeetupModal.css";
+import "./CreateMeetupModal.css"; // Reuse the same styles
 
-function CreateMeetupModal({ onClose, onCreate }) {
+function EditMeetupModal({ meetup, onClose, onUpdate }) {
   const [matches, setMatches] = useState([]);
   const [formData, setFormData] = useState({
-    title: "",
-    description: "",
+    title: meetup.title || "",
+    description: meetup.description || "",
     location: {
-      address: "",
-      city: "",
-      state: "",
+      address: meetup.location?.address || "",
+      city: meetup.location?.city || "",
+      state: meetup.location?.state || "",
     },
-    dateTime: "",
-    invitedUsers: [],
-    maxAttendees: "",
-    isPrivate: false,
-    tags: [],
+    dateTime: meetup.dateTime
+      ? new Date(meetup.dateTime).toISOString().slice(0, 16)
+      : "",
+    invitedUsers: meetup.invitedUsers?.map((u) => u._id || u) || [],
+    maxAttendees: meetup.maxAttendees || "",
   });
   const [selectAll, setSelectAll] = useState(false);
 
@@ -36,7 +35,7 @@ function CreateMeetupModal({ onClose, onCreate }) {
   };
 
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value } = e.target;
 
     if (name.includes(".")) {
       const [parent, child] = name.split(".");
@@ -50,7 +49,7 @@ function CreateMeetupModal({ onClose, onCreate }) {
     } else {
       setFormData((prev) => ({
         ...prev,
-        [name]: type === "checkbox" ? checked : value,
+        [name]: value,
       }));
     }
   };
@@ -76,7 +75,7 @@ function CreateMeetupModal({ onClose, onCreate }) {
     setSelectAll(!selectAll);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (formData.invitedUsers.length === 0) {
@@ -84,13 +83,12 @@ function CreateMeetupModal({ onClose, onCreate }) {
       return;
     }
 
-    // Clean up location - only include fields that have values
+    // Clean up location
     const location = {};
     if (formData.location.address) location.address = formData.location.address;
     if (formData.location.city) location.city = formData.location.city;
     if (formData.location.state) location.state = formData.location.state;
 
-    // Build the meetup data
     const meetupData = {
       title: formData.title,
       description: formData.description || "",
@@ -98,18 +96,22 @@ function CreateMeetupModal({ onClose, onCreate }) {
       invitedUsers: formData.invitedUsers,
     };
 
-    // Only add location if at least one field has a value
     if (Object.keys(location).length > 0) {
       meetupData.location = location;
     }
 
-    // Only add maxAttendees if it's set
     if (formData.maxAttendees) {
       meetupData.maxAttendees = parseInt(formData.maxAttendees);
     }
 
-    console.log("📤 Submitting meetup:", meetupData);
-    onCreate(meetupData);
+    try {
+      console.log("Updating meetup:", meetupData);
+      await api.put(`/meetups/${meetup._id}`, meetupData);
+      onUpdate();
+    } catch (error) {
+      console.error("Error updating meetup:", error);
+      alert(error.response?.data?.message || "Failed to update meetup");
+    }
   };
 
   return (
@@ -119,14 +121,13 @@ function CreateMeetupModal({ onClose, onCreate }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
-          <h2>Create Meetup</h2>
+          <h2>Edit Meetup</h2>
           <button className="close-btn" onClick={onClose}>
             <X size={24} />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="meetup-form">
-          {/* Basic Info */}
           <div className="form-section">
             <label>
               <Tag size={18} />
@@ -153,7 +154,6 @@ function CreateMeetupModal({ onClose, onCreate }) {
             />
           </div>
 
-          {/* Date & Time */}
           <div className="form-section">
             <label>
               <Calendar size={18} />
@@ -168,7 +168,6 @@ function CreateMeetupModal({ onClose, onCreate }) {
             />
           </div>
 
-          {/* Location */}
           <div className="form-section">
             <label>
               <MapPin size={18} />
@@ -199,7 +198,6 @@ function CreateMeetupModal({ onClose, onCreate }) {
             </div>
           </div>
 
-          {/* Guest List */}
           <div className="form-section">
             <div className="section-header">
               <label>
@@ -252,7 +250,6 @@ function CreateMeetupModal({ onClose, onCreate }) {
             </div>
           </div>
 
-          {/* Settings */}
           <div className="form-section">
             <label>Max Attendees (optional)</label>
             <input
@@ -265,25 +262,12 @@ function CreateMeetupModal({ onClose, onCreate }) {
             />
           </div>
 
-          <div className="form-section">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                name="isPrivate"
-                checked={formData.isPrivate}
-                onChange={handleChange}
-              />
-              <span>Private meetup (invite only)</span>
-            </label>
-          </div>
-
-          {/* Actions */}
           <div className="modal-actions">
             <button type="button" className="btn-secondary" onClick={onClose}>
               Cancel
             </button>
             <button type="submit" className="btn-primary">
-              Create Meetup
+              Update Meetup
             </button>
           </div>
         </form>
@@ -292,4 +276,4 @@ function CreateMeetupModal({ onClose, onCreate }) {
   );
 }
 
-export default CreateMeetupModal;
+export default EditMeetupModal;

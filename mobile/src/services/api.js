@@ -1,4 +1,5 @@
 import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const API_URL = "https://kindredpal-production.up.railway.app/api";
 
@@ -9,17 +10,21 @@ const api = axios.create({
   },
 });
 
-// Add token to requests - FIXED for React Native
+// Add token to requests using AsyncStorage
 api.interceptors.request.use(
-  (config) => {
-    // React Native doesn't have localStorage, use global instead
-    const token = global.authToken;
+  async (config) => {
+    console.log("🔧 Interceptor: Getting token...");
+    const token = await AsyncStorage.getItem("token");
+    console.log("🔧 Token retrieved:", token ? "EXISTS" : "NULL");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log("🔧 Authorization header set");
     }
+    console.log("🔧 Making request to:", config.url);
     return config;
   },
   (error) => {
+    console.error("🔧 Interceptor error:", error);
     return Promise.reject(error);
   },
 );
@@ -33,7 +38,6 @@ export const authAPI = {
 
 // User API
 export const userAPI = {
-  // RENAMED to match DiscoverScreen
   getDiscover: () => api.get("/users/discover"),
   getProfile: (userId) => api.get(`/users/${userId}`),
   getMatches: () => api.get("/users/matches"),
@@ -41,12 +45,11 @@ export const userAPI = {
   deleteAccount: () => api.delete("/users/account"),
   getLikesYou: () => api.get("/users/likes-you"),
   getPreferences: () => api.get("/users/preferences"),
-
   updateNotificationSettings: (settings) =>
     api.put("/users/notification-settings", settings),
 };
 
-// Swipe API - FIXED endpoints
+// Swipe API
 export const swipeAPI = {
   like: (userId) => api.post("/users/like", { likedUserId: userId }),
   pass: (userId) => api.post("/users/pass", { passedUserId: userId }),
@@ -62,6 +65,16 @@ export const messageAPI = {
   getUnreadCount: () => api.get("/messages/unread/count"),
   getUnreadCountForUser: (userId) =>
     api.get(`/messages/unread/count/${userId}`),
+};
+
+// Meetups API - ADD THIS
+export const meetupsAPI = {
+  getMeetups: () => api.get("/meetups"),
+  getMeetup: (meetupId) => api.get(`/meetups/${meetupId}`),
+  createMeetup: (data) => api.post("/meetups", data),
+  updateMeetup: (meetupId, data) => api.put(`/meetups/${meetupId}`, data),
+  deleteMeetup: (meetupId) => api.delete(`/meetups/${meetupId}`),
+  rsvp: (meetupId, status) => api.post(`/meetups/${meetupId}/rsvp`, { status }),
 };
 
 export default api;

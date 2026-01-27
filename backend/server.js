@@ -11,22 +11,23 @@ const messageRoutes = require("./routes/messages");
 const meetupRoutes = require("./routes/meetups");
 
 const app = express();
+
+// ⭐ CRITICAL: CORS and express.json MUST come FIRST
+app.use(cors());
+app.use(express.json());
+
+// THEN create server and socket.io
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: process.env.CLIENT_URL || "http://localhost:3000",
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
   },
 });
 
-app.use("/api/meetups", meetupRoutes);
-
-// Middleware
-app.use(cors());
-app.use(express.json());
-
 // Socket.io connection handling
-const userSockets = new Map(); // userId -> socketId
+const userSockets = new Map();
 
 io.on("connection", (socket) => {
   console.log("🔌 Socket connected:", socket.id);
@@ -48,7 +49,7 @@ io.on("connection", (socket) => {
   });
 });
 
-// ✅ CRITICAL: Make io and userSockets available to routes
+// Make io and userSockets available to routes
 app.set("io", io);
 app.set("userSockets", userSockets);
 
@@ -56,19 +57,12 @@ app.set("userSockets", userSockets);
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/meetups", meetupRoutes);
 
 // Health check
 app.get("/", (req, res) => {
   res.json({ message: "KindredPal API is running" });
 });
-
-console.log("MONGODB_URI loaded?", Boolean(process.env.MONGODB_URI));
-if (!process.env.MONGODB_URI) {
-  console.log(
-    "ENV KEYS:",
-    Object.keys(process.env).filter((k) => k.includes("MONGO")),
-  );
-}
 
 // MongoDB connection
 mongoose

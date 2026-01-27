@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { View, StyleSheet, ScrollView, Image } from "react-native";
 import { Text, TextInput, Button, Card } from "react-native-paper";
 import { authAPI } from "../services/api";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
@@ -9,30 +10,41 @@ export default function LoginScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "Please enter email and password");
-      return;
-    }
-
     setLoading(true);
     try {
       console.log("🔐 Logging in:", email);
       const response = await authAPI.login(email, password);
 
-      if (response.data.token) {
-        // IMPORTANT: Store token BEFORE navigating
-        global.authToken = response.data.token;
-        console.log("✅ Login successful! Token saved.");
+      console.log("📦 Full response:", JSON.stringify(response.data, null, 2));
 
-        // Navigate to main app
-        navigation.replace("MainTabs");
+      const token = response.data.token;
+      const user = response.data.user;
+
+      console.log("🎫 Token:", token);
+      console.log("👤 User object:", JSON.stringify(user, null, 2));
+
+      // Check if user and id exist (it's "id" not "_id")
+      if (!user || !user.id) {
+        throw new Error("Invalid response: missing user ID");
       }
+
+      const userId = user.id; // <-- CHANGED from user._id to user.id
+
+      // Save to AsyncStorage
+      await AsyncStorage.setItem("token", token);
+      await AsyncStorage.setItem("userId", userId);
+
+      console.log("✅ Login successful! Token and userId saved.");
+      console.log("👤 User ID:", userId);
+
+      navigation.replace("MainTabs");
     } catch (error) {
       console.error("❌ Login error:", error);
-      Alert.alert(
-        "Login Failed",
-        error.response?.data?.message || "Invalid email or password",
-      );
+      console.error("❌ Error response:", error.response?.data);
+
+      const message =
+        error.response?.data?.message || error.message || "Invalid credentials";
+      Alert.alert("Login Failed", message);
     } finally {
       setLoading(false);
     }

@@ -13,10 +13,6 @@ router.get("/discover", auth, async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Reset daily likes if needed
-    currentUser.resetDailyLikesIfNeeded();
-    await currentUser.save();
-
     // Get users to exclude
     const excludeIds = [
       req.userId, // Exclude self
@@ -46,7 +42,6 @@ router.get("/discover", auth, async (req, res) => {
 
     res.json({
       users: usersWithScores,
-      dailyLikesRemaining: currentUser.dailyLikes.count,
     });
   } catch (error) {
     console.error("Discover users error:", error);
@@ -78,10 +73,6 @@ router.get("/likes-you", auth, async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Reset daily likes if needed
-    currentUser.resetDailyLikesIfNeeded();
-    await currentUser.save();
-
     // Find users who liked you (but you haven't liked back yet)
     const usersWhoLikedYou = await User.find({
       likes: currentUser._id, // They have you in their likes
@@ -107,7 +98,6 @@ router.get("/likes-you", auth, async (req, res) => {
 
     res.json({
       users: usersWithScores,
-      dailyLikesRemaining: currentUser.dailyLikes.count,
     });
   } catch (error) {
     console.error("❌ Get likes you error:", error);
@@ -204,11 +194,6 @@ router.post("/like/:userId", auth, async (req, res) => {
         dailyLikesRemaining: currentUser.dailyLikes.count,
         isMatch: false,
       });
-    }
-
-    // Check daily likes limit
-    if (currentUser.dailyLikes.count <= 0 && !currentUser.hasUnlimitedLikes()) {
-      return res.status(400).json({ message: "Daily like limit reached" });
     }
 
     // Add like

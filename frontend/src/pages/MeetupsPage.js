@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Plus, Calendar, MapPin, Users, Clock } from "lucide-react";
 import api from "../services/api";
-import CreateMeetupModal from "../components/CreateMeetupModal";
+import CreateMeetupModal from "../components/CreateMeetupModal"; // UNCOMMENT THIS
 import "./MeetupsPage.css";
 
 function MeetupsPage() {
@@ -171,6 +171,7 @@ function MeetupsPage() {
         </div>
       )}
 
+      {/* ADD THIS MODAL */}
       {showCreateModal && (
         <CreateMeetupModal
           onClose={() => setShowCreateModal(false)}
