@@ -8,6 +8,7 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  timeout: 10000, // Add 10 second timeout
 });
 
 // Add token to requests using AsyncStorage
@@ -20,13 +21,29 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
       console.log("🔧 Authorization header set");
     }
-    console.log("🔧 Making request to:", config.url);
+    console.log("🔧 Making request to:", config.baseURL + config.url);
     return config;
   },
   (error) => {
     console.error("🔧 Interceptor error:", error);
     return Promise.reject(error);
   },
+);
+
+// Add response interceptor for debugging
+api.interceptors.response.use(
+  (response) => {
+    console.log("✅ Response received from:", response.config.url);
+    console.log("✅ Status:", response.status);
+    return response;
+  },
+  (error) => {
+    console.error("❌ Response error:", error.message);
+    console.error("❌ Request URL:", error.config?.url);
+    console.error("❌ Response status:", error.response?.status);
+    console.error("❌ Response data:", error.response?.data);
+    return Promise.reject(error);
+  }
 );
 
 // Auth API
@@ -67,7 +84,7 @@ export const messageAPI = {
     api.get(`/messages/unread/count/${userId}`),
 };
 
-// Meetups API - ADD THIS
+// Meetups API
 export const meetupsAPI = {
   getMeetups: () => api.get("/meetups"),
   getMeetup: (meetupId) => api.get(`/meetups/${meetupId}`),

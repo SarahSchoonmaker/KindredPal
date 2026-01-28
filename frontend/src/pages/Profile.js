@@ -20,11 +20,11 @@ const Profile = () => {
     city: "",
     state: "",
     bio: "",
-    politicalBeliefs: "",
+    politicalBeliefs: [],
     religion: "",
     causes: [],
-    lifeStage: "",
-    lookingFor: "",
+    lifeStage: [],
+    lookingFor: [],
     profilePhoto: "",
     additionalPhotos: [],
     emailNotifications: {
@@ -42,11 +42,11 @@ const Profile = () => {
           city: user.city || "",
           state: user.state || "",
           bio: user.bio || "",
-          politicalBeliefs: user.politicalBeliefs || "",
+          politicalBeliefs: user.politicalBeliefs || [],
           religion: user.religion || "",
           causes: user.causes || [],
-          lifeStage: user.lifeStage || "",
-          lookingFor: user.lookingFor || "",
+          lifeStage: user.lifeStage || [],
+          lookingFor: user.lookingFor || [],
           profilePhoto: user.profilePhoto || "",
           additionalPhotos: user.additionalPhotos || [],
           emailNotifications: user.emailNotifications || {
@@ -265,6 +265,182 @@ const Profile = () => {
             )}
           </section>
 
+          {/* Values & Preferences - Only show in edit mode */}
+          {isEditing && (
+            <>
+              <section className="profile-section">
+                <h2>Political Beliefs</h2>
+                <div className="form-field">
+                  <select
+                    name="politicalBeliefs"
+                    value={formData.politicalBeliefs[0] || ""}
+                    onChange={(e) => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        politicalBeliefs: [e.target.value],
+                      }));
+                    }}
+                  >
+                    <option value="">Select...</option>
+                    <option value="Liberal">Liberal</option>
+                    <option value="Moderate">Moderate</option>
+                    <option value="Conservative">Conservative</option>
+                    <option value="Libertarian">Libertarian</option>
+                    <option value="Prefer not to say">Prefer not to say</option>
+                  </select>
+                </div>
+              </section>
+
+              <section className="profile-section">
+                <h2>Religion</h2>
+                <div className="form-field">
+                  <select
+                    name="religion"
+                    value={formData.religion}
+                    onChange={handleChange}
+                  >
+                    <option value="">Select...</option>
+                    <option value="Christian">Christian</option>
+                    <option value="Jewish">Jewish</option>
+                    <option value="Muslim">Muslim</option>
+                    <option value="Hindu">Hindu</option>
+                    <option value="Buddhist">Buddhist</option>
+                    <option value="Spiritual">Spiritual</option>
+                    <option value="Agnostic">Agnostic</option>
+                    <option value="Atheist">Atheist</option>
+                    <option value="Prefer not to say">Prefer not to say</option>
+                  </select>
+                </div>
+              </section>
+
+              <section className="profile-section">
+                <h2>Life Stage</h2>
+                <div className="form-field">
+                  <select
+                    name="lifeStage"
+                    value={formData.lifeStage[0] || ""}
+                    onChange={(e) => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        lifeStage: [e.target.value],
+                      }));
+                    }}
+                  >
+                    <option value="">Select...</option>
+                    <option value="Single">Single</option>
+                    <option value="In a Relationship">In a Relationship</option>
+                    <option value="Engaged">Engaged</option>
+                    <option value="Married">Married</option>
+                    <option value="Divorced">Divorced</option>
+                    <option value="Widowed">Widowed</option>
+                    <option value="Single Parent">Single Parent</option>
+                    <option value="Have Children">Have Children</option>
+                    <option value="Child-free by Choice">
+                      Child-free by Choice
+                    </option>
+                    <option value="Want Children Someday">
+                      Want Children Someday
+                    </option>
+                    <option value="Empty Nester">Empty Nester</option>
+                    <option value="Stay-at-Home Parent">
+                      Stay-at-Home Parent
+                    </option>
+                    <option value="Caregiver">Caregiver</option>
+                    <option value="College Student">College Student</option>
+                    <option value="Graduate Student">Graduate Student</option>
+                    <option value="Recent Graduate">Recent Graduate</option>
+                    <option value="Working Professional">
+                      Working Professional
+                    </option>
+                    <option value="Career Focused">Career Focused</option>
+                    <option value="Entrepreneur">Entrepreneur</option>
+                    <option value="Career Transition">Career Transition</option>
+                    <option value="Retired">Retired</option>
+                    <option value="Semi-Retired">Semi-Retired</option>
+                    <option value="Single Income No Kids (SINK)">
+                      Single Income No Kids (SINK)
+                    </option>
+                    <option value="Dual-Income No Kids (DINK)">
+                      Dual-Income No Kids (DINK)
+                    </option>
+                  </select>
+                </div>
+              </section>
+
+              <section className="profile-section">
+                <h2>Looking For</h2>
+                <div className="form-field">
+                  <select
+                    name="lookingFor"
+                    value={formData.lookingFor[0] || ""}
+                    onChange={(e) => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        lookingFor: [e.target.value],
+                      }));
+                    }}
+                  >
+                    <option value="">Select...</option>
+                    <option value="Friendship">Friendship</option>
+                    <option value="Romance">Romance</option>
+                    <option value="Networking">Networking</option>
+                    <option value="Activity Partner">Activity Partner</option>
+                    <option value="Mentor">Mentor</option>
+                    <option value="Community">Community</option>
+                  </select>
+                </div>
+              </section>
+
+              <section className="profile-section">
+                <h2>Causes & Interests</h2>
+                <p className="section-subtitle">
+                  Select up to 5 causes you care about
+                </p>
+                <div className="causes-checkboxes">
+                  {[
+                    "Environment",
+                    "Travel & Adventure",
+                    "Health & Wellness",
+                    "Healthcare & Medical Causes",
+                    "Education & Continuous Learning",
+                    "Arts & Culture",
+                    "Community Service",
+                    "Animal Welfare",
+                    "Social Justice",
+                    "Technology & Innovation",
+                    "Entrepreneurship",
+                    "Fitness & Active Living",
+                    "Skilled Trades & Craftsmanship",
+                    "Ministry",
+                    "Psychology & Mental Health",
+                    "Philosophy",
+                  ].map((cause) => (
+                    <label key={cause} className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={formData.causes.includes(cause)}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setFormData((prev) => ({
+                            ...prev,
+                            causes: checked
+                              ? [...prev.causes, cause]
+                              : prev.causes.filter((c) => c !== cause),
+                          }));
+                        }}
+                        disabled={
+                          !formData.causes.includes(cause) &&
+                          formData.causes.length >= 5
+                        }
+                      />
+                      {cause}
+                    </label>
+                  ))}
+                </div>
+              </section>
+            </>
+          )}
+
           {/* Email Notifications */}
           <section className="profile-section">
             <h2>
@@ -342,7 +518,10 @@ const Profile = () => {
                     <strong>Religion:</strong> {user.religion}
                   </div>
                   <div className="value-item">
-                    <strong>Political Beliefs:</strong> {user.politicalBeliefs}
+                    <strong>Political Beliefs:</strong>{" "}
+                    {Array.isArray(user.politicalBeliefs)
+                      ? user.politicalBeliefs.join(", ")
+                      : user.politicalBeliefs}
                   </div>
                   <div className="value-item">
                     <strong>Causes I Care About:</strong>{" "}
@@ -354,14 +533,22 @@ const Profile = () => {
               <section className="profile-section">
                 <h2>Life Stage</h2>
                 <div className="tags-display">
-                  <span className="tag">{user.lifeStage}</span>
+                  <span className="tag">
+                    {Array.isArray(user.lifeStage)
+                      ? user.lifeStage.join(", ")
+                      : user.lifeStage}
+                  </span>
                 </div>
               </section>
 
               <section className="profile-section">
                 <h2>Looking For</h2>
                 <div className="tags-display">
-                  <span className="tag">{user.lookingFor}</span>
+                  <span className="tag">
+                    {Array.isArray(user.lookingFor)
+                      ? user.lookingFor.join(", ")
+                      : user.lookingFor}
+                  </span>
                 </div>
               </section>
             </>

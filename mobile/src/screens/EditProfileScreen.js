@@ -38,22 +38,31 @@ export default function EditProfileScreen({ navigation }) {
   const causeOptions = [
     "Environment",
     "Health & Wellness",
-    "Education",
+    "Healthcare & Medical Causes",
+    "Education & Continuous Learning",
     "Arts & Culture",
     "Community Service",
     "Animal Welfare",
     "Social Justice",
-    "Technology",
+    "Technology & Innovation",
     "Entrepreneurship",
-    "Fitness",
+    "Fitness & Active Living",
+    "Skilled Trades & Craftsmanship",
+    "Ministry",
+    "Psychology & Mental Health",
+    "Philosophy",
   ];
 
   const politicalOptions = [
     "Liberal",
-    "Moderate",
     "Conservative",
+    "Republican",
+    "Democrat",
+    "Libertarian",
+    "Moderate",
+    "Progressive",
+    "Independent",
     "Apolitical",
-    "Prefer not to say",
   ];
   const religionOptions = [
     "Christian",
@@ -70,9 +79,18 @@ export default function EditProfileScreen({ navigation }) {
     "Single",
     "Divorced",
     "Widowed",
+    "Single Parent",
+    "Married",
+    "Engaged",
     "Empty Nester",
     "Retired",
     "Career Focused",
+    "Single Income No Kids (SINK)",
+    "Dual-Income No Kids (DINK)",
+    "College or Graduate Student",
+    "Recent Graduate",
+    "Career Transition",
+    "Caregiver",
   ];
   const lookingForOptions = ["Friendship", "Dating", "Either"];
 

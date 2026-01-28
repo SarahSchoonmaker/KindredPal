@@ -299,14 +299,58 @@ router.post("/unmatch/:userId", auth, async (req, res) => {
   }
 });
 
-// Update profile
+// Profile update route
 router.put("/profile", auth, async (req, res) => {
   try {
-    console.log("📥 Profile update request");
-    console.log("Request body keys:", Object.keys(req.body));
-    console.log("Has profilePhoto:", !!req.body.profilePhoto);
-    console.log("Has additionalPhotos:", !!req.body.additionalPhotos);
+    const updates = req.body;
 
+    console.log("📝 Profile update request from user:", req.userId);
+
+    // ✅ MIGRATION: Replace old enum values with new ones
+    if (updates.causes && Array.isArray(updates.causes)) {
+      updates.causes = updates.causes.map((cause) => {
+        // Causes migrations
+        if (cause === "Education") return "Education & Continuous Learning";
+        if (cause === "Fitness") return "Fitness & Active Living";
+        if (cause === "Technology") return "Technology & Innovation";
+        return cause;
+      });
+    }
+
+    if (updates.politicalBeliefs && Array.isArray(updates.politicalBeliefs)) {
+      updates.politicalBeliefs = updates.politicalBeliefs.map((belief) => {
+        // Political beliefs migrations
+        if (belief === "Apolitical") return "Prefer not to say";
+        return belief;
+      });
+    }
+
+    if (updates.lifeStage && Array.isArray(updates.lifeStage)) {
+      updates.lifeStage = updates.lifeStage.map((stage) => {
+        // Life stage migrations (if any old values exist)
+        if (stage === "Single, no kids") return "Single";
+        if (stage === "Single with kids") return "Single Parent";
+        return stage;
+      });
+    }
+
+    if (updates.lookingFor && Array.isArray(updates.lookingFor)) {
+      updates.lookingFor = updates.lookingFor.map((looking) => {
+        // Looking for migrations
+        if (looking === "Dating") return "Romance";
+        if (looking === "Either") return "Community";
+        return looking;
+      });
+    }
+
+    if (updates.religion) {
+      // Religion migrations
+      if (updates.religion === "Spiritual but not religious") {
+        updates.religion = "Spiritual";
+      }
+    }
+
+    // Allowed fields to update
     const allowedUpdates = [
       "name",
       "age",
@@ -322,46 +366,34 @@ router.put("/profile", auth, async (req, res) => {
       "additionalPhotos",
     ];
 
-    const updates = {};
-    Object.keys(req.body).forEach((key) => {
+    // Filter to only allowed updates
+    const filteredUpdates = {};
+    Object.keys(updates).forEach((key) => {
       if (allowedUpdates.includes(key)) {
-        updates[key] = req.body[key];
+        filteredUpdates[key] = updates[key];
       }
     });
 
-    console.log("✅ Allowed updates:", {
-      ...updates,
-      profilePhoto: updates.profilePhoto
-        ? `${updates.profilePhoto.substring(0, 30)}... (length: ${updates.profilePhoto.length})`
-        : "none",
-      additionalPhotos: updates.additionalPhotos
-        ? `${updates.additionalPhotos.length} photos`
-        : "none",
-    });
+    console.log("✅ Allowed updates:", filteredUpdates);
 
-    const user = await User.findByIdAndUpdate(
-      req.userId,
-      { $set: updates },
-      { new: true, runValidators: true },
-    ).select("-password");
+    // Update user
+    const user = await User.findByIdAndUpdate(req.userId, filteredUpdates, {
+      new: true,
+      runValidators: true,
+    }).select("-password");
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    console.log("✅ Profile updated successfully");
-    console.log("User now has:", {
-      profilePhoto: user.profilePhoto
-        ? `${user.profilePhoto.substring(0, 30)}...`
-        : "none",
-      additionalPhotos: user.additionalPhotos?.length || 0,
-    });
+    console.log("✅ Profile updated successfully for:", user.email);
 
     res.json(user);
   } catch (error) {
     console.error("❌ Profile update error:", error);
     res.status(500).json({
-      message: error.message || "Error updating profile",
+      message: "Error updating profile",
+      error: error.message,
     });
   }
 });

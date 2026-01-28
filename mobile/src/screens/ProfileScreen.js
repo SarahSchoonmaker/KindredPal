@@ -1,120 +1,69 @@
 import React, { useState, useEffect } from "react";
 import {
   View,
+  Text,
   StyleSheet,
   ScrollView,
-  Alert,
-  Image,
   TouchableOpacity,
+  Image,
+  Alert,
 } from "react-native";
+import { Button, Card, Avatar, IconButton } from "react-native-paper";
 import {
-  Text,
-  TextInput,
-  Button,
-  ActivityIndicator,
-  Chip,
-} from "react-native-paper";
-import { Camera, X } from "lucide-react-native";
+  User,
+  MapPin,
+  Heart,
+  Calendar,
+  Edit,
+  Camera,
+  Star,
+  Trash2,
+} from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
-import { authAPI, userAPI } from "../services/api";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import api from "../services/api";
 
-export default function EditProfileScreen({ navigation }) {
+export default function ProfileScreen({ navigation }) {
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [profile, setProfile] = useState({
-    name: "",
-    age: "",
-    city: "",
-    state: "",
-    bio: "",
-    politicalBeliefs: "",
-    religion: "",
-    causes: [],
-    lifeStage: "",
-    lookingFor: "",
-    profilePhoto: "",
-  });
-
-  const causeOptions = [
-    "Environment",
-    "Health & Wellness",
-    "Education",
-    "Arts & Culture",
-    "Community Service",
-    "Animal Welfare",
-    "Social Justice",
-    "Technology",
-    "Entrepreneurship",
-    "Fitness",
-  ];
-
-  const politicalOptions = [
-    "Liberal",
-    "Moderate",
-    "Conservative",
-    "Apolitical",
-    "Prefer not to say",
-  ];
-
-  const religionOptions = [
-    "Christian",
-    "Jewish",
-    "Muslim",
-    "Hindu",
-    "Buddhist",
-    "Spiritual",
-    "Agnostic",
-    "Atheist",
-    "Prefer not to say",
-  ];
-  const lifeStageOptions = [
-    "Single",
-    "Divorced",
-    "Widowed",
-    "Empty Nester",
-    "Retired",
-    "Career Focused",
-  ];
-  const lookingForOptions = ["Friendship", "Dating", "Either"];
+  const [photos, setPhotos] = useState([]);
 
   useEffect(() => {
     fetchProfile();
-    requestPermissions();
   }, []);
-
-  const requestPermissions = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Permission needed", "Please allow access to your photos");
-    }
-  };
 
   const fetchProfile = async () => {
     try {
-      const response = await authAPI.getProfile();
-      const userData = response.data.user || response.data;
-      setProfile({
-        name: userData.name || "",
-        age: String(userData.age || ""),
-        city: userData.city || "",
-        state: userData.state || "",
-        bio: userData.bio || "",
-        politicalBeliefs: userData.politicalBeliefs || "",
-        religion: userData.religion || "",
-        causes: userData.causes || [],
-        lifeStage: userData.lifeStage || "",
-        lookingFor: userData.lookingFor || "",
-        profilePhoto: userData.profilePhoto || "",
-      });
+      const response = await api.get("/auth/profile");
+      setUser(response.data);
+
+      // Initialize photos array with profile photo and empty slots
+      const currentPhotos = response.data.additionalPhotos || [];
+      setPhotos(
+        [
+          response.data.profilePhoto,
+          ...currentPhotos,
+          ...Array(3 - currentPhotos.length - 1).fill(null),
+        ].slice(0, 3),
+      );
     } catch (error) {
       console.error("Error fetching profile:", error);
+      Alert.alert("Error", "Failed to load profile");
     } finally {
       setLoading(false);
     }
   };
 
-  const pickImage = async () => {
+  const pickImage = async (index) => {
     try {
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (status !== "granted") {
+        Alert.alert("Permission needed", "Please grant photo library access");
+        return;
+      }
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -125,280 +74,342 @@ export default function EditProfileScreen({ navigation }) {
 
       if (!result.canceled && result.assets[0].base64) {
         const base64Image = `data:image/jpeg;base64,${result.assets[0].base64}`;
-        setProfile((prev) => ({ ...prev, profilePhoto: base64Image }));
+
+        // Update photos array
+        const newPhotos = [...photos];
+        newPhotos[index] = base64Image;
+        setPhotos(newPhotos);
+
+        // Update backend
+        await updatePhotos(newPhotos);
       }
     } catch (error) {
       console.error("Error picking image:", error);
-      Alert.alert("Error", "Could not pick image");
+      Alert.alert("Error", "Failed to upload photo");
     }
   };
 
-  const toggleCause = (cause) => {
-    setProfile((prev) => ({
-      ...prev,
-      causes: prev.causes.includes(cause)
-        ? prev.causes.filter((c) => c !== cause)
-        : [...prev.causes, cause],
-    }));
+  const deletePhoto = async (index) => {
+    Alert.alert("Delete Photo", "Are you sure you want to delete this photo?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          const newPhotos = [...photos];
+          newPhotos[index] = null;
+          setPhotos(newPhotos);
+          await updatePhotos(newPhotos);
+        },
+      },
+    ]);
   };
 
-  const handleSave = async () => {
-    // Validation
-    if (!profile.name.trim()) {
-      Alert.alert("Error", "Name is required");
-      return;
-    }
-    if (!profile.age || isNaN(profile.age) || profile.age < 18) {
-      Alert.alert("Error", "Please enter a valid age (18+)");
-      return;
-    }
+  const setAsProfilePhoto = async (index) => {
+    Alert.alert("Set as Profile Photo", "Make this your profile picture?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Set",
+        onPress: async () => {
+          const newPhotos = [...photos];
+          // Swap with current profile photo
+          const temp = newPhotos[0];
+          newPhotos[0] = newPhotos[index];
+          newPhotos[index] = temp;
+          setPhotos(newPhotos);
+          await updatePhotos(newPhotos);
+        },
+      },
+    ]);
+  };
 
-    setSaving(true);
+  const updatePhotos = async (newPhotos) => {
     try {
-      await userAPI.updateProfile({
-        name: profile.name,
-        age: parseInt(profile.age),
-        city: profile.city,
-        state: profile.state,
-        bio: profile.bio,
-        politicalBeliefs: profile.politicalBeliefs,
-        religion: profile.religion,
-        causes: profile.causes,
-        lifeStage: profile.lifeStage,
-        lookingFor: profile.lookingFor,
-        profilePhoto: profile.profilePhoto,
+      const filteredPhotos = newPhotos.filter((p) => p !== null);
+      const profilePhoto = filteredPhotos[0];
+      const additionalPhotos = filteredPhotos.slice(1);
+
+      await api.put("/users/profile", {
+        profilePhoto,
+        additionalPhotos,
       });
 
-      Alert.alert("Success", "Profile updated successfully!");
-      navigation.goBack();
+      Alert.alert("Success", "Photos updated successfully");
+      fetchProfile();
     } catch (error) {
-      console.error("Error saving profile:", error);
-      Alert.alert("Error", "Could not save profile. Please try again.");
-    } finally {
-      setSaving(false);
+      console.error("Error updating photos:", error);
+      Alert.alert("Error", "Failed to update photos");
     }
+  };
+
+  const handleLogout = async () => {
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Logout",
+        style: "destructive",
+        onPress: async () => {
+          await AsyncStorage.removeItem("token");
+          await AsyncStorage.removeItem("userId");
+          navigation.replace("Login");
+        },
+      },
+    ]);
+  };
+
+  const handleDeleteAccount = async () => {
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to permanently delete your account? This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            // Second confirmation
+            Alert.alert(
+              "Final Confirmation",
+              "This will permanently delete all your data, matches, and messages. Are you absolutely sure?",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Delete Forever",
+                  style: "destructive",
+                  onPress: async () => {
+                    try {
+                      await api.delete("/users/account");
+                      await AsyncStorage.removeItem("token");
+                      await AsyncStorage.removeItem("userId");
+                      Alert.alert(
+                        "Account Deleted",
+                        "Your account has been permanently deleted.",
+                        [
+                          {
+                            text: "OK",
+                            onPress: () => navigation.replace("Login"),
+                          },
+                        ],
+                      );
+                    } catch (error) {
+                      console.error("Error deleting account:", error);
+                      Alert.alert(
+                        "Error",
+                        "Failed to delete account. Please try again.",
+                      );
+                    }
+                  },
+                },
+              ],
+            );
+          },
+        },
+      ],
+    );
   };
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2B6CB0" />
+      <View style={styles.centerContainer}>
+        <Text>Loading...</Text>
+      </View>
+    );
+  }
+
+  if (!user) {
+    return (
+      <View style={styles.centerContainer}>
+        <Text>Profile not found</Text>
       </View>
     );
   }
 
   return (
     <ScrollView style={styles.container}>
-      {/* Profile Photo */}
-      <View style={styles.photoSection}>
-        <TouchableOpacity onPress={pickImage} style={styles.photoContainer}>
-          {profile.profilePhoto ? (
-            <Image
-              source={{ uri: profile.profilePhoto }}
-              style={styles.photo}
-            />
-          ) : (
-            <View style={styles.photoPlaceholder}>
-              <Camera size={40} color="#999" />
-            </View>
-          )}
-          <View style={styles.photoOverlay}>
-            <Camera size={24} color="white" />
-            <Text style={styles.photoText}>Change Photo</Text>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <Text style={styles.name}>{user.name}</Text>
+          <View style={styles.location}>
+            <MapPin color="#666" size={16} />
+            <Text style={styles.locationText}>
+              {user.city}, {user.state}
+            </Text>
           </View>
+        </View>
+        <TouchableOpacity
+          style={styles.editButton}
+          onPress={() => navigation.navigate("EditProfile")}
+        >
+          <Edit color="#2B6CB0" size={24} />
         </TouchableOpacity>
       </View>
 
-      {/* Basic Info */}
+      {/* Photo Gallery */}
       <View style={styles.section}>
-        <Text variant="titleMedium" style={styles.sectionTitle}>
-          Basic Information
-        </Text>
-
-        <TextInput
-          mode="outlined"
-          label="Name *"
-          value={profile.name}
-          onChangeText={(text) =>
-            setProfile((prev) => ({ ...prev, name: text }))
-          }
-          style={styles.input}
-        />
-
-        <TextInput
-          mode="outlined"
-          label="Age *"
-          value={profile.age}
-          onChangeText={(text) =>
-            setProfile((prev) => ({ ...prev, age: text }))
-          }
-          keyboardType="numeric"
-          style={styles.input}
-        />
-
-        <TextInput
-          mode="outlined"
-          label="City"
-          value={profile.city}
-          onChangeText={(text) =>
-            setProfile((prev) => ({ ...prev, city: text }))
-          }
-          style={styles.input}
-        />
-
-        <TextInput
-          mode="outlined"
-          label="State"
-          value={profile.state}
-          onChangeText={(text) =>
-            setProfile((prev) => ({ ...prev, state: text }))
-          }
-          style={styles.input}
-        />
-
-        <TextInput
-          mode="outlined"
-          label="Bio"
-          value={profile.bio}
-          onChangeText={(text) =>
-            setProfile((prev) => ({ ...prev, bio: text }))
-          }
-          multiline
-          numberOfLines={4}
-          style={styles.input}
-        />
-      </View>
-
-      {/* Political Beliefs */}
-      <View style={styles.section}>
-        <Text variant="titleMedium" style={styles.sectionTitle}>
-          Political Beliefs
-        </Text>
-        <View style={styles.chipContainer}>
-          {politicalOptions.map((option) => (
-            <Chip
-              key={option}
-              selected={profile.politicalBeliefs === option}
-              onPress={() =>
-                setProfile((prev) => ({ ...prev, politicalBeliefs: option }))
-              }
-              style={styles.chip}
-            >
-              {option}
-            </Chip>
+        <Text style={styles.sectionTitle}>Photos</Text>
+        <View style={styles.photoGrid}>
+          {photos.map((photo, index) => (
+            <View key={index} style={styles.photoContainer}>
+              {photo ? (
+                <>
+                  <Image source={{ uri: photo }} style={styles.photo} />
+                  {index === 0 && (
+                    <View style={styles.profileBadge}>
+                      <Star color="white" size={16} fill="white" />
+                      <Text style={styles.profileBadgeText}>Profile</Text>
+                    </View>
+                  )}
+                  <View style={styles.photoActions}>
+                    {index !== 0 && (
+                      <TouchableOpacity
+                        style={styles.photoActionButton}
+                        onPress={() => setAsProfilePhoto(index)}
+                      >
+                        <Star color="white" size={18} />
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity
+                      style={[styles.photoActionButton, styles.deleteButton]}
+                      onPress={() => deletePhoto(index)}
+                    >
+                      <Trash2 color="white" size={18} />
+                    </TouchableOpacity>
+                  </View>
+                </>
+              ) : (
+                <TouchableOpacity
+                  style={styles.addPhoto}
+                  onPress={() => pickImage(index)}
+                >
+                  <Camera color="#2B6CB0" size={32} />
+                  <Text style={styles.addPhotoText}>Add Photo</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           ))}
         </View>
+        <Text style={styles.photoHint}>
+          Tap the star icon to set a photo as your profile picture
+        </Text>
       </View>
 
-      {/* Religion */}
+      {/* About */}
       <View style={styles.section}>
-        <Text variant="titleMedium" style={styles.sectionTitle}>
-          Religion
-        </Text>
-        <View style={styles.chipContainer}>
-          {religionOptions.map((option) => (
-            <Chip
-              key={option}
-              selected={profile.religion === option}
-              onPress={() =>
-                setProfile((prev) => ({ ...prev, religion: option }))
-              }
-              style={styles.chip}
-            >
-              {option}
-            </Chip>
-          ))}
-        </View>
+        <Text style={styles.sectionTitle}>About</Text>
+        <Card style={styles.card}>
+          <Card.Content>
+            <View style={styles.infoRow}>
+              <User color="#2B6CB0" size={20} />
+              <Text style={styles.infoText}>
+                {user.age} • {user.gender}
+              </Text>
+            </View>
+            {user.bio && (
+              <View style={styles.bioContainer}>
+                <Text style={styles.bio}>{user.bio}</Text>
+              </View>
+            )}
+          </Card.Content>
+        </Card>
       </View>
 
-      {/* Life Stage */}
+      {/* Values */}
       <View style={styles.section}>
-        <Text variant="titleMedium" style={styles.sectionTitle}>
-          Life Stage
-        </Text>
-        <View style={styles.chipContainer}>
-          {lifeStageOptions.map((option) => (
-            <Chip
-              key={option}
-              selected={profile.lifeStage === option}
-              onPress={() =>
-                setProfile((prev) => ({ ...prev, lifeStage: option }))
-              }
-              style={styles.chip}
-            >
-              {option}
-            </Chip>
-          ))}
-        </View>
+        <Text style={styles.sectionTitle}>Values & Beliefs</Text>
+        <Card style={styles.card}>
+          <Card.Content>
+            {user.politicalBeliefs && user.politicalBeliefs.length > 0 && (
+              <View style={styles.valueSection}>
+                <Text style={styles.valueLabel}>Political Beliefs</Text>
+                <View style={styles.chips}>
+                  {user.politicalBeliefs.map((belief, index) => (
+                    <View key={index} style={styles.chip}>
+                      <Text style={styles.chipText}>{belief}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {user.religion && (
+              <View style={styles.valueSection}>
+                <Text style={styles.valueLabel}>Religion</Text>
+                <Text style={styles.valueText}>{user.religion}</Text>
+              </View>
+            )}
+
+            {user.causes && user.causes.length > 0 && (
+              <View style={styles.valueSection}>
+                <Text style={styles.valueLabel}>Causes</Text>
+                <View style={styles.chips}>
+                  {user.causes.map((cause, index) => (
+                    <View key={index} style={styles.chip}>
+                      <Text style={styles.chipText}>{cause}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {user.lifeStage && user.lifeStage.length > 0 && (
+              <View style={styles.valueSection}>
+                <Text style={styles.valueLabel}>Life Stage</Text>
+                <View style={styles.chips}>
+                  {user.lifeStage.map((stage, index) => (
+                    <View key={index} style={styles.chip}>
+                      <Text style={styles.chipText}>{stage}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {user.lookingFor && user.lookingFor.length > 0 && (
+              <View style={styles.valueSection}>
+                <Text style={styles.valueLabel}>Looking For</Text>
+                <View style={styles.chips}>
+                  {user.lookingFor.map((item, index) => (
+                    <View key={index} style={styles.chip}>
+                      <Text style={styles.chipText}>{item}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+          </Card.Content>
+        </Card>
       </View>
 
-      {/* Looking For */}
-      <View style={styles.section}>
-        <Text variant="titleMedium" style={styles.sectionTitle}>
-          Looking For
-        </Text>
-        <View style={styles.chipContainer}>
-          {lookingForOptions.map((option) => (
-            <Chip
-              key={option}
-              selected={profile.lookingFor === option}
-              onPress={() =>
-                setProfile((prev) => ({ ...prev, lookingFor: option }))
-              }
-              style={styles.chip}
-            >
-              {option}
-            </Chip>
-          ))}
-        </View>
-      </View>
+      {/* Actions */}
+      <View style={styles.actions}>
+        <Button
+          mode="outlined"
+          onPress={() => navigation.navigate("Preferences")}
+          style={styles.actionButton}
+          icon={() => <Heart color="#2B6CB0" size={20} />}
+        >
+          Search Preferences
+        </Button>
 
-      {/* Causes/Interests */}
-      <View style={styles.section}>
-        <Text variant="titleMedium" style={styles.sectionTitle}>
-          Causes & Interests
-        </Text>
-        <Text variant="bodySmall" style={styles.subtitle}>
-          Select up to 5 causes you care about
-        </Text>
-        <View style={styles.chipContainer}>
-          {causeOptions.map((cause) => (
-            <Chip
-              key={cause}
-              selected={profile.causes.includes(cause)}
-              onPress={() => toggleCause(cause)}
-              disabled={
-                !profile.causes.includes(cause) && profile.causes.length >= 5
-              }
-              style={styles.chip}
-            >
-              {cause}
-            </Chip>
-          ))}
-        </View>
-      </View>
-
-      {/* Save Button */}
-      <View style={styles.buttonContainer}>
         <Button
           mode="contained"
-          onPress={handleSave}
-          loading={saving}
-          disabled={saving}
-          style={styles.saveButton}
+          onPress={handleLogout}
+          style={[styles.actionButton, styles.logoutButton]}
+          buttonColor="#E53E3E"
         >
-          Save Changes
+          Logout
         </Button>
+
         <Button
-          mode="text"
-          onPress={() => navigation.goBack()}
-          disabled={saving}
+          mode="outlined"
+          onPress={handleDeleteAccount}
+          style={[styles.actionButton, styles.deleteButton]}
+          textColor="#E53E3E"
         >
-          Cancel
+          Delete Account
         </Button>
       </View>
-
-      <View style={styles.footer} />
     </ScrollView>
   );
 }
@@ -408,86 +419,184 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F7FAFC",
   },
-  loadingContainer: {
+  centerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
-  photoSection: {
-    alignItems: "center",
-    paddingVertical: 24,
-    backgroundColor: "white",
-  },
-  photoContainer: {
-    position: "relative",
-  },
-  photo: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-  },
-  photoPlaceholder: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "#E2E8F0",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  photoOverlay: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "rgba(43, 108, 176, 0.9)",
-    padding: 8,
-    borderBottomLeftRadius: 60,
-    borderBottomRightRadius: 60,
+  header: {
     flexDirection: "row",
-    justifyContent: "center",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+  },
+  headerContent: {
+    flex: 1,
+  },
+  name: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#2D2D2D",
+    marginBottom: 4,
+  },
+  location: {
+    flexDirection: "row",
     alignItems: "center",
     gap: 4,
   },
-  photoText: {
-    color: "white",
-    fontSize: 12,
-    fontWeight: "600",
+  locationText: {
+    fontSize: 14,
+    color: "#666",
+  },
+  editButton: {
+    padding: 8,
   },
   section: {
-    padding: 16,
-    backgroundColor: "white",
-    marginTop: 12,
+    padding: 20,
   },
   sectionTitle: {
+    fontSize: 20,
     fontWeight: "600",
-    color: "#2d2d2d",
-    marginBottom: 12,
+    color: "#2D2D2D",
+    marginBottom: 16,
   },
-  subtitle: {
+  photoGrid: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 8,
+  },
+  photoContainer: {
+    flex: 1,
+    aspectRatio: 1,
+    borderRadius: 12,
+    overflow: "hidden",
+    position: "relative",
+  },
+  photo: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#E2E8F0",
+  },
+  addPhoto: {
+    flex: 1,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 2,
+    borderColor: "#E2E8F0",
+    borderStyle: "dashed",
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  addPhotoText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: "#2B6CB0",
+    fontWeight: "600",
+  },
+  profileBadge: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    backgroundColor: "#2B6CB0",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  profileBadgeText: {
+    color: "white",
+    fontSize: 10,
+    fontWeight: "600",
+  },
+  photoActions: {
+    position: "absolute",
+    bottom: 8,
+    right: 8,
+    flexDirection: "row",
+    gap: 8,
+  },
+  photoActionButton: {
+    backgroundColor: "rgba(43, 108, 176, 0.9)",
+    padding: 8,
+    borderRadius: 20,
+  },
+  deleteButton: {
+    backgroundColor: "rgba(229, 62, 62, 0.9)",
+  },
+  photoHint: {
+    fontSize: 12,
     color: "#666",
-    marginBottom: 12,
+    textAlign: "center",
+    fontStyle: "italic",
   },
-  input: {
-    marginBottom: 12,
+  card: {
     backgroundColor: "white",
   },
-  chipContainer: {
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  infoText: {
+    fontSize: 16,
+    color: "#666",
+  },
+  bioContainer: {
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
+  },
+  bio: {
+    fontSize: 15,
+    color: "#2D2D2D",
+    lineHeight: 22,
+  },
+  valueSection: {
+    marginBottom: 16,
+  },
+  valueLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#666",
+    marginBottom: 8,
+  },
+  valueText: {
+    fontSize: 15,
+    color: "#2D2D2D",
+  },
+  chips: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
   },
   chip: {
-    marginBottom: 8,
+    backgroundColor: "#DBEAFE",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
-  buttonContainer: {
+  chipText: {
+    fontSize: 13,
+    color: "#2B6CB0",
+    fontWeight: "500",
+  },
+  actions: {
     padding: 20,
     gap: 12,
   },
-  saveButton: {
-    backgroundColor: "#2B6CB0",
+  actionButton: {
     paddingVertical: 6,
   },
-  footer: {
-    height: 40,
+  logoutButton: {
+    marginTop: 8,
+  },
+  deleteButton: {
+    borderColor: "#E53E3E",
   },
 });
