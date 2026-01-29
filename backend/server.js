@@ -44,6 +44,8 @@ const corsOptions = {
           "https://kindredpal-production.up.railway.app",
           "https://kindredpal.com",
           "https://www.kindredpal.com",
+          "https://kindred-pal.vercel.app", // ← Add this
+          "https://kindred-4jp9hvgk9-srschoonmakers-projects.vercel.app", // ← Add this (deployment URL)
         ]
       : [
           "http://localhost:3000",
@@ -52,6 +54,7 @@ const corsOptions = {
         ],
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true,
+  optionsSuccessStatus: 200,
 };
 
 app.use(cors(corsOptions));
