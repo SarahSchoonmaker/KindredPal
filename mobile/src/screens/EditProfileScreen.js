@@ -39,7 +39,7 @@ export default function EditProfileScreen({ navigation }) {
     "Environment",
     "Health & Wellness",
     "Healthcare & Medical Causes",
-    "Education & Continuous Learning,
+    "Education & Continuous Learning",
     "Arts & Culture",
     "Community Service",
     "Animal Welfare",

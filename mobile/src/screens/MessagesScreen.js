@@ -192,7 +192,7 @@ export default function MessagesScreen({ navigation }) {
                   </Text>
                 ) : (
                   <Text variant="bodyMedium" style={styles.noMessages}>
-                    Say hello! 👋
+                    {/* Say hello! 👋 */}
                   </Text>
                 )}
               </View>
