@@ -10,8 +10,8 @@ import {
 } from "react-native";
 import { Text, TextInput, Button } from "react-native-paper";
 import { authAPI } from "../services/api";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Heart, Users, MessageCircle } from "lucide-react-native";
+import * as SecureStore from "expo-secure-store";
+import { Users, MessageCircle, Calendar } from "lucide-react-native";
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
@@ -33,10 +33,11 @@ export default function LoginScreen({ navigation }) {
 
       const userId = user.id;
 
-      await AsyncStorage.setItem("token", token);
-      await AsyncStorage.setItem("userId", userId);
+      // ✅ Using SecureStore instead of AsyncStorage
+      await SecureStore.setItemAsync("token", token);
+      await SecureStore.setItemAsync("userId", userId);
 
-      console.log("✅ Login successful! Token and userId saved.");
+      console.log("✅ Login successful! Token and userId saved securely.");
 
       navigation.replace("MainTabs");
     } catch (error) {
@@ -68,15 +69,15 @@ export default function LoginScreen({ navigation }) {
           {/* Feature Icons */}
           <View style={styles.features}>
             <View style={styles.feature}>
-              <Heart color="#2B6CB0" size={32} />
-              <Text style={styles.featureText}>Find Matches</Text>
+              <Users color="white" size={32} />
+              <Text style={styles.featureText}>Find Friends</Text>
             </View>
             <View style={styles.feature}>
-              <MessageCircle color="#2B6CB0" size={32} />
+              <MessageCircle color="white" size={32} />
               <Text style={styles.featureText}>Connect</Text>
             </View>
             <View style={styles.feature}>
-              <Users color="#2B6CB0" size={32} />
+              <Calendar color="white" size={32} />
               <Text style={styles.featureText}>Meet Up</Text>
             </View>
           </View>

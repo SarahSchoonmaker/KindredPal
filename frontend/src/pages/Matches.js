@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { MessageCircle, MapPin, Heart } from "lucide-react";
+import { UserCircle, MapPin, MessageCircle } from "lucide-react"; // ← Changed from Users
+
 import { userAPI } from "../services/api";
 import "./Matches.css";
 
@@ -45,21 +46,23 @@ const Matches = () => {
     <div className="matches-page">
       <div className="matches-header">
         <h1>
-          <Heart size={32} />
-          Your Matches
+          <UserCircle size={32} /> Your Connections
         </h1>
         <p className="subtitle">
           {matches.length > 0
-            ? `You have ${matches.length} ${matches.length === 1 ? "match" : "matches"}!`
-            : "No matches yet. Keep swiping!"}
+            ? `You have ${matches.length} ${matches.length === 1 ? "connection" : "connections"}!`
+            : "No connections yet. Keep discovering!"}
         </p>
       </div>
 
       {matches.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-icon">💕</div>
-          <h2>No Matches Yet</h2>
-          <p>Start liking people on the Discover page to find your matches!</p>
+          <div className="empty-icon">🤝</div>
+          <h2>No Connections Yet</h2>
+          <p>
+            Start connecting with people on the Discover page to find your
+            matches!
+          </p>
           <button
             className="btn-discover"
             onClick={() => navigate("/discover")}

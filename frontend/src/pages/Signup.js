@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import PhotoUpload from "../components/PhotoUpload";
@@ -30,78 +30,87 @@ const Signup = () => {
     lookingFor: [],
   });
 
+  // Scroll to top when step changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [step]);
+
+  // ✅ FIXED: Aligned with backend enums
   const politicalOptions = [
     "Liberal",
-    "Conservative",
-    "Republican",
-    "Democrat",
-    "Libertarian",
     "Moderate",
-    "Progressive",
-    "Independent",
-    "Apolitical",
-  ];
-
-  const religionOptions = [
-    "Christian",
-    "Catholic",
-    "Protestant",
-    "Muslim",
-    "Jewish",
-    "Hindu",
-    "Buddhist",
-    "Sikh",
-    "Spiritual but not religious",
-    "Agnostic",
-    "Atheist",
-    "Other",
+    "Conservative",
+    "Libertarian",
     "Prefer not to say",
   ];
 
-  const causesOptions = [
-    "Environment & Climate",
-    "Animal Welfare",
-    "Health & Wellness",
-    "Fitness & Active Living",
-    "Arts & Culture",
-    "Education",
-    "Social Justice",
-    "Community Service",
-    "Mental Health",
-    "LGBTQ+ Rights",
-    "Women's Rights",
-    "Racial Equality",
-    "Economic Justice",
-    "Technology & Innovation",
-    "Entrepreneurship",
-    "Spirituality",
-    "Family & Parenting",
-    "Sustainability",
-    "Food & Nutrition",
-    "Travel & Adventure",
+  // ✅ FIXED: Aligned with backend enums
+  const religionOptions = [
+    "Christian",
+    "Jewish",
+    "Muslim",
+    "Hindu",
+    "Buddhist",
+    "Spiritual",
+    "Agnostic",
+    "Atheist",
+    "Prefer not to say",
   ];
 
+  // ✅ FIXED: Aligned with backend enums
+  const causesOptions = [
+    "Environment",
+    "Travel & Adventure",
+    "Health & Wellness",
+    "Healthcare & Medical Causes",
+    "Education & Continuous Learning",
+    "Arts & Culture",
+    "Community Service",
+    "Animal Welfare",
+    "Social Justice",
+    "Technology & Innovation",
+    "Entrepreneurship",
+    "Fitness & Active Living",
+    "Skilled Trades & Craftsmanship",
+    "Ministry",
+    "Psychology & Mental Health",
+    "Philosophy",
+  ];
+
+  // ✅ FIXED: Aligned with backend enums (all 24 options)
   const lifeStageOptions = [
+    // Relationship Status
     "Single",
+    "In a Relationship",
+    "Engaged",
     "Married",
     "Divorced",
     "Widowed",
-    "In a relationship",
-    "Have children",
-    "Child-free by choice",
-    "Want children someday",
-    "Don't want children",
-    "Empty nester",
-    "College student",
-    "Grad student",
-    "Working professional",
+    // Family
+    "Single Parent",
+    "Have Children",
+    "Child-free by Choice",
+    "Want Children Someday",
+    "Empty Nester",
+    "Stay-at-Home Parent",
+    "Caregiver",
+    // Education
+    "College Student",
+    "Graduate Student",
+    "Recent Graduate",
+    // Career
+    "Working Professional",
+    "Career Focused",
     "Entrepreneur",
+    "Career Transition",
     "Retired",
-    "Semi-retired",
-    "Career change",
-    "Stay-at-home parent",
+    "Semi-Retired",
+    // Financial
+    "Single Income No Kids (SINK)",
+    "Dual-Income No Kids (DINK)",
   ];
 
+  // ✅ FIXED: Aligned with backend enums
   const lookingForOptions = [
     "Friendship",
     "Romance",

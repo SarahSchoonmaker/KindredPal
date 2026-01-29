@@ -20,7 +20,7 @@ import {
   Trash2,
 } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 import api from "../services/api";
 
 export default function ProfileScreen({ navigation }) {
@@ -149,8 +149,9 @@ export default function ProfileScreen({ navigation }) {
         text: "Logout",
         style: "destructive",
         onPress: async () => {
-          await AsyncStorage.removeItem("token");
-          await AsyncStorage.removeItem("userId");
+          // ✅ Using SecureStore instead of AsyncStorage
+          await SecureStore.deleteItemAsync("token");
+          await SecureStore.deleteItemAsync("userId");
           navigation.replace("Login");
         },
       },
@@ -179,8 +180,8 @@ export default function ProfileScreen({ navigation }) {
                   onPress: async () => {
                     try {
                       await api.delete("/users/account");
-                      await AsyncStorage.removeItem("token");
-                      await AsyncStorage.removeItem("userId");
+                      await SecureStore.deleteItemAsync("token");
+                      await SecureStore.deleteItemAsync("userId");
                       Alert.alert(
                         "Account Deleted",
                         "Your account has been permanently deleted.",
@@ -404,7 +405,7 @@ export default function ProfileScreen({ navigation }) {
         <Button
           mode="outlined"
           onPress={handleDeleteAccount}
-          style={[styles.actionButton, styles.deleteButton]}
+          style={[styles.actionButton, styles.deleteAccountButton]}
           textColor="#E53E3E"
         >
           Delete Account
@@ -596,7 +597,7 @@ const styles = StyleSheet.create({
   logoutButton: {
     marginTop: 8,
   },
-  deleteButton: {
+  deleteAccountButton: {
     borderColor: "#E53E3E",
   },
 });

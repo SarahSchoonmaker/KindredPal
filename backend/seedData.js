@@ -41,7 +41,7 @@ const sampleUsers = [
     religion: "Agnostic",
     causes: [
       "Technology & Innovation",
-      "Education",
+      "Education & Continuous Learning",
       "Family & Parenting",
       "Entrepreneurship",
     ],
@@ -62,7 +62,7 @@ const sampleUsers = [
     politicalBeliefs: ["Moderate"],
     religion: "Catholic",
     causes: [
-      "Education",
+      "Education & Continuous Learning",
       "Community Service",
       "Arts & Culture",
       "Food & Nutrition",
@@ -132,7 +132,7 @@ const sampleUsers = [
     causes: [
       "Entrepreneurship",
       "Community Service",
-      "Education",
+      "Education & Continuous Learning",
       "Arts & Culture",
       "Economic Justice",
     ],

@@ -1,5 +1,5 @@
 import axios from "axios";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 
 const API_URL = "https://kindredpal-production.up.railway.app/api";
 
@@ -8,21 +8,26 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 10000, // Add 10 second timeout
+  timeout: 10000, // 10 second timeout
 });
 
-// Add token to requests using AsyncStorage
+// Add token to requests using SecureStore
 api.interceptors.request.use(
   async (config) => {
     console.log("🔧 Interceptor: Getting token...");
-    const token = await AsyncStorage.getItem("token");
-    console.log("🔧 Token retrieved:", token ? "EXISTS" : "NULL");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-      console.log("🔧 Authorization header set");
+    try {
+      const token = await SecureStore.getItemAsync("token");
+      console.log("🔧 Token retrieved:", token ? "EXISTS" : "NULL");
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+        console.log("🔧 Authorization header set");
+      }
+      console.log("🔧 Making request to:", config.baseURL + config.url);
+      return config;
+    } catch (error) {
+      console.error("🔧 Error retrieving token from SecureStore:", error);
+      return config;
     }
-    console.log("🔧 Making request to:", config.baseURL + config.url);
-    return config;
   },
   (error) => {
     console.error("🔧 Interceptor error:", error);
@@ -43,7 +48,7 @@ api.interceptors.response.use(
     console.error("❌ Response status:", error.response?.status);
     console.error("❌ Response data:", error.response?.data);
     return Promise.reject(error);
-  }
+  },
 );
 
 // Auth API

@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { Users, Heart, MessageCircle, Search } from "lucide-react";
+import Footer from "../components/Footer"; // ← ADD THIS IMPORT
 import "./Landing.css";
 
 const Landing = () => {
@@ -122,16 +123,7 @@ const Landing = () => {
         </Link>
       </section>
 
-      {/* Footer */}
-      <footer className="landing-footer">
-        <div className="footer-content">
-          <div className="footer-logo">
-            <Users size={20} />
-            <span>KindredPal</span>
-          </div>
-          <p>&copy; 2026 KindredPal. Find your people.</p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };

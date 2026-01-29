@@ -160,7 +160,7 @@ const userSchema = new mongoose.Schema(
           "Stay-at-Home Parent",
           "Caregiver",
 
-          // Education
+          // "Education & Continuous Learning"
           "College Student",
           "Graduate Student",
           "Recent Graduate",

@@ -1,20 +1,23 @@
 import React from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import {
-  Users,
+  Home,
   Search,
+  UserCircle,
   MessageCircle,
+  Calendar,
   User,
   LogOut,
-  Home,
-  Heart,
-  Calendar,
+  UserCheck,
 } from "lucide-react";
+
 import { useAuth } from "../context/AuthContext";
+import Footer from "../components/Footer";
 import "./Layout.css";
 
 const Layout = () => {
   const navigate = useNavigate();
+
   const { logout, unreadCount } = useAuth();
 
   const handleLogout = () => {
@@ -31,7 +34,7 @@ const Layout = () => {
           style={{ cursor: "pointer" }}
         >
           <div className="logo-icon">
-            <Users size={20} />
+            <UserCircle size={20} />
           </div>
           <span className="logo-text">KindredPal</span>
         </div>
@@ -45,11 +48,11 @@ const Layout = () => {
             <span>Discover</span>
           </NavLink>
           <NavLink to="/likes-you" className="app-nav-link">
-            <Heart size={20} />
-            <span>Likes You</span>
+            <UserCheck size={20} />
+            <span>Interested</span>
           </NavLink>
           <NavLink to="/matches" className="app-nav-link">
-            <Users size={20} />
+            <UserCircle size={20} />
             <span>Matches</span>
           </NavLink>
           <NavLink to="/messages" className="app-nav-link">
@@ -79,6 +82,8 @@ const Layout = () => {
       <main className="main-content">
         <Outlet />
       </main>
+
+      <Footer />
     </div>
   );
 };

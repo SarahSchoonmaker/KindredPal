@@ -18,6 +18,11 @@ import LikesYou from "./pages/LikesYou";
 import UserProfile from "./pages/UserProfile";
 import MeetupsPage from "./pages/MeetupsPage";
 import MeetupDetailsPage from "./pages/MeetupDetailsPage";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
+import CommunityGuidelines from "./pages/CommunityGuidelines";
+import AboutUs from "./pages/AboutUs";
+import CookiePolicy from "./pages/CookiePolicy";
 
 import "./App.css";
 
@@ -47,6 +52,7 @@ function AppRoutes() {
   return (
     <Router>
       <Routes>
+        {/* Public routes without Layout */}
         <Route
           path="/"
           element={
@@ -72,6 +78,7 @@ function AppRoutes() {
           }
         />
 
+        {/* Protected routes WITH Layout (includes Footer) */}
         <Route
           element={
             <ProtectedRoute>
@@ -88,6 +95,17 @@ function AppRoutes() {
           <Route path="meetups/:meetupId" element={<MeetupDetailsPage />} />
           <Route path="profile" element={<Profile />} />
           <Route path="profile/:userId" element={<UserProfile />} />
+
+          {/* Legal pages INSIDE Layout (for logged-in users) */}
+          <Route path="privacy" element={<PrivacyPolicy />} />
+          <Route path="terms" element={<TermsOfService />} />
+          <Route
+            path="community-guidelines"
+            element={<CommunityGuidelines />}
+          />
+          <Route path="cookies" element={<CookiePolicy />} />
+
+          <Route path="about" element={<AboutUs />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" />} />

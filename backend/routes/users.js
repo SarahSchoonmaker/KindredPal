@@ -310,7 +310,8 @@ router.put("/profile", auth, async (req, res) => {
     if (updates.causes && Array.isArray(updates.causes)) {
       updates.causes = updates.causes.map((cause) => {
         // Causes migrations
-        if (cause === "Education") return "Education & Continuous Learning";
+        if (cause === "Education & Continuous Learning")
+          return "Education & Continuous Learning";
         if (cause === "Fitness") return "Fitness & Active Living";
         if (cause === "Technology") return "Technology & Innovation";
         return cause;
