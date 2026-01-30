@@ -114,29 +114,45 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
 
-    causes: [
-      {
-        type: String,
-        enum: [
-          "Environment",
-          "Travel & Adventure",
-          "Health & Wellness",
-          "Healthcare & Medical Causes",
-          "Education & Continuous Learning",
-          "Arts & Culture",
-          "Community Service",
-          "Animal Welfare",
-          "Social Justice",
-          "Technology & Innovation",
-          "Entrepreneurship",
-          "Fitness & Active Living",
-          "Skilled Trades & Craftsmanship",
-          "Ministry",
-          "Psychology & Mental Health",
-          "Philosophy",
-        ],
+    causes: {
+      type: [String],
+      enum: [
+        "Environment",
+        "Travel & Adventure",
+        "Health & Wellness",
+        "Healthcare & Medical Causes",
+        "Education & Continuous Learning",
+        "Art & Design",
+        "Theater & Performing Arts",
+        "Film & Cinema",
+        "Music",
+        "Books & Literature",
+        "Museums & History",
+        "Poetry & Writing",
+        "Comedy & Entertainment",
+        "Fashion & Style",
+        "Video Games & Gaming",
+        "Community Service",
+        "Animal Welfare",
+        "Social Justice",
+        "Technology & Innovation",
+        "Entrepreneurship",
+        "Fitness & Active Living",
+        "Skilled Trades & Craftsmanship",
+        "Ministry",
+        "Psychology & Mental Health",
+        "Philosophy",
+        "Food & Cooking",
+        "Photography",
+        "Outdoor Activities",
+      ],
+      validate: {
+        validator: function (v) {
+          return v.length >= 3 && v.length <= 10;
+        },
+        message: "Please select between 3 and 10 causes",
       },
-    ],
+    },
 
     lifeStage: [
       {
