@@ -197,11 +197,86 @@
 }
 
 @media (max-width: 640px) {
+  .app-header {
+    padding: 0.5rem 0.75rem;
+  }
+
   .app-nav {
-    gap: 0.15rem;
+    gap: 0.1rem;
   }
 
   .app-nav-link {
-    padding: 0.6rem;
+    padding: 0.5rem;
+  }
+
+  .logo-icon {
+    padding: 0.35rem;
+  }
+
+  .app-nav-link svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+/* Extra small phones (360px and below) */
+@media (max-width: 400px) {
+  .app-header {
+    padding: 0.4rem 0.5rem;
+  }
+
+  .logo {
+    gap: 0.4rem;
+  }
+
+  .logo-icon {
+    padding: 0.3rem;
+  }
+
+  .app-nav {
+    gap: 0.05rem;
+  }
+
+  .app-nav-link {
+    padding: 0.4rem;
+    border-radius: 8px;
+  }
+
+  .app-nav-link svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .unread-badge {
+    top: -4px;
+    right: -4px;
+    font-size: 0.6rem;
+    min-width: 14px;
+    height: 14px;
+  }
+}
+
+/* Ultra narrow phones (320px) */
+@media (max-width: 360px) {
+  .app-header {
+    padding: 0.3rem 0.4rem;
+  }
+
+  .logo {
+    font-size: 1.1rem;
+    gap: 0.3rem;
+  }
+
+  .logo-icon {
+    padding: 0.25rem;
+  }
+
+  .app-nav-link {
+    padding: 0.35rem;
+  }
+
+  .app-nav-link svg {
+    width: 15px;
+    height: 15px;
   }
 }
