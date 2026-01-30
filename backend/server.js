@@ -37,6 +37,7 @@ app.use(
 );
 
 // CORS configuration
+// CORS configuration
 const corsOptions = {
   origin:
     process.env.NODE_ENV === "production"
@@ -44,20 +45,24 @@ const corsOptions = {
           "https://kindredpal-production.up.railway.app",
           "https://kindredpal.com",
           "https://www.kindredpal.com",
-          "https://kindred-pal.vercel.app", // ← Add this
-          "https://kindred-4jp9hvgk9-srschoonmakers-projects.vercel.app", // ← Add this (deployment URL)
+          "https://kindred-pal.vercel.app",
+          "https://kindred-4jp9hvgk9-srschoonmakers-projects.vercel.app",
         ]
       : [
           "http://localhost:3000",
           "http://localhost:19000",
           "http://localhost:19006",
         ],
-  methods: ["GET", "POST", "PUT", "DELETE"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   credentials: true,
   optionsSuccessStatus: 200,
+  allowedHeaders: ["Content-Type", "Authorization"],
 };
 
 app.use(cors(corsOptions));
+
+// Handle preflight OPTIONS requests
+app.options("*", cors(corsOptions));
 
 // Body parser with size limits
 app.use(express.json({ limit: "10mb" })); // Limit request body size

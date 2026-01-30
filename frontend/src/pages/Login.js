@@ -46,7 +46,7 @@ const Login = () => {
     <div className="auth-page">
       <div className="auth-container">
         <div className="auth-card">
-          <h2>Welcome Back</h2>
+          <h2>Log In to KindredPal</h2>
           <p className="auth-subtitle">Log in to continue your journey</p>
 
           {error && <div className="error-message">{error}</div>}
