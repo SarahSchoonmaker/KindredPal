@@ -33,6 +33,14 @@ const Profile = () => {
     },
   });
 
+  // ✅ Combine photos for PhotoUpload component
+  const allPhotos = [
+    formData.profilePhoto,
+    ...(formData.additionalPhotos || []),
+  ].filter(Boolean);
+
+  const profilePhotoIndex = 0; // Profile photo is always first
+
   useEffect(() => {
     const fetchUserData = async () => {
       if (user) {
@@ -103,12 +111,26 @@ const Profile = () => {
     }
   };
 
-  const handlePhotoUpdate = (photoData) => {
+  // ✅ FIXED: Handle photo changes from PhotoUpload component
+  const handlePhotosChange = (newPhotos, newProfileIndex) => {
     setFormData((prev) => ({
       ...prev,
-      ...photoData,
+      profilePhoto: newPhotos[newProfileIndex] || "",
+      additionalPhotos: newPhotos.filter((_, i) => i !== newProfileIndex),
     }));
+  };
+
+  const handlePhotoModalClose = async () => {
     setShowPhotoUpload(false);
+    // Auto-save when closing photo modal
+    try {
+      const response = await userAPI.updateProfile(formData);
+      updateUser(response.data);
+      console.log("✅ Photos updated successfully");
+    } catch (error) {
+      console.error("Error updating photos:", error);
+      alert("Error updating photos");
+    }
   };
 
   const handleChange = (e) => {
@@ -394,7 +416,7 @@ const Profile = () => {
               <section className="profile-section">
                 <h2>Causes & Interests</h2>
                 <p className="section-subtitle">
-                  Select up to 5 causes you care about
+                  Select up to 10 causes you care about
                 </p>
                 <div className="causes-checkboxes">
                   {[
@@ -403,7 +425,16 @@ const Profile = () => {
                     "Health & Wellness",
                     "Healthcare & Medical Causes",
                     "Education & Continuous Learning",
-                    "Arts & Culture",
+                    "Art & Design",
+                    "Theater & Performing Arts",
+                    "Film & Cinema",
+                    "Music",
+                    "Books & Literature",
+                    "Museums & History",
+                    "Poetry & Writing",
+                    "Comedy & Entertainment",
+                    "Fashion & Style",
+                    "Video Games & Gaming",
                     "Community Service",
                     "Animal Welfare",
                     "Social Justice",
@@ -414,6 +445,9 @@ const Profile = () => {
                     "Ministry",
                     "Psychology & Mental Health",
                     "Philosophy",
+                    "Food & Cooking",
+                    "Photography",
+                    "Outdoor Activities",
                   ].map((cause) => (
                     <label key={cause} className="checkbox-label">
                       <input
@@ -430,7 +464,7 @@ const Profile = () => {
                         }}
                         disabled={
                           !formData.causes.includes(cause) &&
-                          formData.causes.length >= 5
+                          formData.causes.length >= 10
                         }
                       />
                       {cause}
@@ -580,20 +614,21 @@ const Profile = () => {
         </div>
       </div>
 
-      {/* Photo Upload Modal */}
+      {/* Photo Upload Modal - ✅ FIXED PROPS */}
       {showPhotoUpload && (
         <div className="modal-overlay">
           <div className="modal-content">
-            <button
-              className="modal-close"
-              onClick={() => setShowPhotoUpload(false)}
-            >
+            <button className="modal-close" onClick={handlePhotoModalClose}>
               <X size={24} />
             </button>
+            <h3 style={{ marginBottom: "1rem", textAlign: "center" }}>
+              Update Your Photos
+            </h3>
             <PhotoUpload
-              currentPhoto={formData.profilePhoto}
-              additionalPhotos={formData.additionalPhotos}
-              onPhotoUpdate={handlePhotoUpdate}
+              photos={allPhotos}
+              onPhotosChange={handlePhotosChange}
+              maxPhotos={3}
+              profilePhotoIndex={profilePhotoIndex}
             />
           </div>
         </div>
