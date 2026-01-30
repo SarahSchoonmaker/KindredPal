@@ -14,7 +14,7 @@ const PhotoUpload = ({
 
   // Update previews when photos prop changes
   useEffect(() => {
-    setPreviews([...photos]); // Create new array to force re-render
+    setPreviews([...photos]);
     setSelectedProfileIndex(profilePhotoIndex);
   }, [photos, profilePhotoIndex]);
 
@@ -23,53 +23,69 @@ const PhotoUpload = ({
 
     if (previews.length + files.length > maxPhotos) {
       alert(`You can only upload ${maxPhotos} photos`);
-      e.target.value = ""; // Reset input
+      e.target.value = "";
       return;
     }
 
-    files.forEach((file) => {
-      if (file.size > 5 * 1024 * 1024) {
-        alert("File size must be less than 5MB");
-        e.target.value = ""; // Reset input
-        return;
-      }
+    // Process all files first, then update state once
+    const filePromises = files.map((file) => {
+      return new Promise((resolve, reject) => {
+        if (file.size > 5 * 1024 * 1024) {
+          alert("File size must be less than 5MB");
+          reject(new Error("File too large"));
+          return;
+        }
 
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviews((prev) => {
-          const newPreviews = [...prev, reader.result];
-          onPhotosChange(newPreviews, selectedProfileIndex);
-          return newPreviews;
-        });
-      };
-      reader.readAsDataURL(file);
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
     });
 
-    // Reset input so same file can be selected again
+    Promise.all(filePromises)
+      .then((newPhotos) => {
+        const updatedPreviews = [...previews, ...newPhotos];
+        setPreviews(updatedPreviews);
+        // ✅ FIX: Call onPhotosChange with the new array, not inside setPreviews
+        if (typeof onPhotosChange === "function") {
+          onPhotosChange(updatedPreviews, selectedProfileIndex);
+        }
+      })
+      .catch((error) => {
+        console.error("Error loading photos:", error);
+      });
+
     e.target.value = "";
   };
 
   const handleRemovePhoto = (index) => {
-    setPreviews((prev) => {
-      const newPreviews = prev.filter((_, i) => i !== index);
-      let newProfileIndex = selectedProfileIndex;
+    const newPreviews = previews.filter((_, i) => i !== index);
+    let newProfileIndex = selectedProfileIndex;
 
-      // Adjust profile photo index if needed
-      if (index === selectedProfileIndex) {
-        newProfileIndex = 0; // Default to first photo
-      } else if (index < selectedProfileIndex) {
-        newProfileIndex = selectedProfileIndex - 1;
-      }
+    // Adjust profile photo index if needed
+    if (index === selectedProfileIndex) {
+      newProfileIndex = 0;
+    } else if (index < selectedProfileIndex) {
+      newProfileIndex = selectedProfileIndex - 1;
+    }
 
-      setSelectedProfileIndex(newProfileIndex);
+    setPreviews(newPreviews);
+    setSelectedProfileIndex(newProfileIndex);
+
+    // ✅ FIX: Call onPhotosChange after state is calculated
+    if (typeof onPhotosChange === "function") {
       onPhotosChange(newPreviews, newProfileIndex);
-      return newPreviews;
-    });
+    }
   };
 
   const handleSetAsProfile = (index) => {
     setSelectedProfileIndex(index);
-    onPhotosChange(previews, index);
+
+    // ✅ FIX: Call onPhotosChange with current previews
+    if (typeof onPhotosChange === "function") {
+      onPhotosChange(previews, index);
+    }
   };
 
   return (
@@ -77,15 +93,11 @@ const PhotoUpload = ({
       <div className="photo-grid">
         {/* Show existing photos */}
         {previews.map((photo, index) => (
-          <div
-            key={`photo-${index}-${photo.substring(0, 30)}`}
-            className="photo-item"
-          >
+          <div key={`photo-${index}`} className="photo-item">
             <img
               src={photo}
               alt={`Photo ${index + 1}`}
               className="photo-preview"
-              key={photo.substring(0, 50)} // Force image re-render
             />
 
             {/* Profile Photo Badge */}
@@ -122,14 +134,13 @@ const PhotoUpload = ({
 
         {/* Upload button */}
         {previews.length < maxPhotos && (
-          <label className="photo-upload-box" key={`upload-${previews.length}`}>
+          <label className="photo-upload-box">
             <input
               type="file"
               accept="image/*"
               multiple
               onChange={handleFileSelect}
               className="file-input-hidden"
-              key={`file-input-${previews.length}`} // Reset input
             />
             <Upload size={32} />
             <span>Add Photo</span>

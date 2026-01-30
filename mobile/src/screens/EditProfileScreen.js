@@ -37,10 +37,20 @@ export default function EditProfileScreen({ navigation }) {
 
   const causeOptions = [
     "Environment",
+    "Travel & Adventure",
     "Health & Wellness",
     "Healthcare & Medical Causes",
     "Education & Continuous Learning",
-    "Arts & Culture",
+    "Art & Design",
+    "Theater & Performing Arts",
+    "Film & Cinema",
+    "Music",
+    "Books & Literature",
+    "Museums & History",
+    "Poetry & Writing",
+    "Comedy & Entertainment",
+    "Fashion & Style",
+    "Video Games & Gaming",
     "Community Service",
     "Animal Welfare",
     "Social Justice",
@@ -51,6 +61,9 @@ export default function EditProfileScreen({ navigation }) {
     "Ministry",
     "Psychology & Mental Health",
     "Philosophy",
+    "Food & Cooking",
+    "Photography",
+    "Outdoor Activities",
   ];
 
   const politicalOptions = [
