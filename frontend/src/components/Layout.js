@@ -7,6 +7,7 @@ import {
   MessageCircle,
   Calendar,
   User,
+  Users,
   LogOut,
   UserCheck,
 } from "lucide-react";
@@ -34,7 +35,7 @@ const Layout = () => {
           style={{ cursor: "pointer" }}
         >
           <div className="logo-icon">
-            <UserCircle size={20} />
+            <Users size={20} />
           </div>
           <span className="logo-text">KindredPal</span>
         </div>

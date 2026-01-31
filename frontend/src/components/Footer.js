@@ -49,13 +49,17 @@ const Footer = () => {
           <h4>CONTACT</h4>
           <ul className="footer-links">
             <li>
-              <a href="mailto:support@kindredpal.com">Support</a>
+              <a href="mailto:support@kindredpal.com">
+                Support: support@kindredpal.com
+              </a>
             </li>
             <li>
               <Link to="/safety">Safety Tips</Link>
             </li>
             <li>
-              <a href="mailto:support@kindredpal.com">Send Feedback</a>
+              <a href="mailto:support@kindredpal.com">
+                Send Feedback: support@kindredpal.com
+              </a>
             </li>
           </ul>
         </div>
@@ -76,7 +80,7 @@ const Footer = () => {
             </li>
             <li>
               <a
-                href="https://www.instagram.com/kindredpal"
+                href="https://www.instagram.com/kindredpalconnect/"
                 target="_blank"
                 rel="noopener noreferrer"
               >
