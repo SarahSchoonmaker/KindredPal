@@ -14,6 +14,7 @@ const Profile = () => {
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isMatch, setIsMatch] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: "", type: "" }); // ✅ NEW
   const [formData, setFormData] = useState({
     name: "",
     age: "",
@@ -32,6 +33,14 @@ const Profile = () => {
       newMessage: true,
     },
   });
+
+  // ✅ NEW: Show toast notification
+  const showToast = (message, type = "success") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast({ show: false, message: "", type: "" });
+    }, 2000);
+  };
 
   // ✅ Combine photos for PhotoUpload component
   const allPhotos = [
@@ -79,11 +88,11 @@ const Profile = () => {
 
     try {
       await api.post(`/users/unmatch/${userId}`);
-      alert("Unmatched successfully");
+      showToast("Unmatched successfully"); // ✅ CHANGED
       navigate("/matches");
     } catch (error) {
       console.error("Error unmatching:", error);
-      alert("Failed to unmatch");
+      showToast("Failed to unmatch", "error"); // ✅ CHANGED
     }
   };
 
@@ -92,22 +101,24 @@ const Profile = () => {
       const response = await userAPI.updateProfile(formData);
       updateUser(response.data);
       setIsEditing(false);
-      alert("Profile updated successfully!");
+      showToast("Profile updated successfully!"); // ✅ CHANGED
     } catch (error) {
       console.error("Error updating profile:", error);
-      alert("Error updating profile");
+      showToast("Error updating profile", "error"); // ✅ CHANGED
     }
   };
 
   const handleDeleteAccount = async () => {
     try {
       await userAPI.deleteAccount();
-      alert("Your account has been deleted.");
-      logout();
-      navigate("/");
+      showToast("Your account has been deleted."); // ✅ CHANGED (will show briefly before logout)
+      setTimeout(() => {
+        logout();
+        navigate("/");
+      }, 1000);
     } catch (error) {
       console.error("Error deleting account:", error);
-      alert("Error deleting account. Please try again.");
+      showToast("Error deleting account. Please try again.", "error"); // ✅ CHANGED
     }
   };
 
@@ -127,9 +138,10 @@ const Profile = () => {
       const response = await userAPI.updateProfile(formData);
       updateUser(response.data);
       console.log("✅ Photos updated successfully");
+      showToast("Photos updated successfully!"); // ✅ CHANGED
     } catch (error) {
       console.error("Error updating photos:", error);
-      alert("Error updating photos");
+      showToast("Error updating photos", "error"); // ✅ CHANGED
     }
   };
 
@@ -155,6 +167,11 @@ const Profile = () => {
 
   return (
     <div className="profile-page">
+      {/* ✅ NEW: Toast Notification */}
+      {toast.show && (
+        <div className={`toast toast-${toast.type}`}>{toast.message}</div>
+      )}
+
       <div className="profile-container">
         {/* Header */}
         <div className="profile-header">
@@ -327,7 +344,7 @@ const Profile = () => {
                     <option value="Muslim">Muslim</option>
                     <option value="Hindu">Hindu</option>
                     <option value="Buddhist">Buddhist</option>
-                    <option value="Spiritual">Spiritual</option>
+                    <option value="Seeking/Undecided">Seeking/Undecided</option>
                     <option value="Agnostic">Agnostic</option>
                     <option value="Atheist">Atheist</option>
                     <option value="Prefer not to say">Prefer not to say</option>
@@ -614,7 +631,7 @@ const Profile = () => {
         </div>
       </div>
 
-      {/* Photo Upload Modal - ✅ FIXED PROPS */}
+      {/* Photo Upload Modal */}
       {showPhotoUpload && (
         <div className="modal-overlay">
           <div className="modal-content">

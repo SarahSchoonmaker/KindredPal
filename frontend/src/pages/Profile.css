@@ -516,4 +516,39 @@ input:checked + .toggle-slider:before {
     margin-top: -8px;
     margin-bottom: 12px;
   }
+
+  /* ✅ Toast Notification */
+  .toast {
+    position: fixed;
+    top: 100px;
+    right: 20px;
+    padding: 16px 24px;
+    border-radius: 12px;
+    background: white;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    font-weight: 500;
+    z-index: 10000;
+    animation: slideIn 0.3s ease-out;
+  }
+
+  .toast-success {
+    background: #10b981;
+    color: white;
+  }
+
+  .toast-error {
+    background: #ef4444;
+    color: white;
+  }
+
+  @keyframes slideIn {
+    from {
+      transform: translateX(400px);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
 }
