@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const User = require("../models/User");
 const auth = require("../middleware/auth");
+const { calculateMatchPercentage } = require("../services/matchingService");
 
 // Get discover users (exclude logged-in user, already liked/passed users)
 router.get("/discover", auth, async (req, res) => {
@@ -15,7 +16,7 @@ router.get("/discover", auth, async (req, res) => {
 
     // Get users to exclude
     const excludeIds = [
-      req.userId, // Exclude self
+      req.userId,
       ...currentUser.likes,
       ...currentUser.matches,
       ...currentUser.passed,
@@ -31,11 +32,15 @@ router.get("/discover", auth, async (req, res) => {
 
     console.log("✅ Found", users.length, "potential matches");
 
-    // Calculate match scores
-    const usersWithScores = users.map((user) => ({
-      ...user.toObject(),
-      matchScore: currentUser.calculateMatchScore(user),
-    }));
+    // Calculate match percentages using new service
+    const usersWithScores = users.map((user) => {
+      const userObj = user.toObject();
+      return {
+        ...userObj,
+        id: userObj._id.toString(),
+        matchScore: calculateMatchPercentage(currentUser, user),
+      };
+    });
 
     // Sort by match score
     usersWithScores.sort((a, b) => b.matchScore - a.matchScore);
@@ -52,11 +57,22 @@ router.get("/discover", auth, async (req, res) => {
 // Get matches
 router.get("/matches", auth, async (req, res) => {
   try {
-    const user = await User.findById(req.userId).populate(
-      "matches",
-      "-password",
-    );
-    res.json(user.matches);
+    const currentUser = await User.findById(req.userId);
+    const matches = await User.find({
+      _id: { $in: currentUser.matches },
+    }).select("-password");
+
+    // Add match percentage to each match
+    const matchesWithPercentage = matches.map((match) => {
+      const matchObj = match.toObject();
+      return {
+        ...matchObj,
+        id: matchObj._id.toString(),
+        matchScore: calculateMatchPercentage(currentUser, match),
+      };
+    });
+
+    res.json(matchesWithPercentage);
   } catch (error) {
     console.error("Get matches error:", error);
     res.status(500).json({ message: "Error fetching matches" });
@@ -75,23 +91,27 @@ router.get("/likes-you", auth, async (req, res) => {
 
     // Find users who liked you (but you haven't liked back yet)
     const usersWhoLikedYou = await User.find({
-      likes: currentUser._id, // They have you in their likes
+      likes: currentUser._id,
       _id: {
         $nin: [
-          ...currentUser.likes, // Exclude users you already liked
-          ...currentUser.matches, // Exclude existing matches
-          ...currentUser.passed, // Exclude users you passed on
+          ...currentUser.likes,
+          ...currentUser.matches,
+          ...currentUser.passed,
         ],
       },
     }).select("-password");
 
     console.log("✅ Found", usersWhoLikedYou.length, "users who liked you");
 
-    // Calculate match scores
-    const usersWithScores = usersWhoLikedYou.map((user) => ({
-      ...user.toObject(),
-      matchScore: currentUser.calculateMatchScore(user),
-    }));
+    // Calculate match percentages
+    const usersWithScores = usersWhoLikedYou.map((user) => {
+      const userObj = user.toObject();
+      return {
+        ...userObj,
+        id: userObj._id.toString(),
+        matchScore: calculateMatchPercentage(currentUser, user),
+      };
+    });
 
     // Sort by match score
     usersWithScores.sort((a, b) => b.matchScore - a.matchScore);
@@ -151,7 +171,15 @@ router.get("/profile/:userId", auth, async (req, res) => {
 
     console.log("✅ Returning profile for:", targetUser.name);
 
-    res.json(targetUser.toObject());
+    // Add match percentage
+    const targetUserObj = targetUser.toObject();
+    const profileWithMatch = {
+      ...targetUserObj,
+      id: targetUserObj._id.toString(),
+      matchScore: calculateMatchPercentage(currentUser, targetUser),
+    };
+
+    res.json(profileWithMatch);
   } catch (error) {
     console.error("❌ Get user profile error:", error);
     res.status(500).json({ message: "Error fetching profile" });
@@ -170,7 +198,11 @@ router.get("/:userId", auth, async (req, res) => {
     }
 
     console.log("✅ Returning user:", user.name);
-    res.json(user);
+
+    const userObj = user.toObject();
+    userObj.id = userObj._id.toString();
+
+    res.json(userObj);
   } catch (error) {
     console.error("❌ Error fetching user:", error);
     res.status(500).json({ message: "Error fetching user" });
@@ -221,6 +253,7 @@ router.post("/like/:userId", auth, async (req, res) => {
       matchedUser: isMatch
         ? {
             _id: targetUser._id,
+            id: targetUser._id.toString(),
             name: targetUser.name,
             profilePhoto: targetUser.profilePhoto,
           }
@@ -290,6 +323,7 @@ router.post("/unmatch/:userId", auth, async (req, res) => {
       message: "Successfully unmatched",
       unmatchedUser: {
         _id: targetUser._id,
+        id: targetUser._id.toString(),
         name: targetUser.name,
       },
     });
@@ -306,12 +340,9 @@ router.put("/profile", auth, async (req, res) => {
 
     console.log("📝 Profile update request from user:", req.userId);
 
-    // ✅ MIGRATION: Replace old enum values with new ones
+    // MIGRATION: Replace old enum values with new ones
     if (updates.causes && Array.isArray(updates.causes)) {
       updates.causes = updates.causes.map((cause) => {
-        // Causes migrations
-        if (cause === "Education & Continuous Learning")
-          return "Education & Continuous Learning";
         if (cause === "Fitness") return "Fitness & Active Living";
         if (cause === "Technology") return "Technology & Innovation";
         return cause;
@@ -320,7 +351,6 @@ router.put("/profile", auth, async (req, res) => {
 
     if (updates.politicalBeliefs && Array.isArray(updates.politicalBeliefs)) {
       updates.politicalBeliefs = updates.politicalBeliefs.map((belief) => {
-        // Political beliefs migrations
         if (belief === "Apolitical") return "Prefer not to say";
         return belief;
       });
@@ -328,7 +358,6 @@ router.put("/profile", auth, async (req, res) => {
 
     if (updates.lifeStage && Array.isArray(updates.lifeStage)) {
       updates.lifeStage = updates.lifeStage.map((stage) => {
-        // Life stage migrations (if any old values exist)
         if (stage === "Single, no kids") return "Single";
         if (stage === "Single with kids") return "Single Parent";
         return stage;
@@ -337,7 +366,6 @@ router.put("/profile", auth, async (req, res) => {
 
     if (updates.lookingFor && Array.isArray(updates.lookingFor)) {
       updates.lookingFor = updates.lookingFor.map((looking) => {
-        // Looking for migrations
         if (looking === "Dating") return "Romance";
         if (looking === "Either") return "Community";
         return looking;
@@ -347,7 +375,10 @@ router.put("/profile", auth, async (req, res) => {
     if (updates.religion) {
       // Religion migrations
       if (updates.religion === "Spiritual but not religious") {
-        updates.religion = "Spiritual";
+        updates.religion = "Seeking/Undecided";
+      }
+      if (updates.religion === "Spiritual") {
+        updates.religion = "Seeking/Undecided";
       }
     }
 
@@ -389,7 +420,10 @@ router.put("/profile", auth, async (req, res) => {
 
     console.log("✅ Profile updated successfully for:", user.email);
 
-    res.json(user);
+    const userObj = user.toObject();
+    userObj.id = userObj._id.toString();
+
+    res.json(userObj);
   } catch (error) {
     console.error("❌ Profile update error:", error);
     res.status(500).json({
@@ -418,7 +452,10 @@ router.put("/notification-settings", auth, async (req, res) => {
 
     console.log("✅ Notification settings updated for:", user.email);
 
-    res.json(user);
+    const userObj = user.toObject();
+    userObj.id = userObj._id.toString();
+
+    res.json(userObj);
   } catch (error) {
     console.error("❌ Update notification settings error:", error);
     res.status(500).json({ message: "Error updating notification settings" });

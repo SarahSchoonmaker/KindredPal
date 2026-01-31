@@ -1,5 +1,5 @@
 import React from "react";
-import { Users, Heart, Shield, Sparkles } from "lucide-react";
+import { Users, UserCheck, Shield, Sparkles } from "lucide-react";
 import "./LegalPage.css";
 
 const AboutUs = () => {
@@ -59,7 +59,7 @@ const AboutUs = () => {
             <div
               style={{ display: "flex", gap: "16px", alignItems: "flex-start" }}
             >
-              <Heart
+              <UserCheck
                 color="#2b6cb0"
                 size={32}
                 style={{ flexShrink: 0, marginTop: "4px" }}

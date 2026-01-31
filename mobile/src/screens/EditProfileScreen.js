@@ -79,13 +79,17 @@ export default function EditProfileScreen({ navigation }) {
   ];
   const religionOptions = [
     "Christian",
-    "Jewish",
+    "Catholic",
+    "Protestant",
     "Muslim",
+    "Jewish",
     "Hindu",
     "Buddhist",
-    "Spiritual",
+    "Sikh",
+    "Seeking/Undecided",
     "Agnostic",
     "Atheist",
+    "Other",
     "Prefer not to say",
   ];
   const lifeStageOptions = [

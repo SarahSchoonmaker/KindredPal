@@ -1,6 +1,6 @@
 // frontend/src/pages/Discover.jsx
 import React, { useState, useEffect } from "react";
-import { MapPin, Heart, X } from "lucide-react";
+import { MapPin, UserCheck, X } from "lucide-react"; // ← Changed from Heart to UserCheck
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import "./Discover.css";
@@ -139,9 +139,9 @@ function Discover() {
                   className="action-btn-small like-btn"
                   onClick={(e) => handleLike(user._id, e)}
                   disabled={dailyLikesRemaining <= 0}
-                  title="Like"
+                  title="Connect"
                 >
-                  <Heart size={20} />
+                  <UserCheck size={20} /> {/* ← Changed from Heart */}
                 </button>
               </div>
             </div>

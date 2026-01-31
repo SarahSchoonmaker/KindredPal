@@ -89,7 +89,7 @@ const userSchema = new mongoose.Schema(
           "Moderate",
           "Progressive",
           "Independent",
-          "Apolitical",
+          "Prefer not to say",
         ],
       },
     ],
@@ -105,7 +105,7 @@ const userSchema = new mongoose.Schema(
         "Hindu",
         "Buddhist",
         "Sikh",
-        "Spiritual but not religious",
+        "Seeking/Undecided",
         "Agnostic",
         "Atheist",
         "Other",
@@ -499,11 +499,8 @@ userSchema.methods.calculateMatchScore = function (otherUser) {
       score += weights.religion;
     } else {
       // Open-minded religions get partial credit
-      const openMinded = [
-        "Spiritual but not religious",
-        "Agnostic",
-        "Prefer not to say",
-      ];
+      // Open-minded religions get partial credit
+      const openMinded = ["Seeking/Undecided", "Agnostic", "Prefer not to say"];
       const eitherOpenMinded =
         openMinded.includes(this.religion) ||
         openMinded.includes(otherUser.religion);

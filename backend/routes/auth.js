@@ -107,6 +107,8 @@ router.post(
         causes: userData.causes,
         lifeStage: userData.lifeStage,
         lookingFor: userData.lookingFor || [],
+        profilePhoto: userData.profilePhoto || "",
+        additionalPhotos: userData.additionalPhotos || [],
       });
 
       console.log("💾 Saving user...");
@@ -118,9 +120,10 @@ router.post(
         expiresIn: "7d",
       });
 
-      // Return complete user object with all fields
+      // Return complete user object with all fields - FIXED: _id → id
       const userResponse = {
-        id: user._id,
+        id: user._id.toString(),
+        _id: user._id,
         email: user.email,
         name: user.name,
         age: user.age,
@@ -129,6 +132,7 @@ router.post(
         state: user.state,
         bio: user.bio,
         profilePhoto: user.profilePhoto,
+        additionalPhotos: user.additionalPhotos,
         politicalBeliefs: user.politicalBeliefs,
         religion: user.religion,
         causes: user.causes,
@@ -208,9 +212,10 @@ router.post(
         expiresIn: "7d",
       });
 
-      // Return complete user object with all fields
+      // Return complete user object with all fields - FIXED: _id → id
       const userResponse = {
-        id: user._id,
+        id: user._id.toString(),
+        _id: user._id,
         email: user.email,
         name: user.name,
         age: user.age,
@@ -219,6 +224,7 @@ router.post(
         state: user.state,
         bio: user.bio,
         profilePhoto: user.profilePhoto,
+        additionalPhotos: user.additionalPhotos,
         politicalBeliefs: user.politicalBeliefs,
         religion: user.religion,
         causes: user.causes,
@@ -258,7 +264,11 @@ router.get("/profile", auth, async (req, res) => {
       lookingFor: user.lookingFor?.length || 0,
     });
 
-    res.json(user);
+    // FIXED: Return user with id field
+    const userResponse = user.toObject();
+    userResponse.id = userResponse._id.toString();
+
+    res.json(userResponse);
   } catch (error) {
     console.error("Profile fetch error:", error);
     res.status(500).json({ message: "Error fetching profile" });

@@ -44,16 +44,19 @@ const Signup = () => {
     "Prefer not to say",
   ];
 
-  // ✅ FIXED: Aligned with backend enums
   const religionOptions = [
     "Christian",
-    "Jewish",
+    "Catholic",
+    "Protestant",
     "Muslim",
+    "Jewish",
     "Hindu",
     "Buddhist",
-    "Spiritual",
+    "Sikh",
+    "Seeking/Undecided",
     "Agnostic",
     "Atheist",
+    "Other",
     "Prefer not to say",
   ];
 

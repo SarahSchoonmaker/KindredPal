@@ -1,4 +1,4 @@
-/* Matches Page - Updated with Smaller Cards */
+/* Matches Page - Updated with Smaller Cards and BLUE Handshake */
 
 .matches-page {
   max-width: 1400px;
@@ -23,8 +23,9 @@
   gap: 0.75rem;
 }
 
+/* ✅ CHANGED: Handshake icon from red/yellow to BLUE */
 .matches-header h1 svg {
-  color: #e53e3e;
+  color: #4299e1; /* ← Changed from #e53e3e (red) to blue */
 }
 
 .subtitle {
