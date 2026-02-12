@@ -36,27 +36,36 @@ app.use(
   }),
 );
 
-// CORS configuration
+const allowedOrigins = [
+  "https://kindredpal-production.up.railway.app",
+  "https://kindredpal.com",
+  "https://www.kindredpal.com",
+  "https://kindred-pal.vercel.app",
+  "https://kindred-4jp9hvgk9-srschoonmakers-projects.vercel.app",
+  "http://localhost:3000",
+  "http://localhost:19000",
+  "http://localhost:19006",
+];
+
 const corsOptions = {
-  origin:
-    process.env.NODE_ENV === "production"
-      ? [
-          "https://kindredpal-production.up.railway.app",
-          "https://kindredpal.com",
-          "https://www.kindredpal.com",
-          "https://kindred-pal.vercel.app",
-          "https://kindred-4jp9hvgk9-srschoonmakers-projects.vercel.app",
-        ]
-      : [
-          "http://localhost:3000",
-          "http://localhost:19000",
-          "http://localhost:19006",
-        ],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log("🚫 Blocked origin:", origin);
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   credentials: true,
   optionsSuccessStatus: 200,
   allowedHeaders: ["Content-Type", "Authorization"],
 };
+
+app.use(cors(corsOptions));
 
 app.use(cors(corsOptions));
 
