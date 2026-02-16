@@ -114,14 +114,17 @@ export default function App() {
               headerTintColor: "#fff",
             }}
           />
-
+          <Stack.Screen
+            name="ForgotPassword"
+            component={ForgotPasswordScreen}
+            options={{ title: "Reset Password" }}
+          />
           {/* Main App with Tabs */}
           <Stack.Screen
             name="MainTabs"
             component={MainTabs}
             options={{ headerShown: false }}
           />
-
           {/* Individual Chat Screen */}
           <Stack.Screen
             name="Chat"
@@ -158,6 +161,15 @@ export default function App() {
               headerStyle: { backgroundColor: "#2B6CB0" },
               headerTintColor: "#fff",
             }}
+          />
+
+          <Stack.Screen
+            name="WebView"
+            component={WebViewScreen}
+            options={({ route }) => ({
+              title: route.params?.title || "Loading...",
+              headerBackTitle: "Back",
+            })}
           />
         </Stack.Navigator>
       </NavigationContainer>

@@ -1,0 +1,110 @@
+.filter-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #2d3748;
+  transition: all 0.2s;
+}
+
+.filter-button:hover {
+  background: #f7fafc;
+  border-color: #2b6cb0;
+}
+
+.filter-modal {
+  max-width: 500px;
+  padding: 32px;
+}
+
+.filter-modal h2 {
+  margin-bottom: 8px;
+  color: #2d3748;
+}
+
+.preference-section {
+  margin: 24px 0;
+}
+
+.preference-section h3 {
+  font-size: 16px;
+  margin-bottom: 16px;
+  color: #2d3748;
+}
+
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.radio-option:hover {
+  border-color: #2b6cb0;
+  background: #f7fafc;
+}
+
+.radio-option input[type="radio"] {
+  cursor: pointer;
+}
+
+.radio-option input[type="radio"]:checked + span {
+  font-weight: 600;
+  color: #2b6cb0;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.modal-actions .btn {
+  flex: 1;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background: #2b6cb0;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #2c5282;
+}
+
+.btn-secondary {
+  background: #e2e8f0;
+  color: #2d3748;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #cbd5e0;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

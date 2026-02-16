@@ -98,6 +98,7 @@ export default function EditProfileScreen({ navigation }) {
     "Widowed",
     "Single Parent",
     "Married",
+    "Separated",
     "Engaged",
     "Empty Nester",
     "Retired",

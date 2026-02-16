@@ -11,13 +11,15 @@
       "resizeMode": "contain",
       "backgroundColor": "#4299E1"
     },
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "bundleIdentifier": "com.rommco.kindredpal",
       "buildNumber": "1",
       "supportsTablet": true,
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "We need access to your photo library to upload profile photos.",
-        "NSCameraUsageDescription": "We need access to your camera to take profile photos."
+        "NSCameraUsageDescription": "We need access to your camera to take profile photos.",
+        "NSLocationWhenInUseUsageDescription": "We need your location to show you matches in your area."
       }
     },
     "android": {
@@ -30,9 +32,19 @@
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
       ]
     },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "We need access to your photos to upload profile pictures."
+        }
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "your-project-id-here"

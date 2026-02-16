@@ -1,25 +1,25 @@
 import React from "react";
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Home,
   Search,
-  UserCircle,
+  Heart,
   MessageCircle,
   Calendar,
   User,
-  Users,
   LogOut,
-  UserCheck,
 } from "lucide-react";
-
 import { useAuth } from "../context/AuthContext";
-import Footer from "../components/Footer";
+import Footer from "./Footer";
 import "./Layout.css";
 
 const Layout = () => {
+  const location = useLocation();
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
-  const { logout, unreadCount } = useAuth();
+  // Don't show footer on messages page
+  const hideFooter = location.pathname.startsWith("/messages");
 
   const handleLogout = () => {
     logout();
@@ -28,63 +28,101 @@ const Layout = () => {
 
   return (
     <div className="layout">
-      <header className="app-header">
-        <div
-          className="logo"
-          onClick={() => navigate("/")}
-          style={{ cursor: "pointer" }}
-        >
-          <div className="logo-icon">
-            <Users size={20} />
-          </div>
-          <span className="logo-text">KindredPal</span>
-        </div>
-        <nav className="app-nav">
-          <NavLink to="/" className="app-nav-link">
-            <Home size={20} />
-            <span>Home</span>
-          </NavLink>
-          <NavLink to="/discover" className="app-nav-link">
-            <Search size={20} />
-            <span>Discover</span>
-          </NavLink>
-          <NavLink to="/likes-you" className="app-nav-link">
-            <UserCheck size={20} />
-            <span>Interested</span>
-          </NavLink>
-          <NavLink to="/matches" className="app-nav-link">
-            <UserCircle size={20} />
-            <span>Matches</span>
-          </NavLink>
-          <NavLink to="/messages" className="app-nav-link">
-            <div className="nav-icon-wrapper">
-              <MessageCircle size={20} />
-              {unreadCount > 0 && (
-                <span className="unread-badge">{unreadCount}</span>
-              )}
-            </div>
-            <span>Messages</span>
-          </NavLink>
-          <NavLink to="/meetups" className="app-nav-link meetups-link">
-            <Calendar size={20} />
-            <span>Meetups</span>
-          </NavLink>
-          <NavLink to="/profile" className="app-nav-link">
-            <User size={20} />
-            <span>Profile</span>
-          </NavLink>
-          <button className="app-nav-link logout-btn" onClick={handleLogout}>
-            <LogOut size={20} />
-            <span>Logout</span>
-          </button>
-        </nav>
-      </header>
+      {/* Navigation Bar */}
+      <nav className="navbar">
+        <div className="navbar-container">
+          <div className="navbar-brand" onClick={() => navigate("/discover")}>
+            <svg
+              width="40"
+              height="40"
+              viewBox="0 0 40 40"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              {/* Circle of 4 people */}
+              <circle cx="20" cy="8" r="3" fill="white" />
+              <circle cx="32" cy="20" r="3" fill="white" />
+              <circle cx="20" cy="32" r="3" fill="white" />
+              <circle cx="8" cy="20" r="3" fill="white" />
 
+              {/* Connecting ring */}
+              <circle
+                cx="20"
+                cy="20"
+                r="12"
+                stroke="white"
+                strokeWidth="2.5"
+                fill="none"
+                opacity="0.8"
+              />
+            </svg>
+            <span className="brand-text">KindredPal</span>
+          </div>
+
+          <div className="navbar-links">
+            <button
+              className={`nav-link ${location.pathname === "/discover" ? "active" : ""}`}
+              onClick={() => navigate("/discover")}
+            >
+              <Search size={20} />
+              <span>Discover</span>
+            </button>
+
+            <button
+              className={`nav-link ${location.pathname === "/likes-you" ? "active" : ""}`}
+              onClick={() => navigate("/likes-you")}
+            >
+              <Heart size={20} />
+              <span>Interested</span>
+            </button>
+
+            <button
+              className={`nav-link ${location.pathname === "/matches" ? "active" : ""}`}
+              onClick={() => navigate("/matches")}
+            >
+              <Home size={20} />
+              <span>Matches</span>
+            </button>
+
+            <button
+              className={`nav-link ${location.pathname.startsWith("/messages") ? "active" : ""}`}
+              onClick={() => navigate("/messages")}
+            >
+              <MessageCircle size={20} />
+              <span>Messages</span>
+            </button>
+
+            <button
+              className={`nav-link ${location.pathname === "/meetups" ? "active" : ""}`}
+              onClick={() => navigate("/meetups")}
+            >
+              <Calendar size={20} />
+              <span>Meetups</span>
+            </button>
+
+            <button
+              className={`nav-link ${location.pathname === "/profile" ? "active" : ""}`}
+              onClick={() => navigate("/profile")}
+            >
+              <User size={20} />
+              <span>Profile</span>
+            </button>
+
+            <button className="nav-link logout-btn" onClick={handleLogout}>
+              <LogOut size={20} />
+              <span>Logout</span>
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      {/* Main Content */}
       <main className="main-content">
         <Outlet />
       </main>
 
-      <Footer />
+      {/* Footer - Hidden on Messages page */}
+      {!hideFooter && <Footer />}
     </div>
   );
 };

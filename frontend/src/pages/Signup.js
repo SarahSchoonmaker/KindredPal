@@ -84,6 +84,7 @@ const Signup = () => {
     "Fitness & Active Living",
     "Skilled Trades & Craftsmanship",
     "Ministry",
+    "Faith Community",
     "Psychology & Mental Health",
     "Philosophy",
     "Food & Cooking",
@@ -99,6 +100,7 @@ const Signup = () => {
     "Married",
     "Divorced",
     "Widowed",
+    "Separated",
     // Family
     "Single Parent",
     "Have Children",

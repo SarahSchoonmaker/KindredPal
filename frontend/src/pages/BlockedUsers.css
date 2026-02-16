@@ -1,0 +1,160 @@
+.blocked-users-page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+.back-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: #2b6cb0;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 24px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.back-btn:hover {
+  background-color: #f7fafc;
+}
+
+.blocked-container {
+  background: white;
+  border-radius: 12px;
+  padding: 32px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.blocked-header {
+  text-align: center;
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.blocked-header svg {
+  color: #e53e3e;
+  margin-bottom: 16px;
+}
+
+.blocked-header h1 {
+  font-size: 28px;
+  color: #2d3748;
+  margin: 0 0 8px 0;
+}
+
+.blocked-header p {
+  color: #718096;
+  font-size: 14px;
+  margin: 0;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #718096;
+}
+
+.empty-state svg {
+  color: #cbd5e0;
+  margin-bottom: 16px;
+}
+
+.empty-state h3 {
+  font-size: 20px;
+  color: #4a5568;
+  margin: 0 0 8px 0;
+}
+
+.empty-state p {
+  font-size: 14px;
+  margin: 0;
+}
+
+.blocked-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.blocked-user-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.blocked-user-item:hover {
+  background-color: #f7fafc;
+  border-color: #cbd5e0;
+}
+
+.blocked-user-photo {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.blocked-user-info {
+  flex: 1;
+}
+
+.blocked-user-info h3 {
+  font-size: 16px;
+  color: #2d3748;
+  margin: 0;
+}
+
+.btn-unblock {
+  padding: 10px 20px;
+  background: #2b6cb0;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-unblock:hover {
+  background: #2c5282;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(43, 108, 176, 0.3);
+}
+
+.loading {
+  text-align: center;
+  padding: 60px 20px;
+  font-size: 16px;
+  color: #718096;
+}
+
+@media (max-width: 768px) {
+  .blocked-users-page {
+    padding: 24px 16px;
+  }
+
+  .blocked-container {
+    padding: 24px 16px;
+  }
+
+  .blocked-user-item {
+    gap: 12px;
+  }
+
+  .btn-unblock {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+}

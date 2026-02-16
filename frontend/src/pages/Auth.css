@@ -169,20 +169,51 @@
 
 .auth-link {
   text-align: center;
-  margin-top: 1.5rem;
-  color: #666;
+  margin-top: 16px;
 }
 
 .auth-link a {
   color: #2b6cb0;
   text-decoration: none;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .auth-link a:hover {
   text-decoration: underline;
 }
 
+.button-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+.btn-primary {
+  padding: 12px 32px;
+  min-width: 200px;
+  background-color: #2b6cb0;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  display: inline-block;
+  text-align: center;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #2c5282;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(43, 108, 176, 0.3);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 .progress-bar {
   height: 6px;
   background: #e8e8e8;
@@ -229,6 +260,36 @@
 
 .button-group .btn {
   flex: 1;
+}
+
+.icon-header {
+  text-align: center;
+  margin-bottom: 24px;
+  color: #2b6cb0;
+}
+
+.success-message {
+  font-size: 16px;
+  color: #2d3748;
+  margin-bottom: 16px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.form-link {
+  text-align: right;
+  margin-top: -8px;
+  margin-bottom: 16px;
+}
+
+.form-link a {
+  font-size: 14px;
+  color: #2b6cb0;
+  text-decoration: none;
+}
+
+.form-link a:hover {
+  text-decoration: underline;
 }
 
 @media (max-width: 768px) {

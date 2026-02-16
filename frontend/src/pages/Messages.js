@@ -4,13 +4,14 @@ import { Send, ArrowLeft, User as UserIcon } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { messageAPI, userAPI } from "../services/api";
 import "./Messages.css";
+import UserActionsMenu from "../components/UserActionsMenu";
 
 const Messages = () => {
   const { userId } = useParams();
   const navigate = useNavigate();
   const { user, clearUnread } = useAuth();
   const [conversations, setConversations] = useState([]);
-  const [unreadCounts, setUnreadCounts] = useState({}); // Store unread count per user
+  const [unreadCounts, setUnreadCounts] = useState({});
   const [selectedUser, setSelectedUser] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
@@ -41,7 +42,6 @@ const Messages = () => {
 
   const loadUnreadCounts = async (matches) => {
     try {
-      // Get unread count from backend for each match
       const counts = {};
 
       for (const match of matches) {
@@ -112,6 +112,13 @@ const Messages = () => {
     navigate(`/profile/${matchUser._id}`);
   };
 
+  // Handle when user is reported/blocked - redirect to messages list
+  const handleUserActionComplete = () => {
+    setSelectedUser(null);
+    navigate("/messages");
+    loadConversations(); // Reload to remove blocked user
+  };
+
   if (loading) {
     return (
       <div className="messages-container">
@@ -158,7 +165,6 @@ const Messages = () => {
                       alt={match.name}
                       className="conversation-avatar"
                     />
-                    {/* Unread badge on avatar */}
                     {unreadCounts[match._id] > 0 && (
                       <span className="conversation-unread-badge">
                         {unreadCounts[match._id]}
@@ -181,7 +187,7 @@ const Messages = () => {
         <div className={`chat-area ${!selectedUser ? "mobile-hidden" : ""}`}>
           {selectedUser ? (
             <>
-              {/* Chat Header */}
+              {/* Chat Header - UPDATED */}
               <div className="chat-header">
                 <button
                   className="back-button mobile-only"
@@ -203,12 +209,20 @@ const Messages = () => {
                     {selectedUser.city}, {selectedUser.state}
                   </p>
                 </div>
-                <button
-                  className="btn-view-profile"
-                  onClick={() => viewProfile(selectedUser)}
-                >
-                  View Profile
-                </button>
+                <div className="chat-header-actions">
+                  <button
+                    className="btn-view-profile"
+                    onClick={() => viewProfile(selectedUser)}
+                  >
+                    View Profile
+                  </button>
+                  {/* ADD THIS - User Actions Menu */}
+                  <UserActionsMenu
+                    userId={selectedUser._id}
+                    userName={selectedUser.name}
+                    onComplete={handleUserActionComplete}
+                  />
+                </div>
               </div>
 
               {/* Messages */}

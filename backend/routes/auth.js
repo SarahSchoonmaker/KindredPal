@@ -1,15 +1,19 @@
 const express = require("express");
 const router = express.Router();
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 const User = require("../models/User");
 const auth = require("../middleware/auth");
 const { body, validationResult } = require("express-validator");
 
-// Signup with validation and detailed logging
+// ===== SIGNUP ROUTE =====
+
+// @route   POST /api/auth/signup
+// @desc    Register a new user
+// @access  Public
 router.post(
   "/signup",
   [
-    // Input validation
     body("email")
       .isEmail()
       .normalizeEmail()
@@ -27,7 +31,6 @@ router.post(
   ],
   async (req, res) => {
     try {
-      // Check validation errors
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         console.log("❌ Validation errors:", errors.array());
@@ -43,16 +46,6 @@ router.post(
 
       const userData = req.body;
 
-      // Log each field individually
-      console.log("Email:", userData.email);
-      console.log("Name:", userData.name);
-      console.log("Age:", userData.age);
-      console.log("Religion:", userData.religion);
-      console.log("Political Beliefs:", userData.politicalBeliefs);
-      console.log("Causes:", userData.causes);
-      console.log("Life Stage:", userData.lifeStage);
-      console.log("Looking For:", userData.lookingFor);
-
       // Check if user already exists
       const existingUser = await User.findOne({ email: userData.email });
       if (existingUser) {
@@ -61,9 +54,8 @@ router.post(
           .json({ message: "User already exists with this email" });
       }
 
-      // Validate required fields before creating user
+      // Validate required fields
       if (!userData.religion) {
-        console.log("❌ MISSING: religion");
         return res
           .status(400)
           .json({ message: "Religion/Spirituality is required" });
@@ -73,7 +65,6 @@ router.post(
         !userData.politicalBeliefs ||
         userData.politicalBeliefs.length === 0
       ) {
-        console.log("❌ MISSING: politicalBeliefs");
         return res.status(400).json({
           message:
             "Political beliefs are required - please select at least one",
@@ -81,12 +72,10 @@ router.post(
       }
 
       if (!userData.lifeStage || userData.lifeStage.length === 0) {
-        console.log("❌ MISSING: lifeStage");
         return res.status(400).json({ message: "Life stage is required" });
       }
 
       if (!userData.causes || userData.causes.length < 3) {
-        console.log("❌ MISSING: causes (need 3+)");
         return res
           .status(400)
           .json({ message: "Please select at least 3 causes" });
@@ -120,7 +109,6 @@ router.post(
         expiresIn: "7d",
       });
 
-      // Return complete user object with all fields - FIXED: _id → id
       const userResponse = {
         id: user._id.toString(),
         _id: user._id,
@@ -141,8 +129,6 @@ router.post(
         createdAt: user.createdAt,
       };
 
-      console.log("📤 Sending complete user data:", userResponse);
-
       res.status(201).json({
         token,
         user: userResponse,
@@ -150,9 +136,6 @@ router.post(
     } catch (error) {
       console.error("\n❌ SIGNUP ERROR:", error);
       console.error("Error message:", error.message);
-      if (error.errors) {
-        console.error("Validation errors:", Object.keys(error.errors));
-      }
       res.status(500).json({
         message: error.message || "Error creating account",
       });
@@ -160,11 +143,14 @@ router.post(
   },
 );
 
-// Login with validation
+// ===== LOGIN ROUTE =====
+
+// @route   POST /api/auth/login
+// @desc    Login user
+// @access  Public
 router.post(
   "/login",
   [
-    // Input validation
     body("email")
       .isEmail()
       .normalizeEmail()
@@ -175,7 +161,6 @@ router.post(
   ],
   async (req, res) => {
     try {
-      // Check validation errors
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         console.log("❌ Validation errors:", errors.array());
@@ -212,7 +197,6 @@ router.post(
         expiresIn: "7d",
       });
 
-      // Return complete user object with all fields - FIXED: _id → id
       const userResponse = {
         id: user._id.toString(),
         _id: user._id,
@@ -247,7 +231,11 @@ router.post(
   },
 );
 
-// Get current user profile
+// ===== GET PROFILE ROUTE =====
+
+// @route   GET /api/auth/profile
+// @desc    Get current user profile
+// @access  Private
 router.get("/profile", auth, async (req, res) => {
   try {
     const user = await User.findById(req.userId).select("-password");
@@ -256,15 +244,7 @@ router.get("/profile", auth, async (req, res) => {
     }
 
     console.log("📤 Sending profile for:", user.email);
-    console.log("Profile includes:", {
-      politicalBeliefs: user.politicalBeliefs?.length || 0,
-      religion: user.religion,
-      causes: user.causes?.length || 0,
-      lifeStage: user.lifeStage?.length || 0,
-      lookingFor: user.lookingFor?.length || 0,
-    });
 
-    // FIXED: Return user with id field
     const userResponse = user.toObject();
     userResponse.id = userResponse._id.toString();
 
@@ -274,5 +254,137 @@ router.get("/profile", auth, async (req, res) => {
     res.status(500).json({ message: "Error fetching profile" });
   }
 });
+
+// ===== PASSWORD RESET ROUTES =====
+
+// @route   POST /api/auth/forgot-password
+// @desc    Send password reset email
+// @access  Public
+router.post(
+  "/forgot-password",
+  [
+    body("email")
+      .isEmail()
+      .normalizeEmail()
+      .withMessage("Invalid email address"),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          message: errors.array()[0].msg,
+        });
+      }
+
+      const { email } = req.body;
+
+      console.log("\n========== FORGOT PASSWORD REQUEST ==========");
+      console.log("📧 Email:", email);
+
+      const user = await User.findOne({ email });
+
+      if (!user) {
+        console.log("⚠️ User not found, but returning success message");
+        return res.status(200).json({
+          message:
+            "If an account exists, you will receive a password reset email",
+        });
+      }
+
+      console.log("✅ User found:", user.email);
+
+      const resetToken = crypto.randomBytes(32).toString("hex");
+      const hashedToken = crypto
+        .createHash("sha256")
+        .update(resetToken)
+        .digest("hex");
+
+      user.resetPasswordToken = hashedToken;
+      user.resetPasswordExpires = Date.now() + 3600000;
+      await user.save();
+
+      const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
+
+      if (process.env.NODE_ENV !== "production") {
+        console.log("🔗 Reset URL (DEV ONLY):", resetUrl);
+      }
+
+      console.log("✅ Password reset request processed");
+      console.log("====================================\n");
+
+      res.status(200).json({
+        message:
+          "If an account exists, you will receive a password reset email",
+      });
+    } catch (error) {
+      console.error("❌ Forgot password error:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  },
+);
+
+// @route   POST /api/auth/reset-password
+// @desc    Reset password with token
+// @access  Public
+router.post(
+  "/reset-password",
+  [
+    body("token").notEmpty().withMessage("Reset token is required"),
+    body("newPassword")
+      .isLength({ min: 6 })
+      .withMessage("Password must be at least 6 characters"),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          message: errors.array()[0].msg,
+        });
+      }
+
+      const { token, newPassword } = req.body;
+
+      console.log("\n========== RESET PASSWORD REQUEST ==========");
+
+      const hashedToken = crypto
+        .createHash("sha256")
+        .update(token)
+        .digest("hex");
+
+      const user = await User.findOne({
+        resetPasswordToken: hashedToken,
+        resetPasswordExpires: { $gt: Date.now() },
+      });
+
+      if (!user) {
+        console.log("❌ Invalid or expired token");
+        return res.status(400).json({
+          message: "Invalid or expired reset token. Please request a new one.",
+        });
+      }
+
+      console.log("✅ Valid token found for user:", user.email);
+
+      user.password = newPassword;
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpires = undefined;
+
+      await user.save();
+
+      console.log("✅ Password reset successful");
+      console.log("====================================\n");
+
+      res.status(200).json({
+        message:
+          "Password has been reset successfully. You can now log in with your new password.",
+      });
+    } catch (error) {
+      console.error("❌ Reset password error:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  },
+);
 
 module.exports = router;

@@ -92,6 +92,47 @@
   font-weight: 500;
 }
 
+.emergency-box {
+  background-color: #fee;
+  border: 2px solid #e53e3e;
+  border-radius: 8px;
+  padding: 20px;
+  margin: 20px 0;
+  text-align: center;
+}
+
+.emergency-box p {
+  color: #e53e3e;
+  font-size: 18px;
+  font-weight: bold;
+  margin: 0;
+}
+
+.highlight-text {
+  background-color: #fffbeb;
+  border-left: 4px solid #f59e0b;
+  padding: 16px;
+  margin: 20px 0;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.contact-info {
+  background-color: #f7fafc;
+  padding: 16px;
+  border-radius: 8px;
+  margin-top: 16px;
+}
+
+.contact-info a {
+  color: #2b6cb0;
+  text-decoration: none;
+}
+
+.contact-info a:hover {
+  text-decoration: underline;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .legal-page {

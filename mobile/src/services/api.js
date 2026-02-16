@@ -56,6 +56,9 @@ export const authAPI = {
   login: (email, password) => api.post("/auth/login", { email, password }),
   signup: (userData) => api.post("/auth/signup", userData),
   getProfile: () => api.get("/auth/profile"),
+  forgotPassword: (email) => api.post("/auth/forgot-password", { email }),
+  resetPassword: (token, newPassword) =>
+    api.post("/auth/reset-password", { token, newPassword }),
 };
 
 // User API
@@ -69,6 +72,13 @@ export const userAPI = {
   getPreferences: () => api.get("/users/preferences"),
   updateNotificationSettings: (settings) =>
     api.put("/users/notification-settings", settings),
+  reportUser: (
+    userId,
+    reason, // NEW
+  ) => api.post(`/users/${userId}/report`, { reason }),
+  blockUser: (userId) => api.post(`/users/${userId}/block`), // NEW
+  unblockUser: (userId) => api.delete(`/users/${userId}/block`), // NEW
+  getBlockedUsers: () => api.get("/users/blocked"), // NEW
 };
 
 // Swipe API

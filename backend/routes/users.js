@@ -2,262 +2,132 @@ const express = require("express");
 const router = express.Router();
 const User = require("../models/User");
 const auth = require("../middleware/auth");
-const { calculateMatchPercentage } = require("../services/matchingService");
 
-// Get discover users (exclude logged-in user, already liked/passed users)
+// ===== DISCOVER ROUTE =====
+
+// @route   GET /api/users/discover
+// @desc    Get potential matches for discovery
+// @access  Private
 router.get("/discover", auth, async (req, res) => {
   try {
-    console.log("📥 Discover request from user:", req.userId);
-
     const currentUser = await User.findById(req.userId);
-    if (!currentUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
 
-    // Get users to exclude
-    const excludeIds = [
-      req.userId,
-      ...currentUser.likes,
-      ...currentUser.matches,
-      ...currentUser.passed,
-    ];
-
-    console.log("🚫 Excluding user IDs:", excludeIds.length);
-
-    // Find potential matches
-    const users = await User.find({
-      _id: { $nin: excludeIds },
-      isActive: true,
-    }).limit(20);
-
-    console.log("✅ Found", users.length, "potential matches");
-
-    // Calculate match percentages using new service
-    const usersWithScores = users.map((user) => {
-      const userObj = user.toObject();
-      return {
-        ...userObj,
-        id: userObj._id.toString(),
-        matchScore: calculateMatchPercentage(currentUser, user),
-      };
-    });
-
-    // Sort by match score
-    usersWithScores.sort((a, b) => b.matchScore - a.matchScore);
-
-    res.json({
-      users: usersWithScores,
-    });
-  } catch (error) {
-    console.error("Discover users error:", error);
-    res.status(500).json({ message: "Error fetching users" });
-  }
-});
-
-// Get matches
-router.get("/matches", auth, async (req, res) => {
-  try {
-    const currentUser = await User.findById(req.userId);
-    const matches = await User.find({
-      _id: { $in: currentUser.matches },
-    }).select("-password");
-
-    // Add match percentage to each match
-    const matchesWithPercentage = matches.map((match) => {
-      const matchObj = match.toObject();
-      return {
-        ...matchObj,
-        id: matchObj._id.toString(),
-        matchScore: calculateMatchPercentage(currentUser, match),
-      };
-    });
-
-    res.json(matchesWithPercentage);
-  } catch (error) {
-    console.error("Get matches error:", error);
-    res.status(500).json({ message: "Error fetching matches" });
-  }
-});
-
-// Get users who liked you
-router.get("/likes-you", auth, async (req, res) => {
-  try {
-    console.log("📥 Getting users who liked:", req.userId);
-
-    const currentUser = await User.findById(req.userId);
-    if (!currentUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    // Find users who liked you (but you haven't liked back yet)
-    const usersWhoLikedYou = await User.find({
-      likes: currentUser._id,
-      _id: {
-        $nin: [
-          ...currentUser.likes,
-          ...currentUser.matches,
-          ...currentUser.passed,
-        ],
-      },
-    }).select("-password");
-
-    console.log("✅ Found", usersWhoLikedYou.length, "users who liked you");
-
-    // Calculate match percentages
-    const usersWithScores = usersWhoLikedYou.map((user) => {
-      const userObj = user.toObject();
-      return {
-        ...userObj,
-        id: userObj._id.toString(),
-        matchScore: calculateMatchPercentage(currentUser, user),
-      };
-    });
-
-    // Sort by match score
-    usersWithScores.sort((a, b) => b.matchScore - a.matchScore);
-
-    res.json({
-      users: usersWithScores,
-    });
-  } catch (error) {
-    console.error("❌ Get likes you error:", error);
-    res.status(500).json({ message: "Error fetching likes" });
-  }
-});
-
-// Get search preferences
-router.get("/preferences", auth, async (req, res) => {
-  try {
-    const user = await User.findById(req.userId);
-    res.json({
-      searchPreferences: user.searchPreferences || {
-        ageRange: { min: 35, max: 55 },
-        maxDistance: 50,
-        lifeStage: [],
-        politics: [],
-        religion: [],
-        lookingFor: "either",
-      },
-    });
-  } catch (error) {
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// Get another user's profile (for viewing matches)
-router.get("/profile/:userId", auth, async (req, res) => {
-  try {
-    console.log("📥 Getting profile for user:", req.params.userId);
-
-    const currentUser = await User.findById(req.userId);
-    const targetUser = await User.findById(req.params.userId).select(
-      "-password",
+    console.log("\n========== DISCOVER REQUEST ==========");
+    console.log("👤 User:", currentUser.email);
+    console.log("📍 Location:", currentUser.city, currentUser.state);
+    console.log(
+      "🎯 Location Preference:",
+      currentUser.locationPreference || "Home state (default)",
     );
 
-    if (!targetUser) {
-      console.log("❌ Target user not found");
-      return res.status(404).json({ message: "User not found" });
-    }
+    // Get all users except:
+    // - Current user
+    // - Users already liked
+    // - Users already passed
+    // - Blocked users
+    // - Deleted users
+    const excludedIds = [
+      req.userId,
+      ...(currentUser.likes || []),
+      ...(currentUser.passed || []),
+      ...(currentUser.blocked || []),
+    ];
 
-    // Check if they're matched (only allow viewing matched profiles)
-    const isMatch = currentUser.matches.includes(targetUser._id);
+    console.log("🚫 Excluding", excludedIds.length, "users");
 
-    if (!isMatch) {
-      console.log("❌ Not matched - access denied");
-      return res
-        .status(403)
-        .json({ message: "You can only view profiles of your matches" });
-    }
+    // Find potential matches
+    let potentialMatches = await User.find({
+      _id: { $nin: excludedIds },
+      isDeleted: { $ne: true },
+      isActive: true,
+    });
 
-    console.log("✅ Returning profile for:", targetUser.name);
+    console.log("📊 Total users in database:", potentialMatches.length);
 
-    // Add match percentage
-    const targetUserObj = targetUser.toObject();
-    const profileWithMatch = {
-      ...targetUserObj,
-      id: targetUserObj._id.toString(),
-      matchScore: calculateMatchPercentage(currentUser, targetUser),
-    };
+    // Filter by location preference
+    const locationPref = currentUser.locationPreference || "Home state";
+    console.log("🔍 Applying location filter:", locationPref);
 
-    res.json(profileWithMatch);
+    potentialMatches = potentialMatches.filter((user) => {
+      const meets = currentUser.meetsLocationPreference(user);
+      if (!meets) {
+        console.log(
+          `   ❌ ${user.name} (${user.city}, ${user.state}) - doesn't meet location preference`,
+        );
+      } else {
+        console.log(
+          `   ✅ ${user.name} (${user.city}, ${user.state}) - meets location preference`,
+        );
+      }
+      return meets;
+    });
+
+    console.log("📍 After location filter:", potentialMatches.length, "users");
+
+    // Calculate match scores
+    const matchesWithScores = potentialMatches
+      .map((user) => {
+        const score = currentUser.calculateMatchScore(user);
+        console.log(`   🎯 ${user.name}: ${score}% match`);
+        return {
+          ...user.toObject(),
+          matchScore: score,
+        };
+      })
+      .filter((user) => user.matchScore > 0);
+
+    console.log(
+      "✨ After match score filter:",
+      matchesWithScores.length,
+      "users",
+    );
+
+    // Sort by match score (highest first)
+    matchesWithScores.sort((a, b) => b.matchScore - a.matchScore);
+
+    res.json({
+      users: matchesWithScores,
+      dailyLikesRemaining: currentUser.dailyLikes.count,
+    });
   } catch (error) {
-    console.error("❌ Get user profile error:", error);
-    res.status(500).json({ message: "Error fetching profile" });
+    console.error("❌ Discover error:", error);
+    res.status(500).json({ message: "Error fetching discover users" });
   }
 });
 
-// Get user by ID (for viewing profiles) - MUST BE AFTER SPECIFIC ROUTES
-router.get("/:userId", auth, async (req, res) => {
-  try {
-    console.log("📥 Getting user by ID:", req.params.userId);
+// ===== LIKE USER =====
 
-    const user = await User.findById(req.params.userId).select("-password");
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    console.log("✅ Returning user:", user.name);
-
-    const userObj = user.toObject();
-    userObj.id = userObj._id.toString();
-
-    res.json(userObj);
-  } catch (error) {
-    console.error("❌ Error fetching user:", error);
-    res.status(500).json({ message: "Error fetching user" });
-  }
-});
-
-// Like a user
+// @route   POST /api/users/like/:userId
+// @desc    Like a user
+// @access  Private
 router.post("/like/:userId", auth, async (req, res) => {
   try {
     const currentUser = await User.findById(req.userId);
-    const targetUser = await User.findById(req.params.userId);
+    const likedUser = await User.findById(req.params.userId);
 
-    if (!targetUser) {
+    if (!likedUser) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Check if already liked
-    if (currentUser.likes.includes(targetUser._id)) {
-      return res.json({
-        message: "Already liked",
-        dailyLikesRemaining: currentUser.dailyLikes.count,
-        isMatch: false,
-      });
-    }
+    // Check if it's a match
+    let isMatch = false;
+    let matchedUser = null;
 
-    // Add like
-    currentUser.likes.push(targetUser._id);
-
-    // Decrease daily likes count if not premium
-    if (!currentUser.hasUnlimitedLikes()) {
-      currentUser.dailyLikes.count -= 1;
-    }
-
-    // Check for match
-    const isMatch = targetUser.likes.includes(currentUser._id);
-    if (isMatch) {
-      currentUser.matches.push(targetUser._id);
-      targetUser.matches.push(currentUser._id);
-      await targetUser.save();
+    if (likedUser.likes.includes(currentUser._id)) {
+      isMatch = true;
+      currentUser.matches.push(likedUser._id);
+      likedUser.matches.push(currentUser._id);
+      await likedUser.save();
+      matchedUser = likedUser.toObject();
     }
 
     await currentUser.save();
 
     res.json({
-      message: isMatch ? "Match!" : "Liked",
-      dailyLikesRemaining: currentUser.dailyLikes.count,
+      message: isMatch ? "It's a match!" : "User liked",
       isMatch,
-      matchedUser: isMatch
-        ? {
-            _id: targetUser._id,
-            id: targetUser._id.toString(),
-            name: targetUser.name,
-            profilePhoto: targetUser.profilePhoto,
-          }
-        : null,
+      matchedUser,
+      dailyLikesRemaining: currentUser.dailyLikes.count,
     });
   } catch (error) {
     console.error("Like user error:", error);
@@ -265,224 +135,314 @@ router.post("/like/:userId", auth, async (req, res) => {
   }
 });
 
-// Pass on a user
+// ===== PASS USER =====
+
+// @route   POST /api/users/pass/:userId
+// @desc    Pass on a user
+// @access  Private
 router.post("/pass/:userId", auth, async (req, res) => {
   try {
     const currentUser = await User.findById(req.userId);
-    const targetUserId = req.params.userId;
+    const passedUserId = req.params.userId;
 
-    if (!currentUser.passed.includes(targetUserId)) {
-      currentUser.passed.push(targetUserId);
+    if (!currentUser.passed.includes(passedUserId)) {
+      currentUser.passed.push(passedUserId);
       await currentUser.save();
     }
 
-    res.json({ message: "Passed" });
+    res.json({ message: "User passed" });
   } catch (error) {
     console.error("Pass user error:", error);
     res.status(500).json({ message: "Error passing user" });
   }
 });
 
-// Unmatch with a user
-router.post("/unmatch/:userId", auth, async (req, res) => {
+// ===== GET MATCHES =====
+
+// @route   GET /api/users/matches
+// @desc    Get user's matches
+// @access  Private
+router.get("/matches", auth, async (req, res) => {
   try {
-    const currentUser = await User.findById(req.userId);
-    const targetUser = await User.findById(req.params.userId);
-
-    if (!targetUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    // Check if they are matched
-    if (!currentUser.matches.includes(targetUser._id)) {
-      return res.status(400).json({ message: "Not matched with this user" });
-    }
-
-    // Remove from both users' matches
-    currentUser.matches = currentUser.matches.filter(
-      (id) => !id.equals(targetUser._id),
-    );
-    targetUser.matches = targetUser.matches.filter(
-      (id) => !id.equals(currentUser._id),
+    const user = await User.findById(req.userId).populate(
+      "matches",
+      "name age city state profilePhoto bio causes lifeStage",
     );
 
-    // Also remove from likes if present
-    currentUser.likes = currentUser.likes.filter(
-      (id) => !id.equals(targetUser._id),
-    );
-    targetUser.likes = targetUser.likes.filter(
-      (id) => !id.equals(currentUser._id),
-    );
-
-    await currentUser.save();
-    await targetUser.save();
-
-    console.log("✅ Unmatched:", currentUser.name, "and", targetUser.name);
-
-    res.json({
-      message: "Successfully unmatched",
-      unmatchedUser: {
-        _id: targetUser._id,
-        id: targetUser._id.toString(),
-        name: targetUser.name,
-      },
-    });
+    res.json(user.matches || []);
   } catch (error) {
-    console.error("Unmatch error:", error);
-    res.status(500).json({ message: "Error unmatching user" });
+    console.error("Get matches error:", error);
+    res.status(500).json({ message: "Error fetching matches" });
   }
 });
 
-// Profile update route
+// ===== GET LIKES YOU =====
+
+// @route   GET /api/users/likes-you
+// @desc    Get users who liked you
+// @access  Private
+router.get("/likes-you", auth, async (req, res) => {
+  try {
+    const currentUser = await User.findById(req.userId);
+
+    const usersWhoLikedYou = await User.find({
+      likes: currentUser._id,
+      _id: { $nin: currentUser.matches },
+    }).select("name age city state profilePhoto bio causes lifeStage");
+
+    res.json(usersWhoLikedYou);
+  } catch (error) {
+    console.error("Likes you error:", error);
+    res.status(500).json({ message: "Error fetching likes" });
+  }
+});
+
+// ===== UPDATE PROFILE =====
+
+// @route   PUT /api/users/profile
+// @desc    Update user profile
+// @access  Private
 router.put("/profile", auth, async (req, res) => {
   try {
     const updates = req.body;
+    const user = await User.findById(req.userId);
 
-    console.log("📝 Profile update request from user:", req.userId);
-
-    // MIGRATION: Replace old enum values with new ones
-    if (updates.causes && Array.isArray(updates.causes)) {
-      updates.causes = updates.causes.map((cause) => {
-        if (cause === "Fitness") return "Fitness & Active Living";
-        if (cause === "Technology") return "Technology & Innovation";
-        return cause;
-      });
-    }
-
-    if (updates.politicalBeliefs && Array.isArray(updates.politicalBeliefs)) {
-      updates.politicalBeliefs = updates.politicalBeliefs.map((belief) => {
-        if (belief === "Apolitical") return "Prefer not to say";
-        return belief;
-      });
-    }
-
-    if (updates.lifeStage && Array.isArray(updates.lifeStage)) {
-      updates.lifeStage = updates.lifeStage.map((stage) => {
-        if (stage === "Single, no kids") return "Single";
-        if (stage === "Single with kids") return "Single Parent";
-        return stage;
-      });
-    }
-
-    if (updates.lookingFor && Array.isArray(updates.lookingFor)) {
-      updates.lookingFor = updates.lookingFor.map((looking) => {
-        if (looking === "Dating") return "Romance";
-        if (looking === "Either") return "Community";
-        return looking;
-      });
-    }
-
-    if (updates.religion) {
-      // Religion migrations
-      if (updates.religion === "Spiritual but not religious") {
-        updates.religion = "Seeking/Undecided";
-      }
-      if (updates.religion === "Spiritual") {
-        updates.religion = "Seeking/Undecided";
-      }
-    }
-
-    // Allowed fields to update
+    // Update allowed fields
     const allowedUpdates = [
       "name",
       "age",
       "city",
       "state",
       "bio",
+      "profilePhoto",
+      "additionalPhotos",
       "politicalBeliefs",
       "religion",
       "causes",
       "lifeStage",
       "lookingFor",
-      "profilePhoto",
-      "additionalPhotos",
+      "locationPreference",
     ];
 
-    // Filter to only allowed updates
-    const filteredUpdates = {};
-    Object.keys(updates).forEach((key) => {
-      if (allowedUpdates.includes(key)) {
-        filteredUpdates[key] = updates[key];
+    allowedUpdates.forEach((field) => {
+      if (updates[field] !== undefined) {
+        user[field] = updates[field];
       }
     });
 
-    console.log("✅ Allowed updates:", filteredUpdates);
+    await user.save();
 
-    // Update user
-    const user = await User.findByIdAndUpdate(req.userId, filteredUpdates, {
-      new: true,
-      runValidators: true,
-    }).select("-password");
+    const userResponse = user.toObject();
+    userResponse.id = userResponse._id.toString();
+
+    res.json(userResponse);
+  } catch (error) {
+    console.error("Update profile error:", error);
+    res.status(500).json({ message: "Error updating profile" });
+  }
+});
+
+// ===== GET USER PROFILE =====
+
+// @route   GET /api/users/profile/:userId
+// @desc    Get another user's profile
+// @access  Private
+router.get("/profile/:userId", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId).select("-password");
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    console.log("✅ Profile updated successfully for:", user.email);
+    const userResponse = user.toObject();
+    userResponse.id = userResponse._id.toString();
 
-    const userObj = user.toObject();
-    userObj.id = userObj._id.toString();
-
-    res.json(userObj);
+    res.json(userResponse);
   } catch (error) {
-    console.error("❌ Profile update error:", error);
-    res.status(500).json({
-      message: "Error updating profile",
-      error: error.message,
-    });
+    console.error("Get user profile error:", error);
+    res.status(500).json({ message: "Error fetching profile" });
   }
 });
 
-// Update notification settings
+// ===== UPDATE NOTIFICATION SETTINGS =====
+
+// @route   PUT /api/users/notification-settings
+// @desc    Update notification settings
+// @access  Private
 router.put("/notification-settings", auth, async (req, res) => {
   try {
-    const { newMatch, newMessage, weeklyDigest } = req.body;
-
-    const user = await User.findByIdAndUpdate(
-      req.userId,
-      {
-        $set: {
-          "emailNotifications.newMatch": newMatch,
-          "emailNotifications.newMessage": newMessage,
-          "emailNotifications.weeklyDigest": weeklyDigest,
-        },
-      },
-      { new: true },
-    ).select("-password");
-
-    console.log("✅ Notification settings updated for:", user.email);
-
-    const userObj = user.toObject();
-    userObj.id = userObj._id.toString();
-
-    res.json(userObj);
+    const user = await User.findById(req.userId);
+    user.emailNotifications = {
+      ...user.emailNotifications,
+      ...req.body,
+    };
+    await user.save();
+    res.json({ message: "Notification settings updated" });
   } catch (error) {
-    console.error("❌ Update notification settings error:", error);
-    res.status(500).json({ message: "Error updating notification settings" });
+    console.error("Update notifications error:", error);
+    res.status(500).json({ message: "Error updating settings" });
   }
 });
 
-// Delete account (soft delete)
+// ===== DELETE ACCOUNT =====
+
+// @route   DELETE /api/users/account
+// @desc    Delete user account (soft delete)
+// @access  Private
 router.delete("/account", auth, async (req, res) => {
   try {
     const user = await User.findById(req.userId);
+    await user.softDelete();
+    res.json({ message: "Account deleted successfully" });
+  } catch (error) {
+    console.error("Delete account error:", error);
+    res.status(500).json({ message: "Error deleting account" });
+  }
+});
 
-    if (!user) {
+// ===== REPORT USER =====
+
+// @route   POST /api/users/:userId/report
+// @desc    Report a user
+// @access  Private
+router.post("/:userId/report", auth, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { reason } = req.body;
+    const reporterId = req.userId;
+
+    console.log("\n========== REPORT USER ==========");
+    console.log("Reporter:", reporterId);
+    console.log("Reported User:", userId);
+    console.log("Reason:", reason);
+
+    if (!reason) {
+      return res.status(400).json({ message: "Report reason is required" });
+    }
+
+    const reportedUser = await User.findById(userId);
+    if (!reportedUser) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Soft delete
-    user.isDeleted = true;
-    user.deletedAt = new Date();
-    user.isActive = false;
-    await user.save();
+    if (userId === reporterId) {
+      return res.status(400).json({ message: "You cannot report yourself" });
+    }
 
-    console.log("✅ Account deleted (soft):", user.email);
+    // TODO: Store report in a Report model/collection
+    console.log("✅ Report logged successfully");
+    console.log("====================================\n");
 
-    res.json({ message: "Account deleted successfully" });
+    res.status(200).json({
+      message: "Thank you for your report. Our team will review it shortly.",
+    });
   } catch (error) {
-    console.error("❌ Delete account error:", error);
-    res.status(500).json({ message: "Error deleting account" });
+    console.error("❌ Report user error:", error);
+    res.status(500).json({ message: "Error reporting user" });
+  }
+});
+
+// ===== BLOCK USER =====
+
+// @route   POST /api/users/:userId/block
+// @desc    Block a user
+// @access  Private
+router.post("/:userId/block", auth, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const blockerId = req.userId;
+
+    console.log("\n========== BLOCK USER ==========");
+    console.log("Blocker:", blockerId);
+    console.log("Blocked User:", userId);
+
+    if (userId === blockerId) {
+      return res.status(400).json({ message: "You cannot block yourself" });
+    }
+
+    const blocker = await User.findById(blockerId);
+    const blockedUser = await User.findById(userId);
+
+    if (!blockedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (!blocker.blocked) {
+      blocker.blocked = [];
+    }
+
+    if (blocker.blocked.includes(userId)) {
+      return res.status(400).json({ message: "User is already blocked" });
+    }
+
+    blocker.blocked.push(userId);
+
+    blocker.matches = blocker.matches.filter(
+      (matchId) => matchId.toString() !== userId,
+    );
+    blockedUser.matches = blockedUser.matches.filter(
+      (matchId) => matchId.toString() !== blockerId,
+    );
+
+    await blocker.save();
+    await blockedUser.save();
+
+    console.log("✅ User blocked successfully");
+    console.log("====================================\n");
+
+    res.status(200).json({ message: "User blocked successfully" });
+  } catch (error) {
+    console.error("❌ Block user error:", error);
+    res.status(500).json({ message: "Error blocking user" });
+  }
+});
+
+// ===== UNBLOCK USER =====
+
+// @route   DELETE /api/users/:userId/block
+// @desc    Unblock a user
+// @access  Private
+router.delete("/:userId/block", auth, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const unblockerId = req.userId;
+
+    const unblocker = await User.findById(unblockerId);
+
+    if (!unblocker.blocked || !unblocker.blocked.includes(userId)) {
+      return res.status(400).json({ message: "User is not blocked" });
+    }
+
+    unblocker.blocked = unblocker.blocked.filter(
+      (blockedId) => blockedId.toString() !== userId,
+    );
+
+    await unblocker.save();
+
+    res.status(200).json({ message: "User unblocked successfully" });
+  } catch (error) {
+    console.error("❌ Unblock user error:", error);
+    res.status(500).json({ message: "Error unblocking user" });
+  }
+});
+
+// ===== GET BLOCKED USERS =====
+
+// @route   GET /api/users/blocked
+// @desc    Get list of blocked users
+// @access  Private
+router.get("/blocked", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId).populate(
+      "blocked",
+      "name profilePhoto",
+    );
+
+    res.json(user.blocked || []);
+  } catch (error) {
+    console.error("❌ Get blocked users error:", error);
+    res.status(500).json({ message: "Error fetching blocked users" });
   }
 });
 

@@ -63,18 +63,26 @@ const userSchema = new mongoose.Schema(
       },
     },
 
+    // PASSWORD RESET FIELDS - MOVED HERE (outside additionalPhotos)
+    resetPasswordToken: {
+      type: String,
+    },
+    resetPasswordExpires: {
+      type: Date,
+    },
+
     // Location preference for matching
     locationPreference: {
       type: String,
       enum: [
         "Same city",
-        "Same state",
+        "Home state",
         "Within 50 miles",
         "Within 100 miles",
         "Within 200 miles",
         "Anywhere",
       ],
-      default: "Same state",
+      default: "Home state",
     },
 
     politicalBeliefs: [
@@ -166,6 +174,7 @@ const userSchema = new mongoose.Schema(
           "Married",
           "Divorced",
           "Widowed",
+          "Separated",
 
           // Family Status
           "Single Parent",
@@ -176,7 +185,7 @@ const userSchema = new mongoose.Schema(
           "Stay-at-Home Parent",
           "Caregiver",
 
-          // "Education & Continuous Learning"
+          // Education
           "College Student",
           "Graduate Student",
           "Recent Graduate",
@@ -210,7 +219,14 @@ const userSchema = new mongoose.Schema(
       },
     ],
 
-    // ✅ NEW: Email Notification Settings
+    blocked: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+
+    // Email Notification Settings
     emailNotifications: {
       newMatch: {
         type: Boolean,
@@ -226,7 +242,7 @@ const userSchema = new mongoose.Schema(
       },
     },
 
-    // ✅ NEW: Account Deletion (Soft Delete)
+    // Account Deletion (Soft Delete)
     isDeleted: {
       type: Boolean,
       default: false,
@@ -298,10 +314,7 @@ const userSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
-    dailyLikes: {
-      count: { type: Number, default: 10 },
-      lastReset: { type: Date, default: Date.now },
-    },
+
     eventsAttended: [
       {
         eventId: String,
@@ -342,7 +355,7 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// ✅ NEW: Soft delete method
+// Soft delete method
 userSchema.methods.softDelete = function () {
   this.isDeleted = true;
   this.deletedAt = new Date();
@@ -397,10 +410,9 @@ userSchema.methods.meetsLocationPreference = function (otherUser) {
   if (pref === "Anywhere") return true;
   if (pref === "Same city")
     return this.city.toLowerCase() === otherUser.city.toLowerCase();
-  if (pref === "Same state") return this.state === otherUser.state;
+  if (pref === "Home state") return this.state === otherUser.state;
 
   // For mile-based preferences, would need geocoding (future feature)
-  // For now, treat as "same state" if within miles preference
   if (pref.includes("miles")) return this.state === otherUser.state;
 
   return true;
@@ -410,7 +422,7 @@ userSchema.methods.meetsLocationPreference = function (otherUser) {
 userSchema.methods.calculateMatchScore = function (otherUser) {
   // First check location preference
   if (!this.meetsLocationPreference(otherUser)) {
-    return 0; // Don't show users outside location preference
+    return 0;
   }
 
   let score = 0;
@@ -418,15 +430,15 @@ userSchema.methods.calculateMatchScore = function (otherUser) {
 
   // Weight distribution
   const weights = {
-    lifeStage: 35, // Most important
-    location: 25, // Very important (same city/state)
-    age: 15, // Important
-    causes: 10, // Moderate
-    politicalBeliefs: 10, // Moderate
-    religion: 5, // Less important (more about tolerance)
+    lifeStage: 35,
+    location: 25,
+    age: 15,
+    causes: 10,
+    politicalBeliefs: 10,
+    religion: 5,
   };
 
-  // 1. Life Stage Matching (35%) - MOST IMPORTANT
+  // 1. Life Stage Matching (35%)
   const commonLifeStages = this.lifeStage.filter((stage) =>
     otherUser.lifeStage.includes(stage),
   );
@@ -440,9 +452,9 @@ userSchema.methods.calculateMatchScore = function (otherUser) {
 
   // 2. Location Matching (25%)
   if (this.state === otherUser.state) {
-    score += weights.location; // Same state
+    score += weights.location;
     if (this.city.toLowerCase() === otherUser.city.toLowerCase()) {
-      score += 5; // Bonus for same city
+      score += 5;
     }
     totalWeight += weights.location;
   }
@@ -481,25 +493,22 @@ userSchema.methods.calculateMatchScore = function (otherUser) {
     if (commonPolitics.length > 0) {
       score += weights.politicalBeliefs;
     } else {
-      // Check for compatible moderate positions
       const moderateBeliefs = ["Moderate", "Independent", "Apolitical"];
       const hasModerate =
         this.politicalBeliefs.some((b) => moderateBeliefs.includes(b)) ||
         otherUser.politicalBeliefs.some((b) => moderateBeliefs.includes(b));
       if (hasModerate) {
-        score += weights.politicalBeliefs * 0.5; // Partial credit for moderation
+        score += weights.politicalBeliefs * 0.5;
       }
     }
     totalWeight += weights.politicalBeliefs;
   }
 
-  // 6. Religion (5%) - More about tolerance than exact match
+  // 6. Religion (5%)
   if (this.religion && otherUser.religion) {
     if (this.religion === otherUser.religion) {
       score += weights.religion;
     } else {
-      // Open-minded religions get partial credit
-      // Open-minded religions get partial credit
       const openMinded = ["Seeking/Undecided", "Agnostic", "Prefer not to say"];
       const eitherOpenMinded =
         openMinded.includes(this.religion) ||
@@ -520,7 +529,6 @@ userSchema.methods.toJSON = function () {
   const user = this.toObject();
   delete user.password;
 
-  // Safely delete stripe data if subscription exists
   if (user.subscription) {
     delete user.subscription.stripeCustomerId;
     delete user.subscription.stripeSubscriptionId;

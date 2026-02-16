@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
 } from "react-native";
+import Footer from "../components/Footer";
 import { Text, TextInput, Button, Chip, ProgressBar } from "react-native-paper";
 import { Camera } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
@@ -91,6 +92,7 @@ export default function SignupScreen({ navigation }) {
     "Married",
     "Divorced",
     "Widowed",
+    "Separated",
     "Single Parent",
     "Have Children",
     "Child-free by Choice",
@@ -547,6 +549,7 @@ export default function SignupScreen({ navigation }) {
       >
         Already have an account? Log In
       </Button>
+      <Footer />
     </View>
   );
 }

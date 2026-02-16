@@ -5,11 +5,16 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
+
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Layout from "./components/Layout";
+import ScrollToTop from "./components/ScrollToTop";
+import SafetyTips from "./pages/SafetyTips";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Discover from "./pages/Discover";
 import Matches from "./pages/Matches";
 import Messages from "./pages/Messages";
@@ -23,6 +28,8 @@ import TermsOfService from "./pages/TermsOfService";
 import CommunityGuidelines from "./pages/CommunityGuidelines";
 import AboutUs from "./pages/AboutUs";
 import CookiePolicy from "./pages/CookiePolicy";
+import Support from "./pages/Support";
+import BlockedUsers from "./pages/BlockedUsers";
 
 import "./App.css";
 
@@ -51,8 +58,9 @@ const PublicRoute = ({ children }) => {
 function AppRoutes() {
   return (
     <Router>
+      <ScrollToTop /> {/* ADD THIS - must be inside Router */}
       <Routes>
-        {/* Public routes without Layout */}
+        {/* Public routes - Login/Signup (redirect to /discover if authenticated) */}
         <Route
           path="/"
           element={
@@ -77,8 +85,20 @@ function AppRoutes() {
             </PublicRoute>
           }
         />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-        {/* Protected routes WITH Layout (includes Footer) */}
+        {/* Legal/Compliance Pages - PUBLIC (accessible to everyone) */}
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsOfService />} />
+        <Route path="/support" element={<Support />} />
+        <Route path="/community-guidelines" element={<CommunityGuidelines />} />
+        <Route path="/cookies" element={<CookiePolicy />} />
+        <Route path="/about" element={<AboutUs />} />
+        <Route path="/safety" element={<SafetyTips />} />
+        <Route path="/blocked-users" element={<BlockedUsers />} />
+
+        {/* Protected routes WITH Layout */}
         <Route
           element={
             <ProtectedRoute>
@@ -95,19 +115,9 @@ function AppRoutes() {
           <Route path="meetups/:meetupId" element={<MeetupDetailsPage />} />
           <Route path="profile" element={<Profile />} />
           <Route path="profile/:userId" element={<UserProfile />} />
-
-          {/* Legal pages INSIDE Layout (for logged-in users) */}
-          <Route path="privacy" element={<PrivacyPolicy />} />
-          <Route path="terms" element={<TermsOfService />} />
-          <Route
-            path="community-guidelines"
-            element={<CommunityGuidelines />}
-          />
-          <Route path="cookies" element={<CookiePolicy />} />
-
-          <Route path="about" element={<AboutUs />} />
         </Route>
 
+        {/* Catch-all redirect */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>

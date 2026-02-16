@@ -4,7 +4,6 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
-  Image,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
@@ -12,6 +11,7 @@ import { Text, TextInput, Button } from "react-native-paper";
 import { authAPI } from "../services/api";
 import * as SecureStore from "expo-secure-store";
 import { Users, MessageCircle, Calendar } from "lucide-react-native";
+import Footer from "../components/Footer";
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
@@ -33,7 +33,6 @@ export default function LoginScreen({ navigation }) {
 
       const userId = user.id;
 
-      // ✅ Using SecureStore instead of AsyncStorage
       await SecureStore.setItemAsync("token", token);
       await SecureStore.setItemAsync("userId", userId);
 
@@ -50,6 +49,11 @@ export default function LoginScreen({ navigation }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Add forgot password handler
+  const handleForgotPassword = () => {
+    navigation.navigate("ForgotPassword");
   };
 
   return (
@@ -110,6 +114,16 @@ export default function LoginScreen({ navigation }) {
             activeOutlineColor="#2B6CB0"
           />
 
+          {/* Add Forgot Password Button */}
+          <Button
+            mode="text"
+            onPress={handleForgotPassword}
+            style={styles.forgotButton}
+            labelStyle={styles.forgotButtonLabel}
+          >
+            Forgot Password?
+          </Button>
+
           <Button
             mode="contained"
             onPress={handleLogin}
@@ -130,6 +144,9 @@ export default function LoginScreen({ navigation }) {
             Don't have an account? Sign up
           </Button>
         </View>
+
+        {/* Footer */}
+        <Footer />
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -188,8 +205,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     paddingHorizontal: 24,
     paddingTop: 32,
-    paddingBottom: 40,
-    flex: 1,
+    paddingBottom: 24,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -209,6 +225,15 @@ const styles = StyleSheet.create({
   input: {
     marginBottom: 16,
     backgroundColor: "white",
+  },
+  forgotButton: {
+    alignSelf: "flex-end",
+    marginTop: -8,
+    marginBottom: 8,
+  },
+  forgotButtonLabel: {
+    fontSize: 12,
+    color: "#2B6CB0",
   },
   button: {
     marginTop: 8,

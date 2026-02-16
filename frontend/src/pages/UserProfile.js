@@ -12,14 +12,9 @@ function UserProfile() {
   const [loading, setLoading] = useState(true);
   const [isMatch, setIsMatch] = useState(false);
 
-  useEffect(() => {
-    fetchUserProfile();
-    checkIfMatch();
-  }, [userId]);
-
   const fetchUserProfile = async () => {
     try {
-      const response = await api.get(`/users/${userId}`);
+      const response = await api.get(`/users/profile/${userId}`); // FIXED
       setUser(response.data);
     } catch (error) {
       console.error("Error fetching user profile:", error);
@@ -56,6 +51,12 @@ function UserProfile() {
       alert("Failed to unmatch");
     }
   };
+
+  useEffect(() => {
+    fetchUserProfile();
+    checkIfMatch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   const handleMessage = () => {
     navigate(`/messages/${userId}`);

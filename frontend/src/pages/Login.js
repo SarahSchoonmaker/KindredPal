@@ -75,7 +75,9 @@ const Login = () => {
                 required
               />
             </div>
-
+            <div className="form-link">
+              <Link to="/forgot-password">Forgot password?</Link>
+            </div>
             <button
               type="submit"
               className="btn btn-primary btn-full"

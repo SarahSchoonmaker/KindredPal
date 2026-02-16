@@ -30,7 +30,7 @@ const Footer = () => {
           <h4>CONDITIONS</h4>
           <ul className="footer-links">
             <li>
-              <Link to="/privacy">Privacy</Link>
+              <Link to="/privacy-policy">Privacy</Link>
             </li>
             <li>
               <Link to="/terms">Terms</Link>

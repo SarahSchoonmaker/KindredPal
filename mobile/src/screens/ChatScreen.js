@@ -5,15 +5,22 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
+  TouchableOpacity,
 } from "react-native";
-import { Text, TextInput, ActivityIndicator } from "react-native-paper";
-import { Send } from "lucide-react-native";
-import { messageAPI } from "../services/api";
+import {
+  Text,
+  TextInput,
+  ActivityIndicator,
+  IconButton,
+} from "react-native-paper";
+import { Send, MoreVertical, Flag, UserX } from "lucide-react-native";
+import { messageAPI, userAPI } from "../services/api";
 import io from "socket.io-client";
 
 const SOCKET_URL = "https://kindredpal-production.up.railway.app";
 
-export default function ChatScreen({ route }) {
+export default function ChatScreen({ route, navigation }) {
   const { match } = route.params;
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
@@ -21,6 +28,18 @@ export default function ChatScreen({ route }) {
   const [sending, setSending] = useState(false);
   const scrollViewRef = useRef();
   const socketRef = useRef();
+
+  // Set navigation header with actions menu
+  useEffect(() => {
+    navigation.setOptions({
+      title: match.name,
+      headerRight: () => (
+        <TouchableOpacity onPress={showActionsMenu} style={{ marginRight: 16 }}>
+          <MoreVertical size={24} color="#2B6CB0" />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, match]);
 
   useEffect(() => {
     fetchMessages();
@@ -138,6 +157,116 @@ export default function ChatScreen({ route }) {
     } finally {
       setSending(false);
     }
+  };
+
+  // Show actions menu (Report/Block)
+  const showActionsMenu = () => {
+    Alert.alert(
+      `Actions for ${match.name}`,
+      "Choose an action",
+      [
+        {
+          text: "Report User",
+          onPress: showReportOptions,
+          style: "destructive",
+        },
+        {
+          text: "Block User",
+          onPress: handleBlock,
+          style: "destructive",
+        },
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+      ],
+      { cancelable: true },
+    );
+  };
+
+  // Show report reasons
+  const showReportOptions = () => {
+    Alert.alert(
+      `Report ${match.name}`,
+      "Why are you reporting this user?",
+      [
+        {
+          text: "Inappropriate Messages",
+          onPress: () => submitReport("Inappropriate messages"),
+        },
+        {
+          text: "Fake Profile/Catfishing",
+          onPress: () => submitReport("Fake profile/Catfishing"),
+        },
+        {
+          text: "Harassment or Bullying",
+          onPress: () => submitReport("Harassment or bullying"),
+        },
+        {
+          text: "Spam or Scam",
+          onPress: () => submitReport("Spam or scam"),
+        },
+        {
+          text: "Inappropriate Photos",
+          onPress: () => submitReport("Inappropriate photos"),
+        },
+        {
+          text: "Other",
+          onPress: () => submitReport("Other"),
+        },
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+      ],
+      { cancelable: true },
+    );
+  };
+
+  // Submit report
+  const submitReport = async (reason) => {
+    try {
+      await userAPI.reportUser(match._id, reason);
+      Alert.alert(
+        "Reported",
+        "Thank you for your report. Our team will review it shortly.",
+      );
+    } catch (error) {
+      console.error("Error reporting user:", error);
+      Alert.alert("Error", "Failed to submit report. Please try again.");
+    }
+  };
+
+  // Block user
+  const handleBlock = () => {
+    Alert.alert(
+      "Block User",
+      `Block ${match.name}? They won't be able to see your profile or message you.`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Block",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await userAPI.blockUser(match._id);
+              Alert.alert("Blocked", `${match.name} has been blocked.`, [
+                {
+                  text: "OK",
+                  onPress: () => navigation.goBack(),
+                },
+              ]);
+            } catch (error) {
+              console.error("Error blocking user:", error);
+              Alert.alert("Error", "Failed to block user. Please try again.");
+            }
+          },
+        },
+      ],
+    );
   };
 
   const scrollToBottom = () => {

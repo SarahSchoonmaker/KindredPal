@@ -1,9 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Camera, Edit2, Save, X, Trash2, Mail, UserMinus } from "lucide-react";
+import {
+  Camera,
+  Edit2,
+  Save,
+  X,
+  Trash2,
+  Mail,
+  UserX,
+  ChevronRight,
+} from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { userAPI } from "../services/api";
-import api from "../services/api";
 import PhotoUpload from "../components/PhotoUpload";
 import "./Profile.css";
 
@@ -13,8 +21,7 @@ const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [isMatch, setIsMatch] = useState(false);
-  const [toast, setToast] = useState({ show: false, message: "", type: "" }); // ✅ NEW
+  const [toast, setToast] = useState({ show: false, message: "", type: "" });
   const [formData, setFormData] = useState({
     name: "",
     age: "",
@@ -34,7 +41,6 @@ const Profile = () => {
     },
   });
 
-  // ✅ NEW: Show toast notification
   const showToast = (message, type = "success") => {
     setToast({ show: true, message, type });
     setTimeout(() => {
@@ -42,13 +48,12 @@ const Profile = () => {
     }, 2000);
   };
 
-  // ✅ Combine photos for PhotoUpload component
   const allPhotos = [
     formData.profilePhoto,
     ...(formData.additionalPhotos || []),
   ].filter(Boolean);
 
-  const profilePhotoIndex = 0; // Profile photo is always first
+  const profilePhotoIndex = 0;
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -77,52 +82,32 @@ const Profile = () => {
     fetchUserData();
   }, [user]);
 
-  const handleUnmatch = async (userId, userName) => {
-    if (
-      !window.confirm(
-        `Are you sure you want to unmatch with ${userName}? This cannot be undone.`,
-      )
-    ) {
-      return;
-    }
-
-    try {
-      await api.post(`/users/unmatch/${userId}`);
-      showToast("Unmatched successfully"); // ✅ CHANGED
-      navigate("/matches");
-    } catch (error) {
-      console.error("Error unmatching:", error);
-      showToast("Failed to unmatch", "error"); // ✅ CHANGED
-    }
-  };
-
   const handleSave = async () => {
     try {
       const response = await userAPI.updateProfile(formData);
       updateUser(response.data);
       setIsEditing(false);
-      showToast("Profile updated successfully!"); // ✅ CHANGED
+      showToast("Profile updated successfully!");
     } catch (error) {
       console.error("Error updating profile:", error);
-      showToast("Error updating profile", "error"); // ✅ CHANGED
+      showToast("Error updating profile", "error");
     }
   };
 
   const handleDeleteAccount = async () => {
     try {
       await userAPI.deleteAccount();
-      showToast("Your account has been deleted."); // ✅ CHANGED (will show briefly before logout)
+      showToast("Your account has been deleted.");
       setTimeout(() => {
         logout();
         navigate("/");
       }, 1000);
     } catch (error) {
       console.error("Error deleting account:", error);
-      showToast("Error deleting account. Please try again.", "error"); // ✅ CHANGED
+      showToast("Error deleting account. Please try again.", "error");
     }
   };
 
-  // ✅ FIXED: Handle photo changes from PhotoUpload component
   const handlePhotosChange = (newPhotos, newProfileIndex) => {
     setFormData((prev) => ({
       ...prev,
@@ -133,15 +118,14 @@ const Profile = () => {
 
   const handlePhotoModalClose = async () => {
     setShowPhotoUpload(false);
-    // Auto-save when closing photo modal
     try {
       const response = await userAPI.updateProfile(formData);
       updateUser(response.data);
       console.log("✅ Photos updated successfully");
-      showToast("Photos updated successfully!"); // ✅ CHANGED
+      showToast("Photos updated successfully!");
     } catch (error) {
       console.error("Error updating photos:", error);
-      showToast("Error updating photos", "error"); // ✅ CHANGED
+      showToast("Error updating photos", "error");
     }
   };
 
@@ -167,7 +151,6 @@ const Profile = () => {
 
   return (
     <div className="profile-page">
-      {/* ✅ NEW: Toast Notification */}
       {toast.show && (
         <div className={`toast toast-${toast.type}`}>{toast.message}</div>
       )}
@@ -370,6 +353,7 @@ const Profile = () => {
                     <option value="In a Relationship">In a Relationship</option>
                     <option value="Engaged">Engaged</option>
                     <option value="Married">Married</option>
+                    <option value="Separated">Separated</option>
                     <option value="Divorced">Divorced</option>
                     <option value="Widowed">Widowed</option>
                     <option value="Single Parent">Single Parent</option>
@@ -604,6 +588,19 @@ const Profile = () => {
               </section>
             </>
           )}
+
+          {/* Privacy & Safety Section - NEW */}
+          <section className="profile-section settings-section">
+            <h2>Privacy & Safety</h2>
+            <button
+              className="settings-link"
+              onClick={() => navigate("/blocked-users")}
+            >
+              <UserX size={20} />
+              <span>Blocked Users</span>
+              <ChevronRight size={20} />
+            </button>
+          </section>
 
           {/* Danger Zone */}
           <section className="profile-section danger-zone">
