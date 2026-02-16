@@ -237,7 +237,6 @@ const AboutUs = () => {
           <p className="contact-info">
             <strong>Email:</strong> support@kindredpal.com
             <br />
-            <strong>Company:</strong> Rommco LLC
           </p>
         </section>
 

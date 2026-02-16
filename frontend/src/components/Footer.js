@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Facebook, Instagram, Twitter } from "lucide-react";
+import { Facebook, Instagram } from "lucide-react";
 import "./Footer.css";
 
 const Footer = () => {
@@ -49,6 +49,9 @@ const Footer = () => {
           <h4>CONTACT</h4>
           <ul className="footer-links">
             <li>
+              <Link to="/support">Help Center</Link> {/* ← ADD THIS */}
+            </li>
+            <li>
               <a href="mailto:support@kindredpal.com">
                 Support: support@kindredpal.com
               </a>
@@ -86,16 +89,6 @@ const Footer = () => {
               >
                 <Instagram size={16} />
                 <span>Instagram</span>
-              </a>
-            </li>
-            <li>
-              <a
-                href="https://twitter.com/kindredpal"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Twitter size={16} />
-                <span>Twitter/X</span>
               </a>
             </li>
           </ul>
