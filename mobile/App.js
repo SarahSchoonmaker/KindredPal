@@ -118,7 +118,7 @@ export default function App() {
   const responseListener = useRef();
 
   useEffect(() => {
-    registerForPushNotificationsAsync().then((token) => {
+    registerForpushNotificationsAsync().then((token) => {
       if (token) {
         setExpoPushToken(token);
         savePushToken(token);
@@ -146,7 +146,7 @@ export default function App() {
     };
   }, []);
 
-  const registerForPushNotificationsAsync = async () => {
+  const registerForpushNotificationsAsync = async () => {
     let token;
 
     if (Platform.OS === "android") {

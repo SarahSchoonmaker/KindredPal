@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const User = require("../models/User");
 const auth = require("../middleware/auth");
-const { sendPushNotification } = require("../utils/PushNotifications");
+const { sendPushNotification } = require("../utils/pushNotifications");
 const logger = require("../utils/logger");
 
 // ===== DISCOVER ROUTE =====

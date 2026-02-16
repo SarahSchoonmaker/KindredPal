@@ -3,7 +3,7 @@ const router = express.Router();
 const Message = require("../models/Message");
 const User = require("../models/User");
 const auth = require("../middleware/auth");
-const { sendPushNotification } = require("../utils/PushNotifications");
+const { sendPushNotification } = require("../utils/pushNotifications");
 const logger = require("../utils/logger");
 
 // Get all conversations (users you've messaged with)

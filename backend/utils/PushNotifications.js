@@ -29,7 +29,7 @@ async function sendPushNotification(pushTokens, title, body, data = {}) {
   }
 
   // Chunk messages for batch processing
-  const chunks = expo.chunkPushNotifications(messages);
+  const chunks = expo.chunkpushNotifications(messages);
   const tickets = [];
 
   logger.info(`📤 Sending ${messages.length} push notifications...`);
@@ -37,7 +37,7 @@ async function sendPushNotification(pushTokens, title, body, data = {}) {
   // Send notifications
   for (const chunk of chunks) {
     try {
-      const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+      const ticketChunk = await expo.sendpushNotificationsAsync(chunk);
       tickets.push(...ticketChunk);
     } catch (error) {
       logger.error("❌ Error sending push notification:", error);
