@@ -7,7 +7,7 @@ import {
   X,
   Trash2,
   Mail,
-  UserX,
+  Shield,
   ChevronRight,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
@@ -589,18 +589,18 @@ const Profile = () => {
             </>
           )}
 
-          {/* Privacy & Safety Section - NEW */}
-          <section className="profile-section settings-section">
-            <h2>Privacy & Safety</h2>
+          {/* Privacy & Safety Section */}
+          <div className="profile-section">
+            <h3 className="section-title">Privacy & Safety</h3>
             <button
-              className="settings-link"
               onClick={() => navigate("/blocked-users")}
+              className="blocked-users-button"
             >
-              <UserX size={20} />
+              <Shield size={20} />
               <span>Blocked Users</span>
               <ChevronRight size={20} />
             </button>
-          </section>
+          </div>
 
           {/* Danger Zone */}
           <section className="profile-section danger-zone">

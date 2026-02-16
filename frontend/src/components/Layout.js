@@ -3,11 +3,11 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Home,
   Search,
-  Heart,
   MessageCircle,
   Calendar,
   User,
   LogOut,
+  Users,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import Footer from "./Footer";
@@ -72,7 +72,7 @@ const Layout = () => {
               className={`nav-link ${location.pathname === "/likes-you" ? "active" : ""}`}
               onClick={() => navigate("/likes-you")}
             >
-              <Heart size={20} />
+              <Users size={20} /> {/* ← CHANGED from Heart to Users */}
               <span>Interested</span>
             </button>
 

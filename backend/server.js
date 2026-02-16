@@ -50,21 +50,41 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    // Allow requests with no origin (like mobile apps, Postman, or curl)
+    if (!origin) {
+      logger.info("✅ Allowing request with no origin (mobile/API client)");
+      return callback(null, true);
+    }
 
     if (allowedOrigins.indexOf(origin) !== -1) {
+      logger.info("✅ Allowing origin:", origin);
       callback(null, true);
     } else {
-      logger.info("🚫 Blocked origin:", origin);
-      callback(new Error("Not allowed by CORS"));
+      logger.error("🚫 Blocked origin:", origin);
+      callback(
+        new Error(`CORS policy does not allow access from origin: ${origin}`),
+      );
     }
   },
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
   credentials: true,
   optionsSuccessStatus: 200,
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "Accept",
+    "Origin",
+  ],
+  exposedHeaders: ["Content-Length", "X-Request-Id"],
+  preflightContinue: false,
 };
+
+// Apply CORS before other middleware
+app.use(cors(corsOptions));
+
+// Explicitly handle preflight requests
+app.options("*", cors(corsOptions));
 
 app.use(cors(corsOptions));
 

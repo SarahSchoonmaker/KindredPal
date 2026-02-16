@@ -1,5 +1,6 @@
 import axios from "axios";
 
+// Use environment variable in production, localhost in development
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
 
 const api = axios.create({
@@ -7,6 +8,8 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  withCredentials: true, // ← ADDED: Enable credentials (cookies, auth headers) for CORS
+  timeout: 30000, // ← ADDED: 30 second timeout to prevent hanging requests
 });
 
 // Add token to requests
@@ -19,6 +22,37 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
+    return Promise.reject(error);
+  },
+);
+
+// Add response interceptor for better error handling
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Log CORS errors specifically
+    if (error.message === "Network Error" && !error.response) {
+      console.error("❌ CORS or Network Error:", {
+        url: error.config?.url,
+        method: error.config?.method,
+        baseURL: error.config?.baseURL,
+      });
+    }
+
+    // Handle auth errors (401 = unauthorized)
+    if (error.response?.status === 401) {
+      console.warn("⚠️ Unauthorized - clearing token");
+      localStorage.removeItem("token");
+      localStorage.removeItem("userId");
+      // Only redirect if not already on login page
+      if (
+        window.location.pathname !== "/login" &&
+        window.location.pathname !== "/"
+      ) {
+        window.location.href = "/login";
+      }
+    }
+
     return Promise.reject(error);
   },
 );

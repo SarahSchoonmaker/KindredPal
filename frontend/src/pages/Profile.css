@@ -465,6 +465,43 @@ input:checked + .toggle-slider:before {
   background-color: #c53030;
 }
 
+.blocked-users-button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 16px 20px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 16px;
+  color: #2d3748;
+  font-weight: 500;
+}
+
+.blocked-users-button:hover {
+  background: #f7fafc;
+  border-color: #cbd5e0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
+}
+
+.blocked-users-button svg:first-child {
+  color: #2b6cb0;
+}
+
+.blocked-users-button svg:last-child {
+  margin-left: auto;
+  color: #a0aec0;
+}
+
+.blocked-users-button span {
+  flex: 1;
+  text-align: left;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .profile-header {
