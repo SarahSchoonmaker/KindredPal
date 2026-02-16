@@ -64,7 +64,7 @@ export const authAPI = {
 // User API
 export const userAPI = {
   getDiscover: () => api.get("/users/discover"),
-  getProfile: (userId) => api.get(`/users/${userId}`),
+  getProfile: (userId) => api.get(`/users/profile/${userId}`),
   getMatches: () => api.get("/users/matches"),
   updateProfile: (data) => api.put("/users/profile", data),
   deleteAccount: () => api.delete("/users/account"),
@@ -72,19 +72,17 @@ export const userAPI = {
   getPreferences: () => api.get("/users/preferences"),
   updateNotificationSettings: (settings) =>
     api.put("/users/notification-settings", settings),
-  reportUser: (
-    userId,
-    reason, // NEW
-  ) => api.post(`/users/${userId}/report`, { reason }),
-  blockUser: (userId) => api.post(`/users/${userId}/block`), // NEW
-  unblockUser: (userId) => api.delete(`/users/${userId}/block`), // NEW
-  getBlockedUsers: () => api.get("/users/blocked"), // NEW
+  reportUser: (userId, reason) =>
+    api.post(`/users/${userId}/report`, { reason }),
+  blockUser: (userId) => api.post(`/users/${userId}/block`),
+  unblockUser: (userId) => api.delete(`/users/${userId}/block`),
+  getBlockedUsers: () => api.get("/users/blocked"),
 };
 
 // Swipe API
 export const swipeAPI = {
-  like: (userId) => api.post("/users/like", { likedUserId: userId }),
-  pass: (userId) => api.post("/users/pass", { passedUserId: userId }),
+  like: (userId) => api.post(`/users/like/${userId}`),
+  pass: (userId) => api.post(`/users/pass/${userId}`),
 };
 
 // Message API

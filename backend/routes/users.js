@@ -12,6 +12,11 @@ router.get("/discover", auth, async (req, res) => {
   try {
     const currentUser = await User.findById(req.userId);
 
+    if (!currentUser) {
+      console.error("❌ Current user not found:", req.userId);
+      return res.status(404).json({ message: "User not found" });
+    }
+
     console.log("\n========== DISCOVER REQUEST ==========");
     console.log("👤 User:", currentUser.email);
     console.log("📍 Location:", currentUser.city, currentUser.state);
@@ -20,12 +25,7 @@ router.get("/discover", auth, async (req, res) => {
       currentUser.locationPreference || "Home state (default)",
     );
 
-    // Get all users except:
-    // - Current user
-    // - Users already liked
-    // - Users already passed
-    // - Blocked users
-    // - Deleted users
+    // Get all users except current user, liked, passed, and blocked
     const excludedIds = [
       req.userId,
       ...(currentUser.likes || []),
@@ -39,7 +39,7 @@ router.get("/discover", auth, async (req, res) => {
     let potentialMatches = await User.find({
       _id: { $nin: excludedIds },
       isDeleted: { $ne: true },
-      isActive: true,
+      isActive: { $ne: false },
     });
 
     console.log("📊 Total users in database:", potentialMatches.length);
@@ -49,17 +49,25 @@ router.get("/discover", auth, async (req, res) => {
     console.log("🔍 Applying location filter:", locationPref);
 
     potentialMatches = potentialMatches.filter((user) => {
-      const meets = currentUser.meetsLocationPreference(user);
-      if (!meets) {
-        console.log(
-          `   ❌ ${user.name} (${user.city}, ${user.state}) - doesn't meet location preference`,
+      try {
+        const meets = currentUser.meetsLocationPreference(user);
+        if (!meets) {
+          console.log(
+            `   ❌ ${user.name} (${user.city}, ${user.state}) - doesn't meet location preference`,
+          );
+        } else {
+          console.log(
+            `   ✅ ${user.name} (${user.city}, ${user.state}) - meets location preference`,
+          );
+        }
+        return meets;
+      } catch (err) {
+        console.error(
+          `   ⚠️ Error checking location for user ${user._id}:`,
+          err.message,
         );
-      } else {
-        console.log(
-          `   ✅ ${user.name} (${user.city}, ${user.state}) - meets location preference`,
-        );
+        return false;
       }
-      return meets;
     });
 
     console.log("📍 After location filter:", potentialMatches.length, "users");
@@ -67,14 +75,22 @@ router.get("/discover", auth, async (req, res) => {
     // Calculate match scores
     const matchesWithScores = potentialMatches
       .map((user) => {
-        const score = currentUser.calculateMatchScore(user);
-        console.log(`   🎯 ${user.name}: ${score}% match`);
-        return {
-          ...user.toObject(),
-          matchScore: score,
-        };
+        try {
+          const score = currentUser.calculateMatchScore(user);
+          console.log(`   🎯 ${user.name}: ${score}% match`);
+          return {
+            ...user.toObject(),
+            matchScore: score,
+          };
+        } catch (err) {
+          console.error(
+            `   ⚠️ Error calculating score for user ${user._id}:`,
+            err.message,
+          );
+          return null;
+        }
       })
-      .filter((user) => user.matchScore > 0);
+      .filter((user) => user && user.matchScore > 0);
 
     console.log(
       "✨ After match score filter:",
@@ -85,9 +101,15 @@ router.get("/discover", auth, async (req, res) => {
     // Sort by match score (highest first)
     matchesWithScores.sort((a, b) => b.matchScore - a.matchScore);
 
+    console.log(
+      "✅ Discover successful, returning",
+      matchesWithScores.length,
+      "users",
+    );
+    console.log("====================================\n");
+
     res.json({
       users: matchesWithScores,
-      dailyLikesRemaining: currentUser.dailyLikes.count,
     });
   } catch (error) {
     console.error("❌ Discover error:", error);
@@ -109,6 +131,11 @@ router.post("/like/:userId", auth, async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // Add to likes
+    if (!currentUser.likes.includes(likedUser._id)) {
+      currentUser.likes.push(likedUser._id);
+    }
+
     // Check if it's a match
     let isMatch = false;
     let matchedUser = null;
@@ -127,7 +154,6 @@ router.post("/like/:userId", auth, async (req, res) => {
       message: isMatch ? "It's a match!" : "User liked",
       isMatch,
       matchedUser,
-      dailyLikesRemaining: currentUser.dailyLikes.count,
     });
   } catch (error) {
     console.error("Like user error:", error);

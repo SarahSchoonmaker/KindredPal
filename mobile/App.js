@@ -9,6 +9,7 @@ import EditProfileScreen from "./src/screens/EditProfileScreen";
 
 // Screens
 import LoginScreen from "./src/screens/LoginScreen";
+import ForgotPasswordScreen from "./src/screens/ForgotPasswordScreen";
 import SignupScreen from "./src/screens/SignupScreen";
 import DiscoverScreen from "./src/screens/DiscoverScreen";
 import MessagesScreen from "./src/screens/MessagesScreen";
@@ -16,6 +17,7 @@ import ProfileScreen from "./src/screens/ProfileScreen";
 import ChatScreen from "./src/screens/ChatScreen";
 import MeetupsScreen from "./src/screens/MeetupsScreen";
 import MeetupDetailsScreen from "./src/screens/MeetupsDetailScreen";
+import WebViewScreen from "./src/screens/WebViewScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
