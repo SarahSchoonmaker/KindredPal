@@ -1,277 +1,289 @@
 import React, { useState, useEffect } from "react";
 import {
   View,
+  ScrollView,
+  Image,
+  TouchableOpacity,
+  RefreshControl,
   StyleSheet,
   Dimensions,
-  Animated,
-  PanResponder,
   Alert,
 } from "react-native";
-import {
-  Text,
-  Card,
-  Button,
-  IconButton,
-  ActivityIndicator,
-  FAB,
-} from "react-native-paper";
-import { Heart, X, SlidersHorizontal } from "lucide-react-native";
-import { userAPI, swipeAPI } from "../services/api";
+import { Text, ActivityIndicator, Button, Chip } from "react-native-paper";
+import { MapPin, Heart, X } from "lucide-react-native";
+import { userAPI, authAPI } from "../services/api";
+import DiscoverFilters from "../components/DiscoverFilters";
 
-const SCREEN_WIDTH = Dimensions.get("window").width;
-const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
+const { width } = Dimensions.get("window");
+const CARD_WIDTH = width - 32;
 
 export default function DiscoverScreen({ navigation }) {
-  const [profiles, setProfiles] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [users, setUsers] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const position = new Animated.ValueXY();
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    fetchProfiles();
+    fetchCurrentUser();
+    fetchUsers();
   }, []);
 
-  const fetchProfiles = async () => {
+  const fetchCurrentUser = async () => {
     try {
-      console.log("📥 Fetching real users from API...");
-      const response = await userAPI.getDiscover();
-
-      const users = Array.isArray(response.data)
-        ? response.data
-        : response.data.users || [];
-
-      console.log("✅ Found", users.length, "users");
-      setProfiles(users);
+      const response = await authAPI.getProfile();
+      setCurrentUser(response.data);
+      logger.info(
+        "📍 Current location:",
+        response.data.city,
+        response.data.state,
+      );
+      logger.info("🔍 Search preference:", response.data.locationPreference);
     } catch (error) {
-      console.error("❌ Error fetching profiles:", error);
-      Alert.alert("Error", "Could not load profiles. Please try again.");
+      logger.error("Error fetching current user:", error);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      logger.info("📥 Fetching real users from API...");
+      const response = await userAPI.getDiscover();
+      logger.info("✅ Got users:", response.data.users?.length || 0);
+      setUsers(response.data.users || []);
+    } catch (error) {
+      logger.error("❌ Error fetching profiles:", error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  const panResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onPanResponderMove: (_, gesture) => {
-      position.setValue({ x: gesture.dx, y: gesture.dy });
-    },
-    onPanResponderRelease: (_, gesture) => {
-      if (gesture.dx > SWIPE_THRESHOLD) {
-        forceSwipe("right");
-      } else if (gesture.dx < -SWIPE_THRESHOLD) {
-        forceSwipe("left");
-      } else {
-        resetPosition();
-      }
-    },
-  });
-
-  const forceSwipe = (direction) => {
-    const x = direction === "right" ? SCREEN_WIDTH + 100 : -SCREEN_WIDTH - 100;
-    Animated.timing(position, {
-      toValue: { x, y: 0 },
-      duration: 250,
-      useNativeDriver: false,
-    }).start(() => onSwipeComplete(direction));
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchCurrentUser();
+    fetchUsers();
   };
 
-  const onSwipeComplete = (direction) => {
-    const profile = profiles[currentIndex];
-
-    if (direction === "right") {
-      handleLike(profile);
-    } else {
-      handlePass(profile);
-    }
-
-    position.setValue({ x: 0, y: 0 });
-    setCurrentIndex(currentIndex + 1);
+  const handlePreferencesUpdate = () => {
+    fetchCurrentUser();
+    fetchUsers();
   };
 
-  const resetPosition = () => {
-    Animated.spring(position, {
-      toValue: { x: 0, y: 0 },
-      useNativeDriver: false,
-    }).start();
-  };
-
-  const handleLike = async (profile) => {
+  const handleLike = async (userId) => {
     try {
-      console.log("❤️ Liked:", profile.name);
-      const response = await swipeAPI.like(profile._id);
+      const response = await userAPI.like(userId);
 
-      if (response.data.match) {
+      // Remove user from list first
+      setUsers((prev) => prev.filter((u) => u._id !== userId));
+
+      // Show appropriate alert
+      if (response.data.isMatch) {
         Alert.alert(
           "🎉 It's a Match!",
-          `You and ${profile.name} liked each other!`,
+          `You and ${response.data.matchedUser?.name} connected!`,
           [
-            { text: "Keep Swiping", style: "cancel" },
             {
               text: "Send Message",
-              onPress: () => navigation.navigate("Messages"),
+              onPress: () =>
+                navigation.navigate("Chat", {
+                  userId: response.data.matchedUser._id,
+                  userName: response.data.matchedUser.name,
+                }),
+            },
+            {
+              text: "Keep Discovering",
+              style: "cancel",
             },
           ],
         );
+      } else {
+        // Show "Connection Sent" alert for regular likes
+        Alert.alert(
+          "✅ Connection Sent!",
+          `We'll let you know if they connect back!`,
+          [{ text: "OK" }],
+        );
       }
     } catch (error) {
-      console.error("Error liking user:", error);
+      logger.error("Error liking user:", error);
+      Alert.alert("Error", "Couldn't send connection. Please try again.", [
+        { text: "OK" },
+      ]);
     }
   };
 
-  const handlePass = async (profile) => {
+  const handlePass = async (userId) => {
     try {
-      console.log("✖️ Passed:", profile.name);
-      await swipeAPI.pass(profile._id);
+      await userAPI.pass(userId);
+      setUsers((prev) => prev.filter((u) => u._id !== userId));
     } catch (error) {
-      console.error("Error passing user:", error);
+      logger.error("Error passing user:", error);
     }
   };
 
-  const getCardStyle = () => {
-    const rotate = position.x.interpolate({
-      inputRange: [-SCREEN_WIDTH * 1.5, 0, SCREEN_WIDTH * 1.5],
-      outputRange: ["-30deg", "0deg", "30deg"],
-    });
-
-    return {
-      ...position.getLayout(),
-      transform: [{ rotate }],
-    };
-  };
-
-  const renderCard = (profile, index) => {
-    if (index < currentIndex) {
-      return null;
-    }
-
-    if (index === currentIndex) {
-      return (
-        <Animated.View
-          key={profile._id}
-          style={[styles.cardContainer, getCardStyle()]}
-          {...panResponder.panHandlers}
-        >
-          <Card style={styles.card}>
-            <Card.Cover
-              source={{ uri: profile.profilePhoto }}
-              style={styles.photo}
-            />
-            <Card.Content style={styles.content}>
-              <Text variant="headlineMedium" style={styles.name}>
-                {profile.name}, {profile.age}
-              </Text>
-              <Text variant="bodyMedium" style={styles.location}>
-                📍 {profile.city}, {profile.state}
-              </Text>
-              <Text variant="bodyMedium" style={styles.bio} numberOfLines={2}>
-                {profile.bio}
-              </Text>
-              {profile.causes && profile.causes.length > 0 && (
-                <View style={styles.tags}>
-                  {profile.causes.slice(0, 3).map((cause, i) => (
-                    <View key={i} style={styles.tag}>
-                      <Text style={styles.tagText}>{cause}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </Card.Content>
-          </Card>
-        </Animated.View>
-      );
-    }
-
-    return (
-      <View key={profile._id} style={[styles.cardContainer, styles.nextCard]}>
-        <Card style={styles.card}>
-          <Card.Cover
-            source={{ uri: profile.profilePhoto }}
-            style={styles.photo}
-          />
-        </Card>
-      </View>
-    );
+  const handleCardPress = (userId) => {
+    navigation.navigate("UserProfile", { userId });
   };
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#2B6CB0" />
-        <Text style={styles.loadingText}>Finding your matches...</Text>
-      </View>
-    );
-  }
-
-  if (currentIndex >= profiles.length) {
-    return (
-      <View style={styles.emptyContainer}>
-        <SlidersHorizontal size={64} color="#CBD5E0" />
-        <Text variant="headlineMedium" style={styles.emptyTitle}>
-          {profiles.length === 0 ? "No Matches Yet" : "That's Everyone!"}
-        </Text>
-        <Text variant="bodyLarge" style={styles.emptyText}>
-          {profiles.length === 0
-            ? "Adjust your search preferences to find more people"
-            : "Check back later for more matches or adjust your preferences"}
-        </Text>
-        <Button
-          mode="contained"
-          icon={() => <SlidersHorizontal size={20} color="white" />}
-          onPress={() => navigation.navigate("Preferences")}
-          style={styles.preferencesButton}
-        >
-          Search Preferences
-        </Button>
-        <Button
-          mode="outlined"
-          onPress={() => {
-            setCurrentIndex(0);
-            fetchProfiles();
-          }}
-          style={styles.button}
-        >
-          Refresh
-        </Button>
+        <Text style={styles.loadingText}>Finding your people...</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {profiles.map((profile, index) => renderCard(profile, index)).reverse()}
-
-      {/* Action Buttons */}
-      <View style={styles.actions}>
-        <IconButton
-          icon={() => <X color="#E53E3E" size={32} />}
-          mode="contained"
-          containerColor="white"
-          size={60}
-          onPress={() => forceSwipe("left")}
-          style={styles.passButton}
-        />
-        <IconButton
-          icon={() => <Heart color="#48BB78" size={32} />}
-          mode="contained"
-          containerColor="white"
-          size={60}
-          onPress={() => forceSwipe("right")}
-          style={styles.likeButton}
-        />
+      {/* Header with search info and filters */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Text style={styles.headerTitle}>Discover Your People</Text>
+          {currentUser && (
+            <View style={styles.searchInfo}>
+              <MapPin size={14} color="#2B6CB0" />
+              <Text style={styles.searchInfoText}>
+                {currentUser.city}, {currentUser.state} •{" "}
+                {currentUser.locationPreference || "Home state"}
+              </Text>
+            </View>
+          )}
+        </View>
+        {currentUser && (
+          <DiscoverFilters
+            currentPreference={currentUser.locationPreference}
+            onUpdate={handlePreferencesUpdate}
+          />
+        )}
       </View>
 
-      {/* Swipe Hint */}
-      <View style={styles.hint}>
-        <Text style={styles.hintText}>← Swipe or tap buttons →</Text>
-      </View>
+      {users.length === 0 ? (
+        <ScrollView
+          contentContainerStyle={styles.emptyContainer}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          <Text style={styles.emptyIcon}>🔍</Text>
+          <Text style={styles.emptyTitle}>No More Users Right Now</Text>
+          <Text style={styles.emptyText}>
+            We've shown you everyone in your area!
+          </Text>
+          {currentUser?.locationPreference === "Same city" && (
+            <View style={styles.tipBox}>
+              <Text style={styles.tipText}>
+                💡 Try expanding your search to "Home state" or "Anywhere" to
+                see more people
+              </Text>
+            </View>
+          )}
+          <Button
+            mode="contained"
+            onPress={() => navigation.navigate("Matches")}
+            style={styles.emptyButton}
+            buttonColor="#2B6CB0"
+          >
+            View Your Matches
+          </Button>
+        </ScrollView>
+      ) : (
+        <ScrollView
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          contentContainerStyle={styles.scrollContent}
+        >
+          <Text style={styles.usersCount}>
+            Showing {users.length} {users.length === 1 ? "person" : "people"}
+          </Text>
 
-      {/* Preferences FAB */}
-      <FAB
-        icon={() => <SlidersHorizontal size={20} color="white" />}
-        style={styles.fab}
-        onPress={() => navigation.navigate("Preferences")}
-        color="white"
-      />
+          {users.map((user) => (
+            <TouchableOpacity
+              key={user._id}
+              style={styles.card}
+              activeOpacity={0.9}
+              onPress={() => handleCardPress(user._id)}
+            >
+              {/* Image */}
+              <View style={styles.imageContainer}>
+                <Image
+                  source={{ uri: user.profilePhoto }}
+                  style={styles.image}
+                  resizeMode="cover"
+                />
+                <View style={styles.matchBadge}>
+                  <Text style={styles.matchBadgeText}>
+                    {user.matchScore}% Match
+                  </Text>
+                </View>
+              </View>
+
+              {/* Info */}
+              <View style={styles.cardContent}>
+                <Text style={styles.cardName}>
+                  {user.name}, {user.age}
+                </Text>
+
+                <View style={styles.locationRow}>
+                  <MapPin size={16} color="#2B6CB0" />
+                  <Text style={styles.locationText}>
+                    {user.city}, {user.state}
+                  </Text>
+                </View>
+
+                {user.bio && (
+                  <Text style={styles.bioText} numberOfLines={3}>
+                    {user.bio}
+                  </Text>
+                )}
+
+                {user.causes && user.causes.length > 0 && (
+                  <View style={styles.tagsContainer}>
+                    {user.causes.slice(0, 3).map((cause, idx) => (
+                      <Chip
+                        key={idx}
+                        style={styles.chip}
+                        textStyle={styles.chipText}
+                        compact
+                      >
+                        {cause}
+                      </Chip>
+                    ))}
+                    {user.causes.length > 3 && (
+                      <Chip
+                        style={styles.chipMore}
+                        textStyle={styles.chipTextMore}
+                        compact
+                      >
+                        +{user.causes.length - 3} more
+                      </Chip>
+                    )}
+                  </View>
+                )}
+              </View>
+
+              {/* Actions */}
+              <View style={styles.actions}>
+                <TouchableOpacity
+                  style={styles.passButton}
+                  onPress={() => handlePass(user._id)}
+                >
+                  <X size={24} color="#718096" />
+                  <Text style={styles.passButtonText}>Pass</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.likeButton}
+                  onPress={() => handleLike(user._id)}
+                >
+                  <Heart size={24} color="white" />
+                  <Text style={styles.likeButtonText}>Connect</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -281,128 +293,224 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F7FAFC",
   },
-  loadingContainer: {
+  header: {
+    backgroundColor: "white",
+    padding: 16,
+    paddingTop: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  headerLeft: {
+    marginBottom: 12,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#2D3748",
+    marginBottom: 4,
+  },
+  searchInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  searchInfoText: {
+    fontSize: 13,
+    color: "#4A5568",
+    fontWeight: "500",
+  },
+  centerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#F7FAFC",
   },
   loadingText: {
-    marginTop: 20,
-    color: "#666",
+    marginTop: 16,
+    fontSize: 16,
+    color: "#718096",
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 32,
+  },
+  usersCount: {
+    textAlign: "center",
+    fontSize: 14,
+    color: "#718096",
+    fontWeight: "600",
+    marginBottom: 16,
+  },
+  card: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    marginBottom: 16,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  imageContainer: {
+    position: "relative",
+    height: 320,
+    backgroundColor: "#E2E8F0",
+  },
+  image: {
+    width: "100%",
+    height: "100%",
+  },
+  matchBadge: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    backgroundColor: "#2B6CB0",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    shadowColor: "#2B6CB0",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  matchBadgeText: {
+    color: "white",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  cardContent: {
+    padding: 16,
+  },
+  cardName: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#2D3748",
+    marginBottom: 8,
+  },
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 12,
+  },
+  locationText: {
+    fontSize: 14,
+    color: "#718096",
+  },
+  bioText: {
+    fontSize: 14,
+    color: "#4A5568",
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  tagsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  chip: {
+    backgroundColor: "#EBF4FF",
+    height: 28,
+  },
+  chipText: {
+    fontSize: 12,
+    color: "#2B6CB0",
+    fontWeight: "600",
+  },
+  chipMore: {
+    backgroundColor: "#F7FAFC",
+    height: 28,
+  },
+  chipTextMore: {
+    fontSize: 12,
+    color: "#718096",
+  },
+  actions: {
+    flexDirection: "row",
+    gap: 12,
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
+    backgroundColor: "#FAFAFA",
+  },
+  passButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    height: 48,
+    backgroundColor: "white",
+    borderWidth: 2,
+    borderColor: "#E2E8F0",
+    borderRadius: 8,
+  },
+  passButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#718096",
+  },
+  likeButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    height: 48,
+    backgroundColor: "#2B6CB0",
+    borderRadius: 8,
+  },
+  likeButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "white",
   },
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 20,
-    backgroundColor: "#F7FAFC",
+    padding: 40,
+  },
+  emptyIcon: {
+    fontSize: 64,
+    marginBottom: 24,
   },
   emptyTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#2D3748",
+    marginBottom: 12,
     textAlign: "center",
-    marginTop: 24,
-    marginBottom: 16,
-    color: "#2B6CB0",
   },
   emptyText: {
+    fontSize: 16,
+    color: "#718096",
     textAlign: "center",
-    marginBottom: 32,
-    color: "#666",
-    paddingHorizontal: 20,
+    marginBottom: 16,
   },
-  button: {
-    marginTop: 12,
+  tipBox: {
+    backgroundColor: "#FFFBEB",
+    borderWidth: 1,
+    borderColor: "#FEF3C7",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 24,
   },
-  preferencesButton: {
-    backgroundColor: "#2B6CB0",
-    marginBottom: 12,
-  },
-  cardContainer: {
-    position: "absolute",
-    width: SCREEN_WIDTH - 40,
-    height: "68%",
-    top: 70,
-    left: 20,
-  },
-  nextCard: {
-    opacity: 0.8,
-    transform: [{ scale: 0.95 }],
-  },
-  card: {
-    flex: 1,
-    backgroundColor: "white",
-    borderRadius: 20,
-    overflow: "hidden",
-  },
-  photo: {
-    height: "55%",
-  },
-  content: {
-    padding: 16,
-    flex: 1,
-  },
-  name: {
-    fontWeight: "bold",
-    color: "#2d2d2d",
-    marginBottom: 4,
-  },
-  location: {
-    color: "#666",
-    marginBottom: 8,
-  },
-  bio: {
-    color: "#333",
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  tags: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  tag: {
-    backgroundColor: "#E3F2FD",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  tagText: {
-    color: "#2B6CB0",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  actions: {
-    position: "absolute",
-    bottom: 50,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingHorizontal: 40,
-  },
-  passButton: {
-    borderWidth: 2,
-    borderColor: "#E53E3E",
-  },
-  likeButton: {
-    borderWidth: 2,
-    borderColor: "#48BB78",
-  },
-  hint: {
-    position: "absolute",
-    bottom: 130,
-    left: 0,
-    right: 0,
-    alignItems: "center",
-  },
-  hintText: {
-    color: "#999",
+  tipText: {
     fontSize: 14,
+    color: "#92400E",
+    textAlign: "center",
   },
-  fab: {
-    position: "absolute",
-    top: 16,
-    right: 16,
-    backgroundColor: "#2B6CB0",
+  emptyButton: {
+    marginTop: 8,
   },
 });

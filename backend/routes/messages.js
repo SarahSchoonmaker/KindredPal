@@ -3,11 +3,13 @@ const router = express.Router();
 const Message = require("../models/Message");
 const User = require("../models/User");
 const auth = require("../middleware/auth");
+const { sendPushNotification } = require("../utils/PushNotifications");
+const logger = require("../utils/logger");
 
 // Get all conversations (users you've messaged with)
 router.get("/conversations", auth, async (req, res) => {
   try {
-    console.log("📥 Getting conversations for user:", req.userId);
+    logger.info("📥 Getting conversations for user:", req.userId);
 
     const currentUser = await User.findById(req.userId);
 
@@ -16,7 +18,7 @@ router.get("/conversations", auth, async (req, res) => {
       _id: { $in: currentUser.matches },
     }).select("name profilePhoto city state");
 
-    console.log("✅ Found", matchedUsers.length, "matched users");
+    logger.info("✅ Found", matchedUsers.length, "matched users");
 
     // Get last message with each match
     const conversationsWithMessages = await Promise.all(
@@ -37,7 +39,7 @@ router.get("/conversations", auth, async (req, res) => {
         });
 
         return {
-          user: user.toObject(),
+          otherUser: user.toObject(),
           lastMessage: lastMessage || null,
           unreadCount,
         };
@@ -53,7 +55,7 @@ router.get("/conversations", auth, async (req, res) => {
 
     res.json(conversationsWithMessages);
   } catch (error) {
-    console.error("❌ Get conversations error:", error);
+    logger.error("❌ Get conversations error:", error);
     res.status(500).json({ message: "Error fetching conversations" });
   }
 });
@@ -61,7 +63,7 @@ router.get("/conversations", auth, async (req, res) => {
 // Get messages with a specific user
 router.get("/:userId", auth, async (req, res) => {
   try {
-    console.log(
+    logger.info(
       "📥 Getting messages between",
       req.userId,
       "and",
@@ -97,11 +99,11 @@ router.get("/:userId", auth, async (req, res) => {
       },
     );
 
-    console.log("✅ Found", messages.length, "messages");
+    logger.info("✅ Found", messages.length, "messages");
 
     res.json(messages);
   } catch (error) {
-    console.error("❌ Get messages error:", error);
+    logger.error("❌ Get messages error:", error);
     res.status(500).json({ message: "Error fetching messages" });
   }
 });
@@ -111,7 +113,7 @@ router.post("/", auth, async (req, res) => {
   try {
     const { recipientId, content } = req.body;
 
-    console.log("📥 Sending message from", req.userId, "to", recipientId);
+    logger.info("📥 Sending message from", req.userId, "to", recipientId);
 
     if (!content || content.trim().length === 0) {
       return res.status(400).json({ message: "Message content is required" });
@@ -139,9 +141,21 @@ router.post("/", auth, async (req, res) => {
 
     await message.save();
 
-    console.log("✅ Message sent:", message._id);
+    logger.info("✅ Message sent:", message._id);
 
-    // ✅ EMIT SOCKET EVENT - This is the critical missing piece!
+    // 🔔 Send push notification
+    const recipient = await User.findById(recipientId);
+    if (recipient.pushTokens && recipient.pushTokens.length > 0) {
+      const sender = await User.findById(req.userId);
+      await sendPushNotification(
+        recipient.pushTokens,
+        `New message from ${sender.name}`,
+        content.substring(0, 100),
+        { type: "message", userId: req.userId },
+      );
+    }
+
+    // ✅ EMIT SOCKET EVENT
     const io = req.app.get("io");
     const userSockets = req.app.get("userSockets");
 
@@ -149,16 +163,16 @@ router.post("/", auth, async (req, res) => {
       const recipientSocketId = userSockets.get(recipientId);
 
       if (recipientSocketId) {
-        console.log("📨 Emitting new-message event to recipient:", recipientId);
+        logger.info("📨 Emitting new-message event to recipient:", recipientId);
         io.to(recipientSocketId).emit("new-message", message);
       } else {
-        console.log("⚠️ Recipient not currently online:", recipientId);
+        logger.info("⚠️ Recipient not currently online:", recipientId);
       }
     }
 
     res.status(201).json(message);
   } catch (error) {
-    console.error("❌ Send message error:", error);
+    logger.error("❌ Send message error:", error);
     res.status(500).json({ message: "Error sending message" });
   }
 });
@@ -181,7 +195,7 @@ router.put("/:messageId/read", auth, async (req, res) => {
 
     res.json(message);
   } catch (error) {
-    console.error("❌ Mark read error:", error);
+    logger.error("❌ Mark read error:", error);
     res.status(500).json({ message: "Error marking message as read" });
   }
 });
@@ -196,7 +210,7 @@ router.get("/unread/count", auth, async (req, res) => {
 
     res.json({ count });
   } catch (error) {
-    console.error("❌ Get unread count error:", error);
+    logger.error("❌ Get unread count error:", error);
     res.status(500).json({ message: "Error getting unread count" });
   }
 });
@@ -212,7 +226,7 @@ router.get("/unread/count/:userId", auth, async (req, res) => {
 
     res.json({ count });
   } catch (error) {
-    console.error("❌ Get unread count for user error:", error);
+    logger.error("❌ Get unread count for user error:", error);
     res.status(500).json({ message: "Error getting unread count" });
   }
 });

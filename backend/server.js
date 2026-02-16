@@ -12,6 +12,7 @@ const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/users");
 const messageRoutes = require("./routes/messages");
 const meetupRoutes = require("./routes/meetups");
+const logger = require("./utils/logger");
 
 const app = express();
 
@@ -55,7 +56,7 @@ const corsOptions = {
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      console.log("🚫 Blocked origin:", origin);
+      logger.info("🚫 Blocked origin:", origin);
       callback(new Error("Not allowed by CORS"));
     }
   },
@@ -123,17 +124,17 @@ const io = new Server(server, {
 const userSockets = new Map();
 
 io.on("connection", (socket) => {
-  console.log("🔌 Socket connected:", socket.id);
+  logger.info("🔌 Socket connected:", socket.id);
 
   socket.on("user-online", (userId) => {
     // Validate userId
     if (!userId || typeof userId !== "string") {
-      console.log("⚠️ Invalid userId in user-online event");
+      logger.info("⚠️ Invalid userId in user-online event");
       return;
     }
 
     userSockets.set(userId, socket.id);
-    console.log(`👤 User ${userId} is now online (socket: ${socket.id})`);
+    logger.info(`👤 User ${userId} is now online (socket: ${socket.id})`);
 
     // Notify user's matches that they're online
     socket.broadcast.emit("user-status-change", {
@@ -143,13 +144,13 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
-    console.log("🔌 Socket disconnected:", socket.id);
+    logger.info("🔌 Socket disconnected:", socket.id);
 
     // Find and remove user from map
     for (const [userId, socketId] of userSockets.entries()) {
       if (socketId === socket.id) {
         userSockets.delete(userId);
-        console.log(`👤 User ${userId} went offline`);
+        logger.info(`👤 User ${userId} went offline`);
 
         // Notify user's matches that they're offline
         socket.broadcast.emit("user-status-change", {
@@ -163,7 +164,7 @@ io.on("connection", (socket) => {
 
   // Error handling
   socket.on("error", (error) => {
-    console.error("❌ Socket error:", error);
+    logger.error("❌ Socket error:", error);
   });
 });
 
@@ -214,7 +215,7 @@ app.use((req, res) => {
 
 // Global error handler
 app.use((err, req, res, next) => {
-  console.error("❌ Global error:", err);
+  logger.error("❌ Global error:", err);
 
   // Don't leak error details in production
   const message =
@@ -237,21 +238,21 @@ mongoose
     socketTimeoutMS: 45000,
   })
   .then(() => {
-    console.log("✅ MongoDB connected successfully");
-    console.log("📊 Database:", mongoose.connection.db.databaseName);
+    logger.info("✅ MongoDB connected successfully");
+    logger.info("📊 Database:", mongoose.connection.db.databaseName);
   })
   .catch((err) => {
-    console.error("❌ MongoDB connection error:", err);
+    logger.error("❌ MongoDB connection error:", err);
     process.exit(1); // Exit if database connection fails
   });
 
 // Handle MongoDB connection events
 mongoose.connection.on("disconnected", () => {
-  console.log("⚠️ MongoDB disconnected");
+  logger.info("⚠️ MongoDB disconnected");
 });
 
 mongoose.connection.on("error", (err) => {
-  console.error("❌ MongoDB error:", err);
+  logger.error("❌ MongoDB error:", err);
 });
 
 // ===== SERVER STARTUP =====
@@ -259,38 +260,38 @@ mongoose.connection.on("error", (err) => {
 const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
-  console.log("\n========================================");
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🔌 Socket.IO server ready`);
-  console.log(`🌐 Environment: ${process.env.NODE_ENV || "development"}`);
-  console.log(`🔒 Security: Helmet, Rate Limiting, NoSQL Injection Protection`);
-  console.log(`📅 Started: ${new Date().toLocaleString()}`);
-  console.log("========================================\n");
+  logger.info("\n========================================");
+  logger.info(`🚀 Server running on port ${PORT}`);
+  logger.info(`🔌 Socket.IO server ready`);
+  logger.info(`🌐 Environment: ${process.env.NODE_ENV || "development"}`);
+  logger.info(`🔒 Security: Helmet, Rate Limiting, NoSQL Injection Protection`);
+  logger.info(`📅 Started: ${new Date().toLocaleString()}`);
+  logger.info("========================================\n");
 });
 
 // ===== GRACEFUL SHUTDOWN =====
 
 process.on("SIGTERM", () => {
-  console.log("⚠️ SIGTERM received, shutting down gracefully...");
+  logger.info("⚠️ SIGTERM received, shutting down gracefully...");
 
   server.close(() => {
-    console.log("✅ HTTP server closed");
+    logger.info("✅ HTTP server closed");
 
     mongoose.connection.close(false, () => {
-      console.log("✅ MongoDB connection closed");
+      logger.info("✅ MongoDB connection closed");
       process.exit(0);
     });
   });
 });
 
 process.on("SIGINT", () => {
-  console.log("\n⚠️ SIGINT received, shutting down gracefully...");
+  logger.info("\n⚠️ SIGINT received, shutting down gracefully...");
 
   server.close(() => {
-    console.log("✅ HTTP server closed");
+    logger.info("✅ HTTP server closed");
 
     mongoose.connection.close(false, () => {
-      console.log("✅ MongoDB connection closed");
+      logger.info("✅ MongoDB connection closed");
       process.exit(0);
     });
   });
@@ -298,15 +299,15 @@ process.on("SIGINT", () => {
 
 // Handle uncaught exceptions
 process.on("uncaughtException", (err) => {
-  console.error("❌ UNCAUGHT EXCEPTION:", err);
-  console.error("Stack:", err.stack);
+  logger.error("❌ UNCAUGHT EXCEPTION:", err);
+  logger.error("Stack:", err.stack);
   process.exit(1);
 });
 
 // Handle unhandled promise rejections
 process.on("unhandledRejection", (reason, promise) => {
-  console.error("❌ UNHANDLED REJECTION at:", promise);
-  console.error("Reason:", reason);
+  logger.error("❌ UNHANDLED REJECTION at:", promise);
+  logger.error("Reason:", reason);
   process.exit(1);
 });
 

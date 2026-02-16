@@ -1,11 +1,16 @@
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { Platform } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { PaperProvider, MD3LightTheme } from "react-native-paper";
 import { Heart, MessageCircle, User, Calendar } from "lucide-react-native";
+import * as Notifications from "expo-notifications";
+import * as Device from "expo-device";
+import * as SecureStore from "expo-secure-store";
 import PreferencesScreen from "./src/screens/PreferencesScreen";
 import EditProfileScreen from "./src/screens/EditProfileScreen";
+import BlockedUsersScreen from "./src/screens/BlockedUsersScreen";
 
 // Screens
 import LoginScreen from "./src/screens/LoginScreen";
@@ -18,9 +23,20 @@ import ChatScreen from "./src/screens/ChatScreen";
 import MeetupsScreen from "./src/screens/MeetupsScreen";
 import MeetupDetailsScreen from "./src/screens/MeetupsDetailScreen";
 import WebViewScreen from "./src/screens/WebViewScreen";
+import UserProfileScreen from "./src/screens/UserProfileScreen";
+import api from "./src/services/api";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+
+// Configure how notifications are displayed
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 // KindredPal theme
 const theme = {
@@ -43,8 +59,8 @@ function MainTabs() {
         tabBarStyle: {
           backgroundColor: "white",
           borderTopColor: "#E2E8F0",
-          height: 60,
-          paddingBottom: 8,
+          height: 85,
+          paddingBottom: 25,
           paddingTop: 8,
         },
         headerStyle: {
@@ -97,6 +113,90 @@ function MainTabs() {
 }
 
 export default function App() {
+  const [expoPushToken, setExpoPushToken] = useState("");
+  const notificationListener = useRef();
+  const responseListener = useRef();
+
+  useEffect(() => {
+    registerForPushNotificationsAsync().then((token) => {
+      if (token) {
+        setExpoPushToken(token);
+        savePushToken(token);
+      }
+    });
+
+    // Listen for notifications when app is in foreground
+    notificationListener.current =
+      Notifications.addNotificationReceivedListener((notification) => {
+        logger.info("📨 Notification received:", notification);
+      });
+
+    // Listen for notification taps
+    responseListener.current =
+      Notifications.addNotificationResponseReceivedListener((response) => {
+        logger.info("👆 Notification tapped:", response);
+        // You can navigate to specific screens based on notification data
+      });
+
+    return () => {
+      Notifications.removeNotificationSubscription(
+        notificationListener.current,
+      );
+      Notifications.removeNotificationSubscription(responseListener.current);
+    };
+  }, []);
+
+  const registerForPushNotificationsAsync = async () => {
+    let token;
+
+    if (Platform.OS === "android") {
+      await Notifications.setNotificationChannelAsync("default", {
+        name: "default",
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: "#2B6CB0",
+      });
+    }
+
+    if (Device.isDevice) {
+      const { status: existingStatus } =
+        await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+
+      if (existingStatus !== "granted") {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      if (finalStatus !== "granted") {
+        logger.info("❌ Failed to get push token");
+        return;
+      }
+
+      token = (await Notifications.getExpoPushTokenAsync()).data;
+      logger.info("✅ Push token:", token);
+    } else {
+      logger.info("⚠️ Must use physical device for Push Notifications");
+    }
+
+    return token;
+  };
+
+  const savePushToken = async (token) => {
+    try {
+      const authToken = await SecureStore.getItemAsync("token");
+      if (authToken && token) {
+        await api.post("/users/push-token", {
+          token,
+          device: Platform.OS,
+        });
+        logger.info("✅ Push token saved to backend");
+      }
+    } catch (error) {
+      logger.error("❌ Error saving push token:", error);
+    }
+  };
+
   return (
     <PaperProvider theme={theme}>
       <NavigationContainer>
@@ -119,14 +219,20 @@ export default function App() {
           <Stack.Screen
             name="ForgotPassword"
             component={ForgotPasswordScreen}
-            options={{ title: "Reset Password" }}
+            options={{
+              title: "Reset Password",
+              headerStyle: { backgroundColor: "#2B6CB0" },
+              headerTintColor: "#fff",
+            }}
           />
+
           {/* Main App with Tabs */}
           <Stack.Screen
             name="MainTabs"
             component={MainTabs}
             options={{ headerShown: false }}
           />
+
           {/* Individual Chat Screen */}
           <Stack.Screen
             name="Chat"
@@ -137,6 +243,19 @@ export default function App() {
               headerTintColor: "#fff",
             }}
           />
+
+          {/* User Profile Screen */}
+          <Stack.Screen
+            name="UserProfile"
+            component={UserProfileScreen}
+            options={{
+              title: "Profile",
+              headerStyle: { backgroundColor: "#2B6CB0" },
+              headerTintColor: "#fff",
+            }}
+          />
+
+          {/* Search Preferences */}
           <Stack.Screen
             name="Preferences"
             component={PreferencesScreen}
@@ -146,6 +265,8 @@ export default function App() {
               headerTintColor: "#fff",
             }}
           />
+
+          {/* Edit Profile */}
           <Stack.Screen
             name="EditProfile"
             component={EditProfileScreen}
@@ -155,6 +276,18 @@ export default function App() {
               headerTintColor: "#fff",
             }}
           />
+
+          <Stack.Screen
+            name="BlockedUsers"
+            component={BlockedUsersScreen}
+            options={{
+              title: "Blocked Users",
+              headerStyle: { backgroundColor: "#2B6CB0" },
+              headerTintColor: "#fff",
+            }}
+          />
+
+          {/* Meetup Details */}
           <Stack.Screen
             name="MeetupDetails"
             component={MeetupDetailsScreen}
@@ -165,11 +298,14 @@ export default function App() {
             }}
           />
 
+          {/* WebView for Legal Pages */}
           <Stack.Screen
             name="WebView"
             component={WebViewScreen}
             options={({ route }) => ({
               title: route.params?.title || "Loading...",
+              headerStyle: { backgroundColor: "#2B6CB0" },
+              headerTintColor: "#fff",
               headerBackTitle: "Back",
             })}
           />

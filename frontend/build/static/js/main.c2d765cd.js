@@ -17217,18 +17217,16 @@
                                   (0, ni.jsxs)("div", {
                                     className: "tags-container",
                                     children: [
-                                      g.causes
-                                        .slice(0, 6)
-                                        .map((e) =>
-                                          (0, ni.jsx)(
-                                            "span",
-                                            {
-                                              className: "tag tag-accent",
-                                              children: e,
-                                            },
-                                            e,
-                                          ),
+                                      g.causes.slice(0, 6).map((e) =>
+                                        (0, ni.jsx)(
+                                          "span",
+                                          {
+                                            className: "tag tag-accent",
+                                            children: e,
+                                          },
+                                          e,
                                         ),
+                                      ),
                                       g.causes.length > 6 &&
                                         (0, ni.jsxs)("span", {
                                           className: "tag tag-accent",
@@ -17466,18 +17464,16 @@
                                   t.lifeStage.length > 0 &&
                                   (0, ni.jsx)("div", {
                                     className: "match-tags",
-                                    children: t.lifeStage
-                                      .slice(0, 2)
-                                      .map((e) =>
-                                        (0, ni.jsx)(
-                                          "span",
-                                          {
-                                            className: "tag-small",
-                                            children: e,
-                                          },
-                                          e,
-                                        ),
+                                    children: t.lifeStage.slice(0, 2).map((e) =>
+                                      (0, ni.jsx)(
+                                        "span",
+                                        {
+                                          className: "tag-small",
+                                          children: e,
+                                        },
+                                        e,
                                       ),
+                                    ),
                                   }),
                                 (0, ni.jsxs)("button", {
                                   className: "btn-message",
@@ -18614,18 +18610,16 @@
                                   (0, ni.jsxs)("div", {
                                     className: "tags-preview",
                                     children: [
-                                      t.lifeStage
-                                        .slice(0, 2)
-                                        .map((e) =>
-                                          (0, ni.jsx)(
-                                            "span",
-                                            {
-                                              className: "tag-small",
-                                              children: e,
-                                            },
-                                            e,
-                                          ),
+                                      t.lifeStage.slice(0, 2).map((e) =>
+                                        (0, ni.jsx)(
+                                          "span",
+                                          {
+                                            className: "tag-small",
+                                            children: e,
+                                          },
+                                          e,
                                         ),
+                                      ),
                                       t.lifeStage.length > 2 &&
                                         (0, ni.jsxs)("span", {
                                           className: "tag-small",

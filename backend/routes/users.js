@@ -2,6 +2,8 @@ const express = require("express");
 const router = express.Router();
 const User = require("../models/User");
 const auth = require("../middleware/auth");
+const { sendPushNotification } = require("../utils/PushNotifications");
+const logger = require("../utils/logger");
 
 // ===== DISCOVER ROUTE =====
 
@@ -13,14 +15,14 @@ router.get("/discover", auth, async (req, res) => {
     const currentUser = await User.findById(req.userId);
 
     if (!currentUser) {
-      console.error("❌ Current user not found:", req.userId);
+      logger.error("❌ Current user not found:", req.userId);
       return res.status(404).json({ message: "User not found" });
     }
 
-    console.log("\n========== DISCOVER REQUEST ==========");
-    console.log("👤 User:", currentUser.email);
-    console.log("📍 Location:", currentUser.city, currentUser.state);
-    console.log(
+    logger.info("\n========== DISCOVER REQUEST ==========");
+    logger.info("👤 User:", currentUser.email);
+    logger.info("📍 Location:", currentUser.city, currentUser.state);
+    logger.info(
       "🎯 Location Preference:",
       currentUser.locationPreference || "Home state (default)",
     );
@@ -33,7 +35,7 @@ router.get("/discover", auth, async (req, res) => {
       ...(currentUser.blocked || []),
     ];
 
-    console.log("🚫 Excluding", excludedIds.length, "users");
+    logger.info("🚫 Excluding", excludedIds.length, "users");
 
     // Find potential matches
     let potentialMatches = await User.find({
@@ -42,27 +44,27 @@ router.get("/discover", auth, async (req, res) => {
       isActive: { $ne: false },
     });
 
-    console.log("📊 Total users in database:", potentialMatches.length);
+    logger.info("📊 Total users in database:", potentialMatches.length);
 
     // Filter by location preference
     const locationPref = currentUser.locationPreference || "Home state";
-    console.log("🔍 Applying location filter:", locationPref);
+    logger.info("🔍 Applying location filter:", locationPref);
 
     potentialMatches = potentialMatches.filter((user) => {
       try {
         const meets = currentUser.meetsLocationPreference(user);
         if (!meets) {
-          console.log(
+          logger.info(
             `   ❌ ${user.name} (${user.city}, ${user.state}) - doesn't meet location preference`,
           );
         } else {
-          console.log(
+          logger.info(
             `   ✅ ${user.name} (${user.city}, ${user.state}) - meets location preference`,
           );
         }
         return meets;
       } catch (err) {
-        console.error(
+        logger.error(
           `   ⚠️ Error checking location for user ${user._id}:`,
           err.message,
         );
@@ -70,20 +72,20 @@ router.get("/discover", auth, async (req, res) => {
       }
     });
 
-    console.log("📍 After location filter:", potentialMatches.length, "users");
+    logger.info("📍 After location filter:", potentialMatches.length, "users");
 
     // Calculate match scores
     const matchesWithScores = potentialMatches
       .map((user) => {
         try {
           const score = currentUser.calculateMatchScore(user);
-          console.log(`   🎯 ${user.name}: ${score}% match`);
+          logger.info(`   🎯 ${user.name}: ${score}% match`);
           return {
             ...user.toObject(),
             matchScore: score,
           };
         } catch (err) {
-          console.error(
+          logger.error(
             `   ⚠️ Error calculating score for user ${user._id}:`,
             err.message,
           );
@@ -92,7 +94,7 @@ router.get("/discover", auth, async (req, res) => {
       })
       .filter((user) => user && user.matchScore > 0);
 
-    console.log(
+    logger.info(
       "✨ After match score filter:",
       matchesWithScores.length,
       "users",
@@ -101,18 +103,18 @@ router.get("/discover", auth, async (req, res) => {
     // Sort by match score (highest first)
     matchesWithScores.sort((a, b) => b.matchScore - a.matchScore);
 
-    console.log(
+    logger.info(
       "✅ Discover successful, returning",
       matchesWithScores.length,
       "users",
     );
-    console.log("====================================\n");
+    logger.info("====================================\n");
 
     res.json({
       users: matchesWithScores,
     });
   } catch (error) {
-    console.error("❌ Discover error:", error);
+    logger.error("❌ Discover error:", error);
     res.status(500).json({ message: "Error fetching discover users" });
   }
 });
@@ -146,6 +148,16 @@ router.post("/like/:userId", auth, async (req, res) => {
       likedUser.matches.push(currentUser._id);
       await likedUser.save();
       matchedUser = likedUser.toObject();
+
+      // 🔔 Send push notification for match
+      if (likedUser.pushTokens && likedUser.pushTokens.length > 0) {
+        await sendPushNotification(
+          likedUser.pushTokens,
+          "🎉 It's a Match!",
+          `You and ${currentUser.name} matched!`,
+          { type: "match", userId: currentUser._id.toString() },
+        );
+      }
     }
 
     await currentUser.save();
@@ -156,7 +168,7 @@ router.post("/like/:userId", auth, async (req, res) => {
       matchedUser,
     });
   } catch (error) {
-    console.error("Like user error:", error);
+    logger.error("Like user error:", error);
     res.status(500).json({ message: "Error liking user" });
   }
 });
@@ -178,7 +190,7 @@ router.post("/pass/:userId", auth, async (req, res) => {
 
     res.json({ message: "User passed" });
   } catch (error) {
-    console.error("Pass user error:", error);
+    logger.error("Pass user error:", error);
     res.status(500).json({ message: "Error passing user" });
   }
 });
@@ -197,7 +209,7 @@ router.get("/matches", auth, async (req, res) => {
 
     res.json(user.matches || []);
   } catch (error) {
-    console.error("Get matches error:", error);
+    logger.error("Get matches error:", error);
     res.status(500).json({ message: "Error fetching matches" });
   }
 });
@@ -218,7 +230,7 @@ router.get("/likes-you", auth, async (req, res) => {
 
     res.json(usersWhoLikedYou);
   } catch (error) {
-    console.error("Likes you error:", error);
+    logger.error("Likes you error:", error);
     res.status(500).json({ message: "Error fetching likes" });
   }
 });
@@ -263,7 +275,7 @@ router.put("/profile", auth, async (req, res) => {
 
     res.json(userResponse);
   } catch (error) {
-    console.error("Update profile error:", error);
+    logger.error("Update profile error:", error);
     res.status(500).json({ message: "Error updating profile" });
   }
 });
@@ -286,7 +298,7 @@ router.get("/profile/:userId", auth, async (req, res) => {
 
     res.json(userResponse);
   } catch (error) {
-    console.error("Get user profile error:", error);
+    logger.error("Get user profile error:", error);
     res.status(500).json({ message: "Error fetching profile" });
   }
 });
@@ -306,7 +318,7 @@ router.put("/notification-settings", auth, async (req, res) => {
     await user.save();
     res.json({ message: "Notification settings updated" });
   } catch (error) {
-    console.error("Update notifications error:", error);
+    logger.error("Update notifications error:", error);
     res.status(500).json({ message: "Error updating settings" });
   }
 });
@@ -322,7 +334,7 @@ router.delete("/account", auth, async (req, res) => {
     await user.softDelete();
     res.json({ message: "Account deleted successfully" });
   } catch (error) {
-    console.error("Delete account error:", error);
+    logger.error("Delete account error:", error);
     res.status(500).json({ message: "Error deleting account" });
   }
 });
@@ -338,10 +350,10 @@ router.post("/:userId/report", auth, async (req, res) => {
     const { reason } = req.body;
     const reporterId = req.userId;
 
-    console.log("\n========== REPORT USER ==========");
-    console.log("Reporter:", reporterId);
-    console.log("Reported User:", userId);
-    console.log("Reason:", reason);
+    logger.info("\n========== REPORT USER ==========");
+    logger.info("Reporter:", reporterId);
+    logger.info("Reported User:", userId);
+    logger.info("Reason:", reason);
 
     if (!reason) {
       return res.status(400).json({ message: "Report reason is required" });
@@ -357,14 +369,14 @@ router.post("/:userId/report", auth, async (req, res) => {
     }
 
     // TODO: Store report in a Report model/collection
-    console.log("✅ Report logged successfully");
-    console.log("====================================\n");
+    logger.info("✅ Report logged successfully");
+    logger.info("====================================\n");
 
     res.status(200).json({
       message: "Thank you for your report. Our team will review it shortly.",
     });
   } catch (error) {
-    console.error("❌ Report user error:", error);
+    logger.error("❌ Report user error:", error);
     res.status(500).json({ message: "Error reporting user" });
   }
 });
@@ -379,9 +391,9 @@ router.post("/:userId/block", auth, async (req, res) => {
     const { userId } = req.params;
     const blockerId = req.userId;
 
-    console.log("\n========== BLOCK USER ==========");
-    console.log("Blocker:", blockerId);
-    console.log("Blocked User:", userId);
+    logger.info("\n========== BLOCK USER ==========");
+    logger.info("Blocker:", blockerId);
+    logger.info("Blocked User:", userId);
 
     if (userId === blockerId) {
       return res.status(400).json({ message: "You cannot block yourself" });
@@ -414,12 +426,12 @@ router.post("/:userId/block", auth, async (req, res) => {
     await blocker.save();
     await blockedUser.save();
 
-    console.log("✅ User blocked successfully");
-    console.log("====================================\n");
+    logger.info("✅ User blocked successfully");
+    logger.info("====================================\n");
 
     res.status(200).json({ message: "User blocked successfully" });
   } catch (error) {
-    console.error("❌ Block user error:", error);
+    logger.error("❌ Block user error:", error);
     res.status(500).json({ message: "Error blocking user" });
   }
 });
@@ -448,7 +460,7 @@ router.delete("/:userId/block", auth, async (req, res) => {
 
     res.status(200).json({ message: "User unblocked successfully" });
   } catch (error) {
-    console.error("❌ Unblock user error:", error);
+    logger.error("❌ Unblock user error:", error);
     res.status(500).json({ message: "Error unblocking user" });
   }
 });
@@ -467,8 +479,48 @@ router.get("/blocked", auth, async (req, res) => {
 
     res.json(user.blocked || []);
   } catch (error) {
-    console.error("❌ Get blocked users error:", error);
+    logger.error("❌ Get blocked users error:", error);
     res.status(500).json({ message: "Error fetching blocked users" });
+  }
+});
+
+// ===== SAVE PUSH TOKEN =====
+
+// @route   POST /api/users/push-token
+// @desc    Save push notification token
+// @access  Private
+router.post("/push-token", auth, async (req, res) => {
+  try {
+    const { token, device } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ message: "Token is required" });
+    }
+
+    const user = await User.findById(req.userId);
+
+    // Check if token already exists
+    const existingToken = user.pushTokens.find((pt) => pt.token === token);
+
+    if (!existingToken) {
+      user.pushTokens.push({
+        token,
+        device: device || "unknown",
+      });
+
+      // Keep only last 3 tokens per user
+      if (user.pushTokens.length > 3) {
+        user.pushTokens = user.pushTokens.slice(-3);
+      }
+
+      await user.save();
+      logger.info("✅ Push token saved for user:", user.email);
+    }
+
+    res.json({ message: "Push token saved successfully" });
+  } catch (error) {
+    logger.error("❌ Save push token error:", error);
+    res.status(500).json({ message: "Error saving push token" });
   }
 });
 

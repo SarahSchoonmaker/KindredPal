@@ -5,6 +5,7 @@ const crypto = require("crypto");
 const User = require("../models/User");
 const auth = require("../middleware/auth");
 const { body, validationResult } = require("express-validator");
+const logger = require("../utils/logger");
 
 // ===== SIGNUP ROUTE =====
 
@@ -33,16 +34,16 @@ router.post(
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        console.log("❌ Validation errors:", errors.array());
+        logger.info("❌ Validation errors:", errors.array());
         return res.status(400).json({
           message: errors.array()[0].msg,
           errors: errors.array(),
         });
       }
 
-      console.log("\n========== SIGNUP REQUEST ==========");
-      console.log("📥 Full request body:", JSON.stringify(req.body, null, 2));
-      console.log("====================================\n");
+      logger.info("\n========== SIGNUP REQUEST ==========");
+      logger.info("📥 Full request body:", JSON.stringify(req.body, null, 2));
+      logger.info("====================================\n");
 
       const userData = req.body;
 
@@ -100,9 +101,9 @@ router.post(
         additionalPhotos: userData.additionalPhotos || [],
       });
 
-      console.log("💾 Saving user...");
+      logger.info("💾 Saving user...");
       await user.save();
-      console.log("✅ User saved successfully!");
+      logger.info("✅ User saved successfully!");
 
       // Generate JWT token
       const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
@@ -134,8 +135,8 @@ router.post(
         user: userResponse,
       });
     } catch (error) {
-      console.error("\n❌ SIGNUP ERROR:", error);
-      console.error("Error message:", error.message);
+      logger.error("\n❌ SIGNUP ERROR:", error);
+      logger.error("Error message:", error.message);
       res.status(500).json({
         message: error.message || "Error creating account",
       });
@@ -163,7 +164,7 @@ router.post(
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        console.log("❌ Validation errors:", errors.array());
+        logger.info("❌ Validation errors:", errors.array());
         return res.status(400).json({
           message: errors.array()[0].msg,
           errors: errors.array(),
@@ -172,26 +173,26 @@ router.post(
 
       const { email, password } = req.body;
 
-      console.log("\n========== LOGIN ATTEMPT ==========");
-      console.log("📧 Email:", email);
+      logger.info("\n========== LOGIN ATTEMPT ==========");
+      logger.info("📧 Email:", email);
 
       const user = await User.findOne({ email });
       if (!user) {
-        console.log("❌ User not found");
+        logger.info("❌ User not found");
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      console.log("✅ User found:", user.email);
+      logger.info("✅ User found:", user.email);
 
       const isMatch = await user.comparePassword(password);
-      console.log("🔍 Password match result:", isMatch);
+      logger.info("🔍 Password match result:", isMatch);
 
       if (!isMatch) {
-        console.log("❌ Password does NOT match");
+        logger.info("❌ Password does NOT match");
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      console.log("✅ Password matches! Generating token...");
+      logger.info("✅ Password matches! Generating token...");
 
       const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
         expiresIn: "7d",
@@ -217,15 +218,15 @@ router.post(
         createdAt: user.createdAt,
       };
 
-      console.log("✅ Login successful!");
-      console.log("====================================\n");
+      logger.info("✅ Login successful!");
+      logger.info("====================================\n");
 
       res.json({
         token,
         user: userResponse,
       });
     } catch (error) {
-      console.error("❌ Login error:", error);
+      logger.error("❌ Login error:", error);
       res.status(500).json({ message: "Error logging in" });
     }
   },
@@ -243,14 +244,14 @@ router.get("/profile", auth, async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    console.log("📤 Sending profile for:", user.email);
+    logger.info("📤 Sending profile for:", user.email);
 
     const userResponse = user.toObject();
     userResponse.id = userResponse._id.toString();
 
     res.json(userResponse);
   } catch (error) {
-    console.error("Profile fetch error:", error);
+    logger.error("Profile fetch error:", error);
     res.status(500).json({ message: "Error fetching profile" });
   }
 });
@@ -279,20 +280,20 @@ router.post(
 
       const { email } = req.body;
 
-      console.log("\n========== FORGOT PASSWORD REQUEST ==========");
-      console.log("📧 Email:", email);
+      logger.info("\n========== FORGOT PASSWORD REQUEST ==========");
+      logger.info("📧 Email:", email);
 
       const user = await User.findOne({ email });
 
       if (!user) {
-        console.log("⚠️ User not found, but returning success message");
+        logger.info("⚠️ User not found, but returning success message");
         return res.status(200).json({
           message:
             "If an account exists, you will receive a password reset email",
         });
       }
 
-      console.log("✅ User found:", user.email);
+      logger.info("✅ User found:", user.email);
 
       const resetToken = crypto.randomBytes(32).toString("hex");
       const hashedToken = crypto
@@ -307,18 +308,18 @@ router.post(
       const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
 
       if (process.env.NODE_ENV !== "production") {
-        console.log("🔗 Reset URL (DEV ONLY):", resetUrl);
+        logger.info("🔗 Reset URL (DEV ONLY):", resetUrl);
       }
 
-      console.log("✅ Password reset request processed");
-      console.log("====================================\n");
+      logger.info("✅ Password reset request processed");
+      logger.info("====================================\n");
 
       res.status(200).json({
         message:
           "If an account exists, you will receive a password reset email",
       });
     } catch (error) {
-      console.error("❌ Forgot password error:", error);
+      logger.error("❌ Forgot password error:", error);
       res.status(500).json({ message: "Server error" });
     }
   },
@@ -346,7 +347,7 @@ router.post(
 
       const { token, newPassword } = req.body;
 
-      console.log("\n========== RESET PASSWORD REQUEST ==========");
+      logger.info("\n========== RESET PASSWORD REQUEST ==========");
 
       const hashedToken = crypto
         .createHash("sha256")
@@ -359,13 +360,13 @@ router.post(
       });
 
       if (!user) {
-        console.log("❌ Invalid or expired token");
+        logger.info("❌ Invalid or expired token");
         return res.status(400).json({
           message: "Invalid or expired reset token. Please request a new one.",
         });
       }
 
-      console.log("✅ Valid token found for user:", user.email);
+      logger.info("✅ Valid token found for user:", user.email);
 
       user.password = newPassword;
       user.resetPasswordToken = undefined;
@@ -373,15 +374,15 @@ router.post(
 
       await user.save();
 
-      console.log("✅ Password reset successful");
-      console.log("====================================\n");
+      logger.info("✅ Password reset successful");
+      logger.info("====================================\n");
 
       res.status(200).json({
         message:
           "Password has been reset successfully. You can now log in with your new password.",
       });
     } catch (error) {
-      console.error("❌ Reset password error:", error);
+      logger.error("❌ Reset password error:", error);
       res.status(500).json({ message: "Server error" });
     }
   },

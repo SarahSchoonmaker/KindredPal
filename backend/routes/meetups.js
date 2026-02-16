@@ -2,10 +2,11 @@ const express = require("express");
 const router = express.Router();
 const Meetup = require("../models/Meetup");
 const auth = require("../middleware/auth");
+const logger = require("../utils/logger");
 
 router.get("/", auth, async (req, res) => {
   try {
-    console.log("Getting meetups for user:", req.userId);
+    logger.info("Getting meetups for user:", req.userId);
 
     const meetups = await Meetup.find({
       $or: [{ creator: req.userId }, { invitedUsers: req.userId }],
@@ -16,10 +17,10 @@ router.get("/", auth, async (req, res) => {
       .populate("rsvps.user", "name profilePhoto")
       .sort({ dateTime: 1 });
 
-    console.log("Found", meetups.length, "meetups");
+    logger.info("Found", meetups.length, "meetups");
     res.json(meetups);
   } catch (error) {
-    console.error("Error fetching meetups:", error);
+    logger.error("Error fetching meetups:", error);
     res.status(500).json({ message: "Error fetching meetups" });
   }
 });
@@ -37,14 +38,14 @@ router.get("/:meetupId", auth, async (req, res) => {
 
     res.json(meetup);
   } catch (error) {
-    console.error("Error fetching meetup:", error);
+    logger.error("Error fetching meetup:", error);
     res.status(500).json({ message: "Error fetching meetup" });
   }
 });
 
 router.post("/", auth, async (req, res) => {
   try {
-    console.log("Creating meetup:", req.body);
+    logger.info("Creating meetup:", req.body);
     const {
       title,
       description,
@@ -71,10 +72,10 @@ router.post("/", auth, async (req, res) => {
     await meetup.populate("invitedUsers", "name profilePhoto");
     await meetup.populate("rsvps.user", "name profilePhoto");
 
-    console.log("Created meetup:", meetup.title);
+    logger.info("Created meetup:", meetup.title);
     res.status(201).json(meetup);
   } catch (error) {
-    console.error("Error creating meetup:", error);
+    logger.error("Error creating meetup:", error);
     res
       .status(500)
       .json({ message: "Error creating meetup", error: error.message });
@@ -104,7 +105,7 @@ router.post("/:meetupId/rsvp", auth, async (req, res) => {
 
     res.json(meetup);
   } catch (error) {
-    console.error("Error updating RSVP:", error);
+    logger.error("Error updating RSVP:", error);
     res.status(500).json({ message: "Error updating RSVP" });
   }
 });
@@ -139,7 +140,7 @@ router.put("/:meetupId", auth, async (req, res) => {
 
     res.json(meetup);
   } catch (error) {
-    console.error("Error updating meetup:", error);
+    logger.error("Error updating meetup:", error);
     res.status(500).json({ message: "Error updating meetup" });
   }
 });
@@ -159,7 +160,7 @@ router.delete("/:meetupId", auth, async (req, res) => {
     await meetup.deleteOne();
     res.json({ message: "Meetup deleted" });
   } catch (error) {
-    console.error("Error deleting meetup:", error);
+    logger.error("Error deleting meetup:", error);
     res.status(500).json({ message: "Error deleting meetup" });
   }
 });

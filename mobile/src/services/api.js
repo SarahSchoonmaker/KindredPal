@@ -14,23 +14,23 @@ const api = axios.create({
 // Add token to requests using SecureStore
 api.interceptors.request.use(
   async (config) => {
-    console.log("🔧 Interceptor: Getting token...");
+    logger.info("🔧 Interceptor: Getting token...");
     try {
       const token = await SecureStore.getItemAsync("token");
-      console.log("🔧 Token retrieved:", token ? "EXISTS" : "NULL");
+      logger.info("🔧 Token retrieved:", token ? "EXISTS" : "NULL");
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
-        console.log("🔧 Authorization header set");
+        logger.info("🔧 Authorization header set");
       }
-      console.log("🔧 Making request to:", config.baseURL + config.url);
+      logger.info("🔧 Making request to:", config.baseURL + config.url);
       return config;
     } catch (error) {
-      console.error("🔧 Error retrieving token from SecureStore:", error);
+      logger.error("🔧 Error retrieving token from SecureStore:", error);
       return config;
     }
   },
   (error) => {
-    console.error("🔧 Interceptor error:", error);
+    logger.error("🔧 Interceptor error:", error);
     return Promise.reject(error);
   },
 );
@@ -38,15 +38,15 @@ api.interceptors.request.use(
 // Add response interceptor for debugging
 api.interceptors.response.use(
   (response) => {
-    console.log("✅ Response received from:", response.config.url);
-    console.log("✅ Status:", response.status);
+    logger.info("✅ Response received from:", response.config.url);
+    logger.info("✅ Status:", response.status);
     return response;
   },
   (error) => {
-    console.error("❌ Response error:", error.message);
-    console.error("❌ Request URL:", error.config?.url);
-    console.error("❌ Response status:", error.response?.status);
-    console.error("❌ Response data:", error.response?.data);
+    logger.error("❌ Response error:", error.message);
+    logger.error("❌ Request URL:", error.config?.url);
+    logger.error("❌ Response status:", error.response?.status);
+    logger.error("❌ Response data:", error.response?.data);
     return Promise.reject(error);
   },
 );
@@ -69,7 +69,7 @@ export const userAPI = {
   updateProfile: (data) => api.put("/users/profile", data),
   deleteAccount: () => api.delete("/users/account"),
   getLikesYou: () => api.get("/users/likes-you"),
-  getPreferences: () => api.get("/users/preferences"),
+
   updateNotificationSettings: (settings) =>
     api.put("/users/notification-settings", settings),
   reportUser: (userId, reason) =>
@@ -77,9 +77,11 @@ export const userAPI = {
   blockUser: (userId) => api.post(`/users/${userId}/block`),
   unblockUser: (userId) => api.delete(`/users/${userId}/block`),
   getBlockedUsers: () => api.get("/users/blocked"),
+  like: (userId) => api.post(`/users/like/${userId}`),
+  pass: (userId) => api.post(`/users/pass/${userId}`),
 };
 
-// Swipe API
+// Swipe API (keeping this for compatibility)
 export const swipeAPI = {
   like: (userId) => api.post(`/users/like/${userId}`),
   pass: (userId) => api.post(`/users/pass/${userId}`),

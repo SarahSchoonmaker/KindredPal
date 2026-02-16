@@ -7,25 +7,27 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  RefreshControl,
 } from "react-native";
-import { Button, Card, Avatar, IconButton } from "react-native-paper";
+import { Button, Card, ActivityIndicator } from "react-native-paper";
 import {
   User,
   MapPin,
-  Heart,
-  Calendar,
   Edit,
   Camera,
   Star,
   Trash2,
+  Shield,
+  ChevronRight,
 } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as SecureStore from "expo-secure-store";
-import api from "../services/api";
+import { authAPI, userAPI } from "../services/api";
 
 export default function ProfileScreen({ navigation }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [photos, setPhotos] = useState([]);
 
   useEffect(() => {
@@ -34,7 +36,7 @@ export default function ProfileScreen({ navigation }) {
 
   const fetchProfile = async () => {
     try {
-      const response = await api.get("/auth/profile");
+      const response = await authAPI.getProfile();
       setUser(response.data);
 
       // Initialize photos array with profile photo and empty slots
@@ -47,11 +49,17 @@ export default function ProfileScreen({ navigation }) {
         ].slice(0, 3),
       );
     } catch (error) {
-      console.error("Error fetching profile:", error);
+      logger.error("Error fetching profile:", error);
       Alert.alert("Error", "Failed to load profile");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchProfile();
   };
 
   const pickImage = async (index) => {
@@ -84,12 +92,17 @@ export default function ProfileScreen({ navigation }) {
         await updatePhotos(newPhotos);
       }
     } catch (error) {
-      console.error("Error picking image:", error);
+      logger.error("Error picking image:", error);
       Alert.alert("Error", "Failed to upload photo");
     }
   };
 
   const deletePhoto = async (index) => {
+    if (index === 0) {
+      Alert.alert("Cannot Delete", "You must have a profile photo");
+      return;
+    }
+
     Alert.alert("Delete Photo", "Are you sure you want to delete this photo?", [
       { text: "Cancel", style: "cancel" },
       {
@@ -129,7 +142,7 @@ export default function ProfileScreen({ navigation }) {
       const profilePhoto = filteredPhotos[0];
       const additionalPhotos = filteredPhotos.slice(1);
 
-      await api.put("/users/profile", {
+      await userAPI.updateProfile({
         profilePhoto,
         additionalPhotos,
       });
@@ -137,7 +150,7 @@ export default function ProfileScreen({ navigation }) {
       Alert.alert("Success", "Photos updated successfully");
       fetchProfile();
     } catch (error) {
-      console.error("Error updating photos:", error);
+      logger.error("Error updating photos:", error);
       Alert.alert("Error", "Failed to update photos");
     }
   };
@@ -149,7 +162,6 @@ export default function ProfileScreen({ navigation }) {
         text: "Logout",
         style: "destructive",
         onPress: async () => {
-          // ✅ Using SecureStore instead of AsyncStorage
           await SecureStore.deleteItemAsync("token");
           await SecureStore.deleteItemAsync("userId");
           navigation.replace("Login");
@@ -179,7 +191,7 @@ export default function ProfileScreen({ navigation }) {
                   style: "destructive",
                   onPress: async () => {
                     try {
-                      await api.delete("/users/account");
+                      await userAPI.deleteAccount();
                       await SecureStore.deleteItemAsync("token");
                       await SecureStore.deleteItemAsync("userId");
                       Alert.alert(
@@ -193,7 +205,7 @@ export default function ProfileScreen({ navigation }) {
                         ],
                       );
                     } catch (error) {
-                      console.error("Error deleting account:", error);
+                      logger.error("Error deleting account:", error);
                       Alert.alert(
                         "Error",
                         "Failed to delete account. Please try again.",
@@ -212,7 +224,8 @@ export default function ProfileScreen({ navigation }) {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <Text>Loading...</Text>
+        <ActivityIndicator size="large" color="#2B6CB0" />
+        <Text style={styles.loadingText}>Loading profile...</Text>
       </View>
     );
   }
@@ -220,13 +233,26 @@ export default function ProfileScreen({ navigation }) {
   if (!user) {
     return (
       <View style={styles.centerContainer}>
-        <Text>Profile not found</Text>
+        <Text style={styles.errorText}>Profile not found</Text>
+        <Button
+          mode="contained"
+          onPress={fetchProfile}
+          buttonColor="#2B6CB0"
+          style={{ marginTop: 16 }}
+        >
+          Retry
+        </Button>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
@@ -382,13 +408,27 @@ export default function ProfileScreen({ navigation }) {
         </Card>
       </View>
 
+      {/* Privacy & Safety Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Privacy & Safety</Text>
+        <TouchableOpacity
+          style={styles.settingsLink}
+          onPress={() => navigation.navigate("BlockedUsers")}
+        >
+          <View style={styles.settingsLinkContent}>
+            <Shield size={20} color="#2B6CB0" />
+            <Text style={styles.settingsLinkText}>Blocked Users</Text>
+          </View>
+          <ChevronRight size={20} color="#718096" />
+        </TouchableOpacity>
+      </View>
+
       {/* Actions */}
       <View style={styles.actions}>
         <Button
           mode="outlined"
           onPress={() => navigation.navigate("Preferences")}
           style={styles.actionButton}
-          icon={() => <Heart color="#2B6CB0" size={20} />}
         >
           Search Preferences
         </Button>
@@ -411,6 +451,8 @@ export default function ProfileScreen({ navigation }) {
           Delete Account
         </Button>
       </View>
+
+      <View style={{ height: 40 }} />
     </ScrollView>
   );
 }
@@ -424,6 +466,16 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    padding: 40,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#718096",
+  },
+  errorText: {
+    fontSize: 18,
+    color: "#718096",
   },
   header: {
     flexDirection: "row",
@@ -440,7 +492,7 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 28,
     fontWeight: "bold",
-    color: "#2D2D2D",
+    color: "#2D3748",
     marginBottom: 4,
   },
   location: {
@@ -450,7 +502,7 @@ const styles = StyleSheet.create({
   },
   locationText: {
     fontSize: 14,
-    color: "#666",
+    color: "#718096",
   },
   editButton: {
     padding: 8,
@@ -461,7 +513,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: "600",
-    color: "#2D2D2D",
+    color: "#2D3748",
     marginBottom: 16,
   },
   photoGrid: {
@@ -531,7 +583,7 @@ const styles = StyleSheet.create({
   },
   photoHint: {
     fontSize: 12,
-    color: "#666",
+    color: "#718096",
     textAlign: "center",
     fontStyle: "italic",
   },
@@ -546,7 +598,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 16,
-    color: "#666",
+    color: "#718096",
   },
   bioContainer: {
     paddingTop: 12,
@@ -555,7 +607,7 @@ const styles = StyleSheet.create({
   },
   bio: {
     fontSize: 15,
-    color: "#2D2D2D",
+    color: "#2D3748",
     lineHeight: 22,
   },
   valueSection: {
@@ -564,12 +616,12 @@ const styles = StyleSheet.create({
   valueLabel: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#666",
+    color: "#718096",
     marginBottom: 8,
   },
   valueText: {
     fontSize: 15,
-    color: "#2D2D2D",
+    color: "#2D3748",
   },
   chips: {
     flexDirection: "row",
@@ -577,7 +629,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   chip: {
-    backgroundColor: "#DBEAFE",
+    backgroundColor: "#EBF4FF",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -585,6 +637,26 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 13,
     color: "#2B6CB0",
+    fontWeight: "500",
+  },
+  settingsLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "white",
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  settingsLinkContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  settingsLinkText: {
+    fontSize: 16,
+    color: "#2D3748",
     fontWeight: "500",
   },
   actions: {

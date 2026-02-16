@@ -43,7 +43,7 @@ export default function PreferencesScreen({ navigation }) {
       Alert.alert("Success", "Your preferences have been saved!");
       navigation.goBack();
     } catch (error) {
-      console.error("Error saving preferences:", error);
+      logger.error("Error saving preferences:", error);
       Alert.alert("Error", "Could not save preferences. Please try again.");
     } finally {
       setSaving(false);

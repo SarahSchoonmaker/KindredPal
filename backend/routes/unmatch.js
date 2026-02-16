@@ -1,4 +1,5 @@
 // Add to backend/routes/users.js
+const logger = require("../utils/logger");
 
 // Unmatch with a user
 router.post("/unmatch/:userId", auth, async (req, res) => {
@@ -34,7 +35,7 @@ router.post("/unmatch/:userId", auth, async (req, res) => {
     await currentUser.save();
     await targetUser.save();
 
-    console.log("✅ Unmatched:", currentUser.name, "and", targetUser.name);
+    logger.info("✅ Unmatched:", currentUser.name, "and", targetUser.name);
 
     res.json({
       message: "Successfully unmatched",
@@ -44,7 +45,7 @@ router.post("/unmatch/:userId", auth, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Unmatch error:", error);
+    logger.error("Unmatch error:", error);
     res.status(500).json({ message: "Error unmatching user" });
   }
 });

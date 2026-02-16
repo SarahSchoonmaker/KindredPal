@@ -225,6 +225,22 @@ const userSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
+    pushTokens: [
+      {
+        token: {
+          type: String,
+          required: true,
+        },
+        device: {
+          type: String,
+          enum: ["ios", "android"],
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
 
     // Email Notification Settings
     emailNotifications: {
