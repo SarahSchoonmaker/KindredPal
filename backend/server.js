@@ -7,12 +7,11 @@ const { Server } = require("socket.io");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const mongoSanitize = require("express-mongo-sanitize");
-
+const logger = require("./utils/logger");
 const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/users");
 const messageRoutes = require("./routes/messages");
 const meetupRoutes = require("./routes/meetups");
-const logger = require("./utils/logger");
 
 const app = express();
 
