@@ -8,6 +8,15 @@
       name="description"
       content="KindredPal - Find your people based on shared values and life stage"
     />
+    <script>
+      // Suppress MetaMask errors in development
+      window.addEventListener("error", function (e) {
+        if (e.message && e.message.includes("MetaMask")) {
+          e.stopImmediatePropagation();
+          return false;
+        }
+      });
+    </script>
     <title>KindredPal - Find Your People</title>
   </head>
   <body>
