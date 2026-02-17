@@ -1,35 +1,22 @@
-const winston = require("winston");
+const isDevelopment = process.env.NODE_ENV !== "production";
 
-const logger = winston.createLogger({
-  level: process.env.NODE_ENV === "production" ? "info" : "debug",
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.errors({ stack: true }),
-    winston.format.json(),
-  ),
-  transports: [
-    // Write errors to error.log
-    new winston.transports.File({
-      filename: "error.log",
-      level: "error",
-    }),
-    // Write all logs to combined.log
-    new winston.transports.File({
-      filename: "combined.log",
-    }),
-  ],
-});
-
-// In development, also log to console
-if (process.env.NODE_ENV !== "production") {
-  logger.add(
-    new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        winston.format.simple(),
-      ),
-    }),
-  );
-}
-
-module.exports = logger;
+module.exports = {
+  info: (...args) => {
+    if (isDevelopment) {
+      console.log(...args);
+    }
+  },
+  error: (...args) => {
+    console.error(...args);
+  },
+  warn: (...args) => {
+    if (isDevelopment) {
+      console.warn(...args);
+    }
+  },
+  debug: (...args) => {
+    if (isDevelopment) {
+      console.log(...args);
+    }
+  },
+};
