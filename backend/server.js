@@ -1,3 +1,17 @@
+// Debug: Log all require calls
+const Module = require("module");
+const originalRequire = Module.prototype.require;
+
+Module.prototype.require = function (id) {
+  if (id.includes("PushNotifications") || id.includes("pushNotifications")) {
+    console.log("🔍 REQUIRE DEBUG:", id, "from", this.filename);
+  }
+  return originalRequire.apply(this, arguments);
+};
+
+require("dotenv").config();
+const express = require("express");
+
 require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
@@ -330,4 +344,3 @@ process.on("unhandledRejection", (reason, promise) => {
 });
 
 module.exports = { app, server, io };
-
