@@ -15,6 +15,9 @@ const meetupRoutes = require("./routes/meetups");
 
 const app = express();
 
+// Trust Railway proxy for rate limiting
+app.set("trust proxy", 1);
+
 // ===== SECURITY MIDDLEWARE =====
 
 // Helmet for secure HTTP headers
@@ -307,4 +310,3 @@ process.on("unhandledRejection", (reason, promise) => {
 });
 
 module.exports = { app, server, io };
-
