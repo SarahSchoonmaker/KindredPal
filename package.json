@@ -1,6 +1,9 @@
 {
   "name": "kindred-pal",
   "version": "1.0.0",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "backend": "cd backend && npm run dev",
     "frontend": "cd frontend && npm start",
