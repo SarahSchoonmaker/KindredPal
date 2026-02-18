@@ -15,7 +15,6 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.kindredpal.app",
-      "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "KindredPal needs camera access to take profile photos",
         "NSPhotoLibraryUsageDescription": "KindredPal needs photo library access to upload profile photos",
@@ -25,7 +24,6 @@
     },
     "android": {
       "package": "com.kindredpal.app",
-      "versionCode": 1,
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
@@ -38,13 +36,7 @@
       }
     },
     "plugins": [
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/notification-icon.png",
-          "color": "#2B6CB0"
-        }
-      ],
+      "expo-notifications",
       "@react-native-community/datetimepicker",
       "expo-asset"
     ],
