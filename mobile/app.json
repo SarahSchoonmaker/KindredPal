@@ -11,17 +11,16 @@
       "resizeMode": "contain",
       "backgroundColor": "#2B6CB0"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.kindredpal.app",
-      "buildNumber": "1.0.0",
+      "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "KindredPal needs camera access to take profile photos",
         "NSPhotoLibraryUsageDescription": "KindredPal needs photo library access to upload profile photos",
-        "NSPhotoLibraryAddUsageDescription": "KindredPal needs permission to save photos"
+        "NSPhotoLibraryAddUsageDescription": "KindredPal needs permission to save photos",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
