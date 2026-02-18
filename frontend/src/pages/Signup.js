@@ -35,7 +35,6 @@ const Signup = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [step]);
 
-  // ✅ FIXED: Aligned with backend enums
   const politicalOptions = [
     "Liberal",
     "Moderate",
@@ -46,8 +45,6 @@ const Signup = () => {
 
   const religionOptions = [
     "Christian",
-    "Catholic",
-    "Protestant",
     "Muslim",
     "Jewish",
     "Hindu",
@@ -84,7 +81,6 @@ const Signup = () => {
     "Fitness & Active Living",
     "Skilled Trades & Craftsmanship",
     "Ministry",
-    "Faith Community",
     "Psychology & Mental Health",
     "Philosophy",
     "Food & Cooking",
