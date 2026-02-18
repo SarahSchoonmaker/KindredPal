@@ -25,7 +25,7 @@ export default function MeetupsScreen({ navigation }) {
 
   const fetchMeetups = async () => {
     try {
-      logger.info("📥 Fetching meetups...");
+      console.log("📥 Fetching meetups...");
 
       // Add a timeout
       const timeoutPromise = new Promise((_, reject) =>
@@ -37,17 +37,17 @@ export default function MeetupsScreen({ navigation }) {
         timeoutPromise,
       ]);
 
-      logger.info("✅ Meetups response:", response.data);
-      logger.info("📊 Number of meetups:", response.data?.length || 0);
+      console.log("✅ Meetups response:", response.data);
+      console.log("📊 Number of meetups:", response.data?.length || 0);
       setMeetups(response.data || []);
     } catch (error) {
-      logger.error("❌ Error fetching meetups:", error);
-      logger.error("❌ Error message:", error.message);
-      logger.error("❌ Error response:", error.response?.data);
-      logger.error("❌ Error status:", error.response?.status);
+      console.error("❌ Error fetching meetups:", error);
+      console.error("❌ Error message:", error.message);
+      console.error("❌ Error response:", error.response?.data);
+      console.error("❌ Error status:", error.response?.status);
       Alert.alert("Error", "Failed to load meetups: " + error.message);
     } finally {
-      logger.info("🏁 Fetch meetups finally block");
+      console.log("🏁 Fetch meetups finally block");
       setLoading(false);
       setRefreshing(false);
     }
@@ -173,7 +173,7 @@ export default function MeetupsScreen({ navigation }) {
         icon="plus"
         style={styles.fab}
         onPress={() => {
-          logger.info("📝 Opening create modal");
+          console.log("📝 Opening create modal");
           setShowCreateModal(true);
         }}
         color="white"
@@ -182,11 +182,11 @@ export default function MeetupsScreen({ navigation }) {
       <CreateMeetupModal
         visible={showCreateModal}
         onClose={() => {
-          logger.info("❌ Closing create modal");
+          console.log("❌ Closing create modal");
           setShowCreateModal(false);
         }}
         onSuccess={() => {
-          logger.info("✅ Meetup created successfully");
+          console.log("✅ Meetup created successfully");
           fetchMeetups();
         }}
       />

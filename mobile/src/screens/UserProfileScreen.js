@@ -25,7 +25,7 @@ export default function UserProfileScreen({ route, navigation }) {
       const response = await userAPI.getProfile(userId);
       setUser(response.data);
     } catch (error) {
-      logger.error("Error fetching user profile:", error);
+      console.error("Error fetching user profile:", error);
       Alert.alert("Error", "Failed to load profile");
     } finally {
       setLoading(false);

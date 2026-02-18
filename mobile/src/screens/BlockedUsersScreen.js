@@ -31,7 +31,7 @@ export default function BlockedUsersScreen({ navigation }) {
       const response = await userAPI.getBlockedUsers();
       setBlockedUsers(response.data || []);
     } catch (error) {
-      logger.error("Error fetching blocked users:", error);
+      console.error("Error fetching blocked users:", error);
       Alert.alert("Error", "Failed to load blocked users");
     } finally {
       setLoading(false);
@@ -58,7 +58,7 @@ export default function BlockedUsersScreen({ navigation }) {
               setBlockedUsers((prev) => prev.filter((u) => u._id !== user._id));
               Alert.alert("Success", `${user.name} has been unblocked`);
             } catch (error) {
-              logger.error("Error unblocking user:", error);
+              console.error("Error unblocking user:", error);
               Alert.alert("Error", "Failed to unblock user");
             }
           },

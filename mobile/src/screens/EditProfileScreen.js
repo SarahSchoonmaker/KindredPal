@@ -142,7 +142,7 @@ export default function EditProfileScreen({ navigation }) {
         profilePhoto: userData.profilePhoto || "",
       });
     } catch (error) {
-      logger.error("Error fetching profile:", error);
+      console.error("Error fetching profile:", error);
     } finally {
       setLoading(false);
     }
@@ -163,7 +163,7 @@ export default function EditProfileScreen({ navigation }) {
         setProfile((prev) => ({ ...prev, profilePhoto: base64Image }));
       }
     } catch (error) {
-      logger.error("Error picking image:", error);
+      console.error("Error picking image:", error);
       Alert.alert("Error", "Could not pick image");
     }
   };
@@ -207,7 +207,7 @@ export default function EditProfileScreen({ navigation }) {
       Alert.alert("Success", "Profile updated successfully!");
       navigation.goBack();
     } catch (error) {
-      logger.error("Error saving profile:", error);
+      console.error("Error saving profile:", error);
       Alert.alert("Error", "Could not save profile. Please try again.");
     } finally {
       setSaving(false);

@@ -60,7 +60,7 @@ export default function EditMeetupModal({
       const response = await api.get("/users/matches");
       setMatches(response.data);
     } catch (error) {
-      logger.error("Error fetching matches:", error);
+      console.error("Error fetching matches:", error);
     }
   };
 
@@ -122,7 +122,7 @@ export default function EditMeetupModal({
       onSuccess();
       onClose();
     } catch (error) {
-      logger.error("Error updating meetup:", error);
+      console.error("Error updating meetup:", error);
       Alert.alert("Error", "Failed to update meetup");
     }
   };

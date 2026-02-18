@@ -32,25 +32,25 @@ export default function DiscoverScreen({ navigation }) {
     try {
       const response = await authAPI.getProfile();
       setCurrentUser(response.data);
-      logger.info(
+      console.log(
         "📍 Current location:",
         response.data.city,
         response.data.state,
       );
-      logger.info("🔍 Search preference:", response.data.locationPreference);
+      console.log("🔍 Search preference:", response.data.locationPreference);
     } catch (error) {
-      logger.error("Error fetching current user:", error);
+      console.error("Error fetching current user:", error);
     }
   };
 
   const fetchUsers = async () => {
     try {
-      logger.info("📥 Fetching real users from API...");
+      console.log("📥 Fetching real users from API...");
       const response = await userAPI.getDiscover();
-      logger.info("✅ Got users:", response.data.users?.length || 0);
+      console.log("✅ Got users:", response.data.users?.length || 0);
       setUsers(response.data.users || []);
     } catch (error) {
-      logger.error("❌ Error fetching profiles:", error);
+      console.error("❌ Error fetching profiles:", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -104,7 +104,7 @@ export default function DiscoverScreen({ navigation }) {
         );
       }
     } catch (error) {
-      logger.error("Error liking user:", error);
+      console.error("Error liking user:", error);
       Alert.alert("Error", "Couldn't send connection. Please try again.", [
         { text: "OK" },
       ]);
@@ -116,7 +116,7 @@ export default function DiscoverScreen({ navigation }) {
       await userAPI.pass(userId);
       setUsers((prev) => prev.filter((u) => u._id !== userId));
     } catch (error) {
-      logger.error("Error passing user:", error);
+      console.error("Error passing user:", error);
     }
   };
 

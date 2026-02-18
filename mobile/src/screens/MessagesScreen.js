@@ -27,7 +27,7 @@ export default function MessagesScreen({ navigation }) {
 
   const fetchMatches = async () => {
     try {
-      logger.info("📥 Fetching matches...");
+      console.log("📥 Fetching matches...");
 
       // Get matches
       const matchesResponse = await userAPI.getMatches();
@@ -54,7 +54,7 @@ export default function MessagesScreen({ navigation }) {
           };
         });
 
-        logger.info(
+        console.log(
           "✅ Found",
           matchesWithMessages.length,
           "matches with messages",
@@ -62,7 +62,7 @@ export default function MessagesScreen({ navigation }) {
         setMatches(matchesWithMessages);
       } catch (convError) {
         // If conversations fail, just show matches without messages
-        logger.info("⚠️ Conversations failed, showing matches only");
+        console.log("⚠️ Conversations failed, showing matches only");
         setMatches(
           matchData.map((match) => ({
             ...match,
@@ -73,7 +73,7 @@ export default function MessagesScreen({ navigation }) {
         );
       }
     } catch (error) {
-      logger.error("❌ Error fetching matches:", error);
+      console.error("❌ Error fetching matches:", error);
     } finally {
       setLoading(false);
       setRefreshing(false);

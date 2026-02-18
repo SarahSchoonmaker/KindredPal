@@ -8,29 +8,29 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 10000, // 10 second timeout
+  timeout: 10000,
 });
 
 // Add token to requests using SecureStore
 api.interceptors.request.use(
   async (config) => {
-    logger.info("🔧 Interceptor: Getting token...");
+    console.log("🔧 Interceptor: Getting token...");
     try {
       const token = await SecureStore.getItemAsync("token");
-      logger.info("🔧 Token retrieved:", token ? "EXISTS" : "NULL");
+      console.log("🔧 Token retrieved:", token ? "EXISTS" : "NULL");
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
-        logger.info("🔧 Authorization header set");
+        console.log("🔧 Authorization header set");
       }
-      logger.info("🔧 Making request to:", config.baseURL + config.url);
+      console.log("🔧 Making request to:", config.baseURL + config.url);
       return config;
     } catch (error) {
-      logger.error("🔧 Error retrieving token from SecureStore:", error);
+      console.error("🔧 Error retrieving token from SecureStore:", error);
       return config;
     }
   },
   (error) => {
-    logger.error("🔧 Interceptor error:", error);
+    console.error("🔧 Interceptor error:", error);
     return Promise.reject(error);
   },
 );
@@ -38,15 +38,15 @@ api.interceptors.request.use(
 // Add response interceptor for debugging
 api.interceptors.response.use(
   (response) => {
-    logger.info("✅ Response received from:", response.config.url);
-    logger.info("✅ Status:", response.status);
+    console.log("✅ Response received from:", response.config.url);
+    console.log("✅ Status:", response.status);
     return response;
   },
   (error) => {
-    logger.error("❌ Response error:", error.message);
-    logger.error("❌ Request URL:", error.config?.url);
-    logger.error("❌ Response status:", error.response?.status);
-    logger.error("❌ Response data:", error.response?.data);
+    console.error("❌ Response error:", error.message);
+    console.error("❌ Request URL:", error.config?.url);
+    console.error("❌ Response status:", error.response?.status);
+    console.error("❌ Response data:", error.response?.data);
     return Promise.reject(error);
   },
 );

@@ -49,7 +49,7 @@ export default function ProfileScreen({ navigation }) {
         ].slice(0, 3),
       );
     } catch (error) {
-      logger.error("Error fetching profile:", error);
+      console.error("Error fetching profile:", error);
       Alert.alert("Error", "Failed to load profile");
     } finally {
       setLoading(false);
@@ -92,7 +92,7 @@ export default function ProfileScreen({ navigation }) {
         await updatePhotos(newPhotos);
       }
     } catch (error) {
-      logger.error("Error picking image:", error);
+      console.error("Error picking image:", error);
       Alert.alert("Error", "Failed to upload photo");
     }
   };
@@ -150,7 +150,7 @@ export default function ProfileScreen({ navigation }) {
       Alert.alert("Success", "Photos updated successfully");
       fetchProfile();
     } catch (error) {
-      logger.error("Error updating photos:", error);
+      console.error("Error updating photos:", error);
       Alert.alert("Error", "Failed to update photos");
     }
   };
@@ -205,7 +205,7 @@ export default function ProfileScreen({ navigation }) {
                         ],
                       );
                     } catch (error) {
-                      logger.error("Error deleting account:", error);
+                      console.error("Error deleting account:", error);
                       Alert.alert(
                         "Error",
                         "Failed to delete account. Please try again.",

@@ -35,7 +35,7 @@ export default function DiscoverFilters({ currentPreference, onUpdate }) {
         onUpdate();
       }
     } catch (error) {
-      logger.error("Error updating preferences:", error);
+      console.error("Error updating preferences:", error);
       alert("Failed to save preferences");
     } finally {
       setSaving(false);

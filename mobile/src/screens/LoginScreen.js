@@ -21,7 +21,7 @@ export default function LoginScreen({ navigation }) {
   const handleLogin = async () => {
     setLoading(true);
     try {
-      logger.info("🔐 Logging in:", email);
+      console.log("🔐 Logging in:", email); // ← CHANGED
       const response = await authAPI.login(email, password);
 
       const token = response.data.token;
@@ -36,12 +36,12 @@ export default function LoginScreen({ navigation }) {
       await SecureStore.setItemAsync("token", token);
       await SecureStore.setItemAsync("userId", userId);
 
-      logger.info("✅ Login successful! Token and userId saved securely.");
+      console.log("✅ Login successful! Token and userId saved securely."); // ← CHANGED
 
       navigation.replace("MainTabs");
     } catch (error) {
-      logger.error("❌ Login error:", error);
-      logger.error("❌ Error response:", error.response?.data);
+      console.error("❌ Login error:", error); // ← CHANGED
+      console.error("❌ Error response:", error.response?.data); // ← CHANGED
 
       const message =
         error.response?.data?.message || error.message || "Invalid credentials";

@@ -80,7 +80,7 @@ export default function ChatScreen({ route, navigation }) {
       const response = await messageAPI.getMessages(chatUserId);
       setMessages(response.data || []);
     } catch (error) {
-      logger.error("Error fetching messages:", error);
+      console.error("Error fetching messages:", error);
     } finally {
       setLoading(false);
     }
@@ -126,7 +126,7 @@ export default function ChatScreen({ route, navigation }) {
         [{ text: "OK" }],
       );
     } catch (error) {
-      logger.error("Error reporting user:", error);
+      console.error("Error reporting user:", error);
       Alert.alert("Error", "Failed to submit report. Please try again.");
     }
   };
@@ -153,7 +153,7 @@ export default function ChatScreen({ route, navigation }) {
                 },
               ]);
             } catch (error) {
-              logger.error("Error blocking user:", error);
+              console.error("Error blocking user:", error);
               Alert.alert("Error", "Failed to block user. Please try again.");
             }
           },
@@ -176,7 +176,7 @@ export default function ChatScreen({ route, navigation }) {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     } catch (error) {
-      logger.error("Error sending message:", error);
+      console.error("Error sending message:", error);
       Alert.alert("Error", "Failed to send message. Please try again.");
       setNewMessage(messageText);
     } finally {

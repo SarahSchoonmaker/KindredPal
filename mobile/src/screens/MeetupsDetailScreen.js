@@ -35,7 +35,7 @@ export default function MeetupDetailsScreen({ route, navigation }) {
       const userId = await AsyncStorage.getItem("userId");
       setCurrentUserId(userId);
     } catch (error) {
-      logger.error("Error fetching user ID:", error);
+      console.error("Error fetching user ID:", error);
     }
   };
 
@@ -44,7 +44,7 @@ export default function MeetupDetailsScreen({ route, navigation }) {
       const response = await api.get(`/meetups/${meetupId}`);
       setMeetup(response.data);
     } catch (error) {
-      logger.error("Error fetching meetup:", error);
+      console.error("Error fetching meetup:", error);
       Alert.alert("Error", "Failed to load meetup details");
     } finally {
       setLoading(false);
@@ -57,7 +57,7 @@ export default function MeetupDetailsScreen({ route, navigation }) {
       fetchMeetupDetails();
       Alert.alert("Success", `RSVP updated to: ${status}`);
     } catch (error) {
-      logger.error("Error updating RSVP:", error);
+      console.error("Error updating RSVP:", error);
       Alert.alert("Error", "Failed to update RSVP");
     }
   };

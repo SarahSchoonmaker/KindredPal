@@ -42,7 +42,7 @@ export default function CreateMeetupModal({ visible, onClose, onSuccess }) {
       const response = await api.get("/users/matches");
       setMatches(response.data);
     } catch (error) {
-      logger.error("Error fetching matches:", error);
+      console.error("Error fetching matches:", error);
     }
   };
 
@@ -111,7 +111,7 @@ export default function CreateMeetupModal({ visible, onClose, onSuccess }) {
         maxAttendees: "",
       });
     } catch (error) {
-      logger.error("Error creating meetup:", error);
+      console.error("Error creating meetup:", error);
       Alert.alert("Error", "Failed to create meetup");
     }
   };
