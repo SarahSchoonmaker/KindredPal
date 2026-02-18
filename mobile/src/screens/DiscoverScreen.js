@@ -179,7 +179,7 @@ export default function DiscoverScreen({ navigation }) {
           )}
           <Button
             mode="contained"
-            onPress={() => navigation.navigate("Matches")}
+            onPress={() => navigation.navigate("Messages")}
             style={styles.emptyButton}
             buttonColor="#2B6CB0"
           >

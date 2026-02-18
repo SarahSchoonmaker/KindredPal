@@ -31,8 +31,9 @@ const Signup = () => {
   });
 
   // Scroll to top when step changes
+  // Scroll to top when step changes
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: "instant" });
   }, [step]);
 
   const politicalOptions = [
