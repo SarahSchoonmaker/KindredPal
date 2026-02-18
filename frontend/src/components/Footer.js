@@ -16,12 +16,6 @@ const Footer = () => {
             <li>
               <Link to="/about">About</Link>
             </li>
-            <li>
-              <a href="mailto:careers@kindredpal.com">Careers</a>
-            </li>
-            <li>
-              <a href="mailto:press@kindredpal.com">Press</a>
-            </li>
           </ul>
         </div>
 
