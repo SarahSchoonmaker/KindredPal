@@ -131,6 +131,14 @@ const io = new Server(server, {
   pingInterval: 25000,
 });
 
+app.use((req, res, next) => {
+  // Cache static data for 5 minutes
+  if (req.method === "GET" && !req.path.includes("/messages")) {
+    res.set("Cache-Control", "public, max-age=300");
+  }
+  next();
+});
+
 // Socket.io connection handling
 const userSockets = new Map();
 

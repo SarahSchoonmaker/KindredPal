@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo, memo } from "react";
 import {
   View,
   ScrollView,
@@ -17,18 +17,128 @@ import DiscoverFilters from "../components/DiscoverFilters";
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width - 32;
 
+// Memoized ProfileCard component to prevent unnecessary re-renders
+const ProfileCard = memo(({ user, onPress, onLike, onPass }) => {
+  return (
+    <TouchableOpacity
+      style={styles.card}
+      activeOpacity={0.9}
+      onPress={() => onPress(user._id)}
+    >
+      {/* Image */}
+      <View style={styles.imageContainer}>
+        <Image
+          source={{ uri: user.profilePhoto }}
+          style={styles.image}
+          resizeMode="cover"
+        />
+        <View style={styles.matchBadge}>
+          <Text style={styles.matchBadgeText}>{user.matchScore}% Match</Text>
+        </View>
+      </View>
+
+      {/* Info */}
+      <View style={styles.cardContent}>
+        <Text style={styles.cardName}>
+          {user.name}, {user.age}
+        </Text>
+
+        <View style={styles.locationRow}>
+          <MapPin size={16} color="#2B6CB0" />
+          <Text style={styles.locationText}>
+            {user.city}, {user.state}
+          </Text>
+        </View>
+
+        {user.bio && (
+          <Text style={styles.bioText} numberOfLines={3}>
+            {user.bio}
+          </Text>
+        )}
+
+        {user.causes && user.causes.length > 0 && (
+          <View style={styles.tagsContainer}>
+            {user.causes.slice(0, 3).map((cause, idx) => (
+              <Chip
+                key={idx}
+                style={styles.chip}
+                textStyle={styles.chipText}
+                compact
+              >
+                {cause}
+              </Chip>
+            ))}
+            {user.causes.length > 3 && (
+              <Chip
+                style={styles.chipMore}
+                textStyle={styles.chipTextMore}
+                compact
+              >
+                +{user.causes.length - 3} more
+              </Chip>
+            )}
+          </View>
+        )}
+      </View>
+
+      {/* Actions */}
+      <View style={styles.actions}>
+        <TouchableOpacity
+          style={styles.passButton}
+          onPress={() => onPass(user._id)}
+        >
+          <X size={24} color="#718096" />
+          <Text style={styles.passButtonText}>Pass</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.likeButton}
+          onPress={() => onLike(user._id)}
+        >
+          <Heart size={24} color="white" />
+          <Text style={styles.likeButtonText}>Connect</Text>
+        </TouchableOpacity>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
+// Memoized EmptyState component
+const EmptyState = memo(({ currentUser, onNavigate, onRefresh }) => (
+  <ScrollView
+    contentContainerStyle={styles.emptyContainer}
+    refreshControl={<RefreshControl refreshing={false} onRefresh={onRefresh} />}
+  >
+    <Text style={styles.emptyIcon}>🔍</Text>
+    <Text style={styles.emptyTitle}>No More Users Right Now</Text>
+    <Text style={styles.emptyText}>We've shown you everyone in your area!</Text>
+    {currentUser?.locationPreference === "Same city" && (
+      <View style={styles.tipBox}>
+        <Text style={styles.tipText}>
+          💡 Try expanding your search to "Home state" or "Anywhere" to see more
+          people
+        </Text>
+      </View>
+    )}
+    <Button
+      mode="contained"
+      onPress={onNavigate}
+      style={styles.emptyButton}
+      buttonColor="#2B6CB0"
+    >
+      View Your Matches
+    </Button>
+  </ScrollView>
+));
+
 export default function DiscoverScreen({ navigation }) {
   const [users, setUsers] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    fetchCurrentUser();
-    fetchUsers();
-  }, []);
-
-  const fetchCurrentUser = async () => {
+  // Memoize fetch functions with useCallback to prevent recreation
+  const fetchCurrentUser = useCallback(async () => {
     try {
       const response = await authAPI.getProfile();
       setCurrentUser(response.data);
@@ -41,9 +151,9 @@ export default function DiscoverScreen({ navigation }) {
     } catch (error) {
       console.error("Error fetching current user:", error);
     }
-  };
+  }, []);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       console.log("📥 Fetching real users from API...");
       const response = await userAPI.getDiscover();
@@ -55,74 +165,104 @@ export default function DiscoverScreen({ navigation }) {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
 
-  const onRefresh = () => {
+  // Initial data fetch
+  useEffect(() => {
+    fetchCurrentUser();
+    fetchUsers();
+  }, [fetchCurrentUser, fetchUsers]);
+
+  // Memoize handlers
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchCurrentUser();
     fetchUsers();
-  };
+  }, [fetchCurrentUser, fetchUsers]);
 
-  const handlePreferencesUpdate = () => {
+  const handlePreferencesUpdate = useCallback(() => {
     fetchCurrentUser();
     fetchUsers();
-  };
+  }, [fetchCurrentUser, fetchUsers]);
 
-  const handleLike = async (userId) => {
-    try {
-      const response = await userAPI.like(userId);
+  const handleLike = useCallback(
+    async (userId) => {
+      try {
+        const response = await userAPI.like(userId);
 
-      // Remove user from list first
-      setUsers((prev) => prev.filter((u) => u._id !== userId));
+        // Remove user from list first
+        setUsers((prev) => prev.filter((u) => u._id !== userId));
 
-      // Show appropriate alert
-      if (response.data.isMatch) {
-        Alert.alert(
-          "🎉 It's a Match!",
-          `You and ${response.data.matchedUser?.name} connected!`,
-          [
-            {
-              text: "Send Message",
-              onPress: () =>
-                navigation.navigate("Chat", {
-                  userId: response.data.matchedUser._id,
-                  userName: response.data.matchedUser.name,
-                }),
-            },
-            {
-              text: "Keep Discovering",
-              style: "cancel",
-            },
-          ],
-        );
-      } else {
-        // Show "Connection Sent" alert for regular likes
-        Alert.alert(
-          "✅ Connection Sent!",
-          `We'll let you know if they connect back!`,
-          [{ text: "OK" }],
-        );
+        // Show appropriate alert
+        if (response.data.isMatch) {
+          Alert.alert(
+            "🎉 It's a Match!",
+            `You and ${response.data.matchedUser?.name} connected!`,
+            [
+              {
+                text: "Send Message",
+                onPress: () =>
+                  navigation.navigate("Chat", {
+                    match: response.data.matchedUser,
+                  }),
+              },
+              {
+                text: "Keep Discovering",
+                style: "cancel",
+              },
+            ],
+          );
+        } else {
+          Alert.alert(
+            "✅ Connection Sent!",
+            `We'll let you know if they connect back!`,
+            [{ text: "OK" }],
+          );
+        }
+      } catch (error) {
+        console.error("Error liking user:", error);
+        Alert.alert("Error", "Couldn't send connection. Please try again.", [
+          { text: "OK" },
+        ]);
       }
-    } catch (error) {
-      console.error("Error liking user:", error);
-      Alert.alert("Error", "Couldn't send connection. Please try again.", [
-        { text: "OK" },
-      ]);
-    }
-  };
+    },
+    [navigation],
+  );
 
-  const handlePass = async (userId) => {
+  const handlePass = useCallback(async (userId) => {
     try {
       await userAPI.pass(userId);
       setUsers((prev) => prev.filter((u) => u._id !== userId));
     } catch (error) {
       console.error("Error passing user:", error);
     }
-  };
+  }, []);
 
-  const handleCardPress = (userId) => {
-    navigation.navigate("UserProfile", { userId });
-  };
+  const handleCardPress = useCallback(
+    (userId) => {
+      navigation.navigate("UserProfile", { userId });
+    },
+    [navigation],
+  );
+
+  const handleNavigateToMessages = useCallback(() => {
+    navigation.navigate("Messages");
+  }, [navigation]);
+
+  // Memoize users count text
+  const usersCountText = useMemo(
+    () => `Showing ${users.length} ${users.length === 1 ? "person" : "people"}`,
+    [users.length],
+  );
+
+  // Memoize search info text
+  const searchInfoText = useMemo(
+    () =>
+      currentUser
+        ? `${currentUser.city}, ${currentUser.state} • ${currentUser.locationPreference || "Home state"}`
+        : "",
+    [currentUser],
+  );
 
   if (loading) {
     return (
@@ -142,10 +282,7 @@ export default function DiscoverScreen({ navigation }) {
           {currentUser && (
             <View style={styles.searchInfo}>
               <MapPin size={14} color="#2B6CB0" />
-              <Text style={styles.searchInfoText}>
-                {currentUser.city}, {currentUser.state} •{" "}
-                {currentUser.locationPreference || "Home state"}
-              </Text>
+              <Text style={styles.searchInfoText}>{searchInfoText}</Text>
             </View>
           )}
         </View>
@@ -158,129 +295,33 @@ export default function DiscoverScreen({ navigation }) {
       </View>
 
       {users.length === 0 ? (
-        <ScrollView
-          contentContainerStyle={styles.emptyContainer}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-        >
-          <Text style={styles.emptyIcon}>🔍</Text>
-          <Text style={styles.emptyTitle}>No More Users Right Now</Text>
-          <Text style={styles.emptyText}>
-            We've shown you everyone in your area!
-          </Text>
-          {currentUser?.locationPreference === "Same city" && (
-            <View style={styles.tipBox}>
-              <Text style={styles.tipText}>
-                💡 Try expanding your search to "Home state" or "Anywhere" to
-                see more people
-              </Text>
-            </View>
-          )}
-          <Button
-            mode="contained"
-            onPress={() => navigation.navigate("Messages")}
-            style={styles.emptyButton}
-            buttonColor="#2B6CB0"
-          >
-            View Your Matches
-          </Button>
-        </ScrollView>
+        <EmptyState
+          currentUser={currentUser}
+          onNavigate={handleNavigateToMessages}
+          onRefresh={onRefresh}
+        />
       ) : (
         <ScrollView
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
           contentContainerStyle={styles.scrollContent}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={5}
+          updateCellsBatchingPeriod={100}
+          initialNumToRender={3}
+          windowSize={5}
         >
-          <Text style={styles.usersCount}>
-            Showing {users.length} {users.length === 1 ? "person" : "people"}
-          </Text>
+          <Text style={styles.usersCount}>{usersCountText}</Text>
 
           {users.map((user) => (
-            <TouchableOpacity
+            <ProfileCard
               key={user._id}
-              style={styles.card}
-              activeOpacity={0.9}
-              onPress={() => handleCardPress(user._id)}
-            >
-              {/* Image */}
-              <View style={styles.imageContainer}>
-                <Image
-                  source={{ uri: user.profilePhoto }}
-                  style={styles.image}
-                  resizeMode="cover"
-                />
-                <View style={styles.matchBadge}>
-                  <Text style={styles.matchBadgeText}>
-                    {user.matchScore}% Match
-                  </Text>
-                </View>
-              </View>
-
-              {/* Info */}
-              <View style={styles.cardContent}>
-                <Text style={styles.cardName}>
-                  {user.name}, {user.age}
-                </Text>
-
-                <View style={styles.locationRow}>
-                  <MapPin size={16} color="#2B6CB0" />
-                  <Text style={styles.locationText}>
-                    {user.city}, {user.state}
-                  </Text>
-                </View>
-
-                {user.bio && (
-                  <Text style={styles.bioText} numberOfLines={3}>
-                    {user.bio}
-                  </Text>
-                )}
-
-                {user.causes && user.causes.length > 0 && (
-                  <View style={styles.tagsContainer}>
-                    {user.causes.slice(0, 3).map((cause, idx) => (
-                      <Chip
-                        key={idx}
-                        style={styles.chip}
-                        textStyle={styles.chipText}
-                        compact
-                      >
-                        {cause}
-                      </Chip>
-                    ))}
-                    {user.causes.length > 3 && (
-                      <Chip
-                        style={styles.chipMore}
-                        textStyle={styles.chipTextMore}
-                        compact
-                      >
-                        +{user.causes.length - 3} more
-                      </Chip>
-                    )}
-                  </View>
-                )}
-              </View>
-
-              {/* Actions */}
-              <View style={styles.actions}>
-                <TouchableOpacity
-                  style={styles.passButton}
-                  onPress={() => handlePass(user._id)}
-                >
-                  <X size={24} color="#718096" />
-                  <Text style={styles.passButtonText}>Pass</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.likeButton}
-                  onPress={() => handleLike(user._id)}
-                >
-                  <Heart size={24} color="white" />
-                  <Text style={styles.likeButtonText}>Connect</Text>
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
+              user={user}
+              onPress={handleCardPress}
+              onLike={handleLike}
+              onPass={handlePass}
+            />
           ))}
         </ScrollView>
       )}

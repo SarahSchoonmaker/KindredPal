@@ -109,4 +109,10 @@ export const meetupsAPI = {
   rsvp: (meetupId, status) => api.post(`/meetups/${meetupId}/rsvp`, { status }),
 };
 
+export const optimizeImage = (base64Image, maxWidth = 800) => {
+  // For mobile, images are already compressed by ImagePicker
+  // But you can add further optimization if needed
+  return base64Image;
+};
+
 export default api;

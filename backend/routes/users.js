@@ -37,21 +37,26 @@ router.get("/discover", auth, async (req, res) => {
 
     logger.info("🚫 Excluding", excludedIds.length, "users");
 
-    // Find potential matches
+    // Find potential matches - USE .lean() for better performance
     let potentialMatches = await User.find({
       _id: { $nin: excludedIds },
       isDeleted: { $ne: true },
       isActive: { $ne: false },
-    });
+    })
+      .select(
+        "name age city state profilePhoto bio causes lifeStage politicalBeliefs religion lookingFor",
+      )
+      .lean(); // ← Added .lean()
 
     logger.info("📊 Total users in database:", potentialMatches.length);
 
-    // Filter by location preference
+    // Since we used .lean(), we need to filter manually (no methods available)
     const locationPref = currentUser.locationPreference || "Home state";
     logger.info("🔍 Applying location filter:", locationPref);
 
     potentialMatches = potentialMatches.filter((user) => {
       try {
+        // Use currentUser method (it's not lean)
         const meets = currentUser.meetsLocationPreference(user);
         if (!meets) {
           logger.info(
@@ -81,7 +86,7 @@ router.get("/discover", auth, async (req, res) => {
           const score = currentUser.calculateMatchScore(user);
           logger.info(`   🎯 ${user.name}: ${score}% match`);
           return {
-            ...user.toObject(),
+            ...user,
             matchScore: score,
           };
         } catch (err) {
@@ -202,10 +207,12 @@ router.post("/pass/:userId", auth, async (req, res) => {
 // @access  Private
 router.get("/matches", auth, async (req, res) => {
   try {
-    const user = await User.findById(req.userId).populate(
-      "matches",
-      "name age city state profilePhoto bio causes lifeStage",
-    );
+    const user = await User.findById(req.userId)
+      .populate(
+        "matches",
+        "name age city state profilePhoto bio causes lifeStage",
+      )
+      .lean(); // ← Added .lean()
 
     res.json(user.matches || []);
   } catch (error) {
@@ -226,7 +233,9 @@ router.get("/likes-you", auth, async (req, res) => {
     const usersWhoLikedYou = await User.find({
       likes: currentUser._id,
       _id: { $nin: currentUser.matches },
-    }).select("name age city state profilePhoto bio causes lifeStage");
+    })
+      .select("name age city state profilePhoto bio causes lifeStage")
+      .lean(); // ← Added .lean()
 
     res.json(usersWhoLikedYou);
   } catch (error) {
@@ -287,16 +296,18 @@ router.put("/profile", auth, async (req, res) => {
 // @access  Private
 router.get("/profile/:userId", auth, async (req, res) => {
   try {
-    const user = await User.findById(req.params.userId).select("-password");
+    const user = await User.findById(req.params.userId)
+      .select("-password")
+      .lean(); // ← Added .lean()
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const userResponse = user.toObject();
-    userResponse.id = userResponse._id.toString();
+    // Add id field for compatibility
+    user.id = user._id.toString();
 
-    res.json(userResponse);
+    res.json(user);
   } catch (error) {
     logger.error("Get user profile error:", error);
     res.status(500).json({ message: "Error fetching profile" });
@@ -359,7 +370,7 @@ router.post("/:userId/report", auth, async (req, res) => {
       return res.status(400).json({ message: "Report reason is required" });
     }
 
-    const reportedUser = await User.findById(userId);
+    const reportedUser = await User.findById(userId).lean(); // ← Added .lean()
     if (!reportedUser) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -472,10 +483,9 @@ router.delete("/:userId/block", auth, async (req, res) => {
 // @access  Private
 router.get("/blocked", auth, async (req, res) => {
   try {
-    const user = await User.findById(req.userId).populate(
-      "blocked",
-      "name profilePhoto",
-    );
+    const user = await User.findById(req.userId)
+      .populate("blocked", "name profilePhoto")
+      .lean(); // ← Added .lean()
 
     res.json(user.blocked || []);
   } catch (error) {

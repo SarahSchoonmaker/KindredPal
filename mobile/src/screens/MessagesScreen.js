@@ -15,6 +15,7 @@ import {
   ActivityIndicator,
 } from "react-native-paper";
 import { MessageCircle } from "lucide-react-native";
+import MessageItem from "../components/MessageItem";
 
 export default function MessagesScreen({ navigation }) {
   const [matches, setMatches] = useState([]);
