@@ -35,7 +35,7 @@
         "backgroundColor": "#2B6CB0"
       }
     },
-    "plugins": ["@react-native-community/datetimepicker", "expo-asset"],
+    "plugins": [],
     "extra": {
       "eas": {
         "projectId": "ca627fdc-87ee-477f-af2b-eb4fa419a8eb"
