@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, lazy, Suspense } from "react";
+import React, { lazy, Suspense } from "react";
 import {
   Platform,
   View,
@@ -17,11 +17,8 @@ import {
   Calendar,
   Users,
 } from "lucide-react-native";
-import * as Notifications from "expo-notifications";
-import * as Device from "expo-device";
-import * as SecureStore from "expo-secure-store";
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import api from "./src/services/api";
 
 // Eagerly load auth screens (needed immediately)
 import LoginScreen from "./src/screens/LoginScreen";
@@ -48,15 +45,6 @@ const BlockedUsersScreen = lazy(
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
-
-// Configure how notifications are displayed
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
 
 // KindredPal theme
 const theme = {
@@ -189,99 +177,12 @@ function MainTabs() {
 }
 
 export default function App() {
-  const [expoPushToken, setExpoPushToken] = useState("");
-  const notificationListener = useRef();
-  const responseListener = useRef();
-
-  useEffect(() => {
-    registerForPushNotificationsAsync().then((token) => {
-      if (token) {
-        setExpoPushToken(token);
-        savePushToken(token);
-      }
-    });
-
-    // Listen for notifications when app is in foreground
-    notificationListener.current =
-      Notifications.addNotificationReceivedListener((notification) => {
-        console.log("📨 Notification received:", notification);
-      });
-
-    // Listen for notification taps
-    responseListener.current =
-      Notifications.addNotificationResponseReceivedListener((response) => {
-        console.log("👆 Notification tapped:", response);
-      });
-
-    return () => {
-      if (notificationListener.current) {
-        Notifications.removeNotificationSubscription(
-          notificationListener.current,
-        );
-      }
-      if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
-      }
-    };
-  }, []);
-
-  const registerForPushNotificationsAsync = async () => {
-    let token;
-
-    if (Platform.OS === "android") {
-      await Notifications.setNotificationChannelAsync("default", {
-        name: "default",
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: "#2B6CB0",
-      });
-    }
-
-    if (Device.isDevice) {
-      const { status: existingStatus } =
-        await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
-
-      if (existingStatus !== "granted") {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-      }
-
-      if (finalStatus !== "granted") {
-        console.log("❌ Failed to get push token");
-        return;
-      }
-
-      token = (await Notifications.getExpoPushTokenAsync()).data;
-      console.log("✅ Push token:", token);
-    } else {
-      console.log("⚠️ Must use physical device for Push Notifications");
-    }
-
-    return token;
-  };
-
-  const savePushToken = async (token) => {
-    try {
-      const authToken = await SecureStore.getItemAsync("token");
-      if (authToken && token) {
-        await api.post("/users/push-token", {
-          token,
-          device: Platform.OS,
-        });
-        console.log("✅ Push token saved to backend");
-      }
-    } catch (error) {
-      console.error("❌ Error saving push token:", error);
-    }
-  };
-
   return (
     <QueryClientProvider client={queryClient}>
       <PaperProvider theme={theme}>
         <NavigationContainer>
           <Stack.Navigator>
-            {/* Auth Screens - NOT lazy loaded (needed immediately) */}
+            {/* Auth Screens */}
             <Stack.Screen
               name="Login"
               component={LoginScreen}
@@ -313,7 +214,7 @@ export default function App() {
               options={{ headerShown: false }}
             />
 
-            {/* Lazy loaded screens */}
+            {/* Other screens */}
             <Stack.Screen
               name="Chat"
               options={{
