@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   RefreshControl,
 } from "react-native";
-import { userAPI, messageAPI } from "../services/api"; // Add messageAPI
+import { userAPI, messageAPI } from "../services/api";
 import {
   Text,
   Card,
@@ -15,7 +15,6 @@ import {
   ActivityIndicator,
 } from "react-native-paper";
 import { MessageCircle } from "lucide-react-native";
-import MessageItem from "../components/MessageItem";
 
 export default function MessagesScreen({ navigation }) {
   const [matches, setMatches] = useState([]);
@@ -25,6 +24,14 @@ export default function MessagesScreen({ navigation }) {
   useEffect(() => {
     fetchMatches();
   }, []);
+
+  // Refresh when screen comes into focus (after blocking someone)
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchMatches();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const fetchMatches = async () => {
     try {
@@ -36,13 +43,29 @@ export default function MessagesScreen({ navigation }) {
         ? matchesResponse.data
         : matchesResponse.data.matches || [];
 
+      // Get blocked users to filter them out
+      let blockedUserIds = [];
+      try {
+        const blockedResponse = await userAPI.getBlockedUsers();
+        blockedUserIds = (blockedResponse.data || []).map(u => u._id);
+        console.log("🚫 Blocked users:", blockedUserIds);
+      } catch (err) {
+        console.log("⚠️ Could not fetch blocked users:", err);
+      }
+
+      // Filter out blocked users from matches
+      const filteredMatches = matchData.filter(
+        match => !blockedUserIds.includes(match._id)
+      );
+      console.log(`✅ Filtered ${matchData.length} matches to ${filteredMatches.length} (removed ${matchData.length - filteredMatches.length} blocked)`);
+
       // Get conversations for last messages
       try {
         const conversationsResponse = await messageAPI.getConversations();
         const conversations = conversationsResponse.data || [];
 
         // Merge match data with conversation data
-        const matchesWithMessages = matchData.map((match) => {
+        const matchesWithMessages = filteredMatches.map((match) => {
           const conversation = conversations.find(
             (conv) => conv.otherUser?._id === match._id,
           );
@@ -65,7 +88,7 @@ export default function MessagesScreen({ navigation }) {
         // If conversations fail, just show matches without messages
         console.log("⚠️ Conversations failed, showing matches only");
         setMatches(
-          matchData.map((match) => ({
+          filteredMatches.map((match) => ({
             ...match,
             lastMessage: null,
             timestamp: null,
@@ -193,7 +216,7 @@ export default function MessagesScreen({ navigation }) {
                   </Text>
                 ) : (
                   <Text variant="bodyMedium" style={styles.noMessages}>
-                    {/* Say hello! 👋 */}
+                    Say hello! 👋
                   </Text>
                 )}
               </View>
