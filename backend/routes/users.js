@@ -427,7 +427,7 @@ router.post("/:userId/report", auth, async (req, res) => {
 // @route   POST /api/users/:userId/block
 // @desc    Block a user
 // @access  Private
-// Block user
+// ===== BLOCK USER =====
 router.post("/:userId/block", auth, async (req, res) => {
   try {
     logger.info(`Attempting to block user. Current user ID: ${req.userId}, Target user: ${req.params.userId}`);
@@ -442,7 +442,6 @@ router.post("/:userId/block", auth, async (req, res) => {
     const userToBlockId = req.params.userId;
     logger.info(`Current user blockedUsers array:`, currentUser.blockedUsers);
 
-    // Add to blocked list if not already there
     if (!currentUser.blockedUsers.includes(userToBlockId)) {
       currentUser.blockedUsers.push(userToBlockId);
       logger.info(`Added ${userToBlockId} to blocked list`);
@@ -450,7 +449,6 @@ router.post("/:userId/block", auth, async (req, res) => {
       logger.info(`User saved successfully`);
     }
 
-    // Delete all messages between these users
     logger.info(`Attempting to delete messages between ${req.userId} and ${userToBlockId}`);
     const deleteResult = await Message.deleteMany({
       $or: [
@@ -470,11 +468,34 @@ router.post("/:userId/block", auth, async (req, res) => {
   }
 });
 
-// ===== GET BLOCKED USERS =====
+// ===== UNBLOCK USER =====
+router.delete("/:userId/block", auth, async (req, res) => {
+  try {
+    logger.info(`Attempting to unblock user. Current user ID: ${req.userId}, Target user: ${req.params.userId}`);
+    
+    const currentUser = await User.findById(req.userId);
+    
+    if (!currentUser) {
+      logger.error(`Current user not found: ${req.userId}`);
+      return res.status(404).json({ message: "User not found" });
+    }
+    
+    const userToUnblockId = req.params.userId;
 
-// @route   GET /api/users/blocked
-// @desc    Get list of blocked users
-// @access  Private
+    currentUser.blockedUsers = currentUser.blockedUsers.filter(
+      id => id.toString() !== userToUnblockId
+    );
+    await currentUser.save();
+
+    logger.info(`User ${req.userId} unblocked ${userToUnblockId}`);
+    res.json({ message: "User unblocked successfully" });
+  } catch (error) {
+    logger.error("Error unblocking user - Full error:", error);
+    logger.error("Error stack:", error.stack);
+    res.status(500).json({ message: "Error unblocking user", error: error.message });
+  }
+});
+
 // ===== GET BLOCKED USERS =====
 router.get("/blocked", auth, async (req, res) => {
   try {
