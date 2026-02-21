@@ -71,19 +71,21 @@ const userSchema = new mongoose.Schema(
       type: Date,
     },
 
+    
     // Location preference for matching
-    locationPreference: {
-      type: String,
-      enum: [
-        "Same city",
-        "Home state",
-        "Within 50 miles",
-        "Within 100 miles",
-        "Within 200 miles",
-        "Anywhere",
-      ],
-      default: "Home state",
-    },
+locationPreference: {
+  type: String,
+  enum: [
+    "Same city",
+    "Same state",
+    "Home state",
+    "Within 50 miles",
+    "Within 100 miles",
+    "Within 200 miles",
+    "Anywhere",
+  ],
+  default: "Home state",
+},
 
     politicalBeliefs: [
       {
@@ -219,12 +221,13 @@ const userSchema = new mongoose.Schema(
       },
     ],
 
-    blocked: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
+ blockedUsers: [
+  { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: "User" 
+  }
+],
+
     pushTokens: [
       {
         token: {
