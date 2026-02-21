@@ -8,22 +8,22 @@
       "developmentClient": true,
       "distribution": "internal",
       "node": "20.19.4",
-      "npm": {
-        "install": "npm install --legacy-peer-deps"
+      "env": {
+        "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
       }
     },
     "preview": {
       "distribution": "internal",
       "node": "20.19.4",
-      "npm": {
-        "install": "npm install --legacy-peer-deps"
+      "env": {
+        "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
       }
     },
     "production": {
       "autoIncrement": true,
       "node": "20.19.4",
-      "npm": {
-        "install": "npm install --legacy-peer-deps"
+      "env": {
+        "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
       }
     }
   },
