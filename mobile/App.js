@@ -1,6 +1,5 @@
-import React, { lazy, Suspense } from "react";
+import React from "react";
 import {
-  Platform,
   View,
   ActivityIndicator,
   Text,
@@ -20,28 +19,22 @@ import {
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-// Eagerly load auth screens (needed immediately)
+// Import ALL screens directly (no lazy loading)
 import LoginScreen from "./src/screens/LoginScreen";
 import ForgotPasswordScreen from "./src/screens/ForgotPasswordScreen";
 import SignupScreen from "./src/screens/SignupScreen";
-
-// Lazy load main app screens (loaded when needed)
-const DiscoverScreen = lazy(() => import("./src/screens/DiscoverScreen"));
-const InterestedScreen = lazy(() => import("./src/screens/InterestedScreen"));
-const MessagesScreen = lazy(() => import("./src/screens/MessagesScreen"));
-const ProfileScreen = lazy(() => import("./src/screens/ProfileScreen"));
-const ChatScreen = lazy(() => import("./src/screens/ChatScreen"));
-const MeetupsScreen = lazy(() => import("./src/screens/MeetupsScreen"));
-const MeetupDetailsScreen = lazy(
-  () => import("./src/screens/MeetupsDetailScreen"),
-);
-const WebViewScreen = lazy(() => import("./src/screens/WebViewScreen"));
-const UserProfileScreen = lazy(() => import("./src/screens/UserProfileScreen"));
-const PreferencesScreen = lazy(() => import("./src/screens/PreferencesScreen"));
-const EditProfileScreen = lazy(() => import("./src/screens/EditProfileScreen"));
-const BlockedUsersScreen = lazy(
-  () => import("./src/screens/BlockedUsersScreen"),
-);
+import DiscoverScreen from "./src/screens/DiscoverScreen";
+import InterestedScreen from "./src/screens/InterestedScreen";
+import MessagesScreen from "./src/screens/MessagesScreen";
+import ProfileScreen from "./src/screens/ProfileScreen";
+import ChatScreen from "./src/screens/ChatScreen";
+import MeetupsScreen from "./src/screens/MeetupsScreen";
+import MeetupDetailsScreen from "./src/screens/MeetupsDetailScreen";
+import WebViewScreen from "./src/screens/WebViewScreen";
+import UserProfileScreen from "./src/screens/UserProfileScreen";
+import PreferencesScreen from "./src/screens/PreferencesScreen";
+import EditProfileScreen from "./src/screens/EditProfileScreen";
+import BlockedUsersScreen from "./src/screens/BlockedUsersScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -101,77 +94,52 @@ function MainTabs() {
     >
       <Tab.Screen
         name="Discover"
+        component={DiscoverScreen}
         options={{
           tabBarLabel: "Discover",
           tabBarIcon: ({ color, size }) => <Heart color={color} size={size} />,
         }}
-      >
-        {() => (
-          <Suspense fallback={<LoadingScreen />}>
-            <DiscoverScreen />
-          </Suspense>
-        )}
-      </Tab.Screen>
+      />
 
       <Tab.Screen
         name="Interested"
+        component={InterestedScreen}
         options={{
           tabBarLabel: "Interested",
           tabBarIcon: ({ color, size }) => <Users color={color} size={size} />,
         }}
-      >
-        {() => (
-          <Suspense fallback={<LoadingScreen />}>
-            <InterestedScreen />
-          </Suspense>
-        )}
-      </Tab.Screen>
+      />
 
       <Tab.Screen
         name="Messages"
+        component={MessagesScreen}
         options={{
           tabBarLabel: "Messages",
           tabBarIcon: ({ color, size }) => (
             <MessageCircle color={color} size={size} />
           ),
         }}
-      >
-        {() => (
-          <Suspense fallback={<LoadingScreen />}>
-            <MessagesScreen />
-          </Suspense>
-        )}
-      </Tab.Screen>
+      />
 
       <Tab.Screen
         name="Meetups"
+        component={MeetupsScreen}
         options={{
           tabBarLabel: "Meetups",
           tabBarIcon: ({ color, size }) => (
             <Calendar color={color} size={size} />
           ),
         }}
-      >
-        {() => (
-          <Suspense fallback={<LoadingScreen />}>
-            <MeetupsScreen />
-          </Suspense>
-        )}
-      </Tab.Screen>
+      />
 
       <Tab.Screen
         name="Profile"
+        component={ProfileScreen}
         options={{
           tabBarLabel: "Profile",
           tabBarIcon: ({ color, size }) => <User color={color} size={size} />,
         }}
-      >
-        {() => (
-          <Suspense fallback={<LoadingScreen />}>
-            <ProfileScreen />
-          </Suspense>
-        )}
-      </Tab.Screen>
+      />
     </Tab.Navigator>
   );
 }
@@ -217,109 +185,74 @@ export default function App() {
             {/* Other screens */}
             <Stack.Screen
               name="Chat"
+              component={ChatScreen}
               options={{
                 title: "Chat",
                 headerStyle: { backgroundColor: "#2B6CB0" },
                 headerTintColor: "#fff",
               }}
-            >
-              {(props) => (
-                <Suspense fallback={<LoadingScreen />}>
-                  <ChatScreen {...props} />
-                </Suspense>
-              )}
-            </Stack.Screen>
+            />
 
             <Stack.Screen
               name="UserProfile"
+              component={UserProfileScreen}
               options={{
                 title: "Profile",
                 headerStyle: { backgroundColor: "#2B6CB0" },
                 headerTintColor: "#fff",
               }}
-            >
-              {(props) => (
-                <Suspense fallback={<LoadingScreen />}>
-                  <UserProfileScreen {...props} />
-                </Suspense>
-              )}
-            </Stack.Screen>
+            />
 
             <Stack.Screen
               name="Preferences"
+              component={PreferencesScreen}
               options={{
                 title: "Search Preferences",
                 headerStyle: { backgroundColor: "#2B6CB0" },
                 headerTintColor: "#fff",
               }}
-            >
-              {(props) => (
-                <Suspense fallback={<LoadingScreen />}>
-                  <PreferencesScreen {...props} />
-                </Suspense>
-              )}
-            </Stack.Screen>
+            />
 
             <Stack.Screen
               name="EditProfile"
+              component={EditProfileScreen}
               options={{
                 title: "Edit Profile",
                 headerStyle: { backgroundColor: "#2B6CB0" },
                 headerTintColor: "#fff",
               }}
-            >
-              {(props) => (
-                <Suspense fallback={<LoadingScreen />}>
-                  <EditProfileScreen {...props} />
-                </Suspense>
-              )}
-            </Stack.Screen>
+            />
 
             <Stack.Screen
               name="BlockedUsers"
+              component={BlockedUsersScreen}
               options={{
                 title: "Blocked Users",
                 headerStyle: { backgroundColor: "#2B6CB0" },
                 headerTintColor: "#fff",
               }}
-            >
-              {(props) => (
-                <Suspense fallback={<LoadingScreen />}>
-                  <BlockedUsersScreen {...props} />
-                </Suspense>
-              )}
-            </Stack.Screen>
+            />
 
             <Stack.Screen
               name="MeetupDetails"
+              component={MeetupDetailsScreen}
               options={{
                 title: "Meetup Details",
                 headerStyle: { backgroundColor: "#2B6CB0" },
                 headerTintColor: "#fff",
               }}
-            >
-              {(props) => (
-                <Suspense fallback={<LoadingScreen />}>
-                  <MeetupDetailsScreen {...props} />
-                </Suspense>
-              )}
-            </Stack.Screen>
+            />
 
             <Stack.Screen
               name="WebView"
+              component={WebViewScreen}
               options={({ route }) => ({
                 title: route.params?.title || "Loading...",
                 headerStyle: { backgroundColor: "#2B6CB0" },
                 headerTintColor: "#fff",
                 headerBackTitle: "Back",
               })}
-            >
-              {(props) => (
-                <Suspense fallback={<LoadingScreen />}>
-                  <WebViewScreen {...props} />
-                </Suspense>
-              )}
-            </Stack.Screen>
+            />
           </Stack.Navigator>
         </NavigationContainer>
       </PaperProvider>
