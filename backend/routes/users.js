@@ -130,6 +130,9 @@ router.get("/discover", auth, async (req, res) => {
 // @route   POST /api/users/like/:userId
 // @desc    Like a user
 // @access  Private
+// @route   POST /api/users/like/:userId
+// @desc    Like a user
+// @access  Private
 router.post("/like/:userId", auth, async (req, res) => {
   try {
     const currentUser = await User.findById(req.userId);
@@ -139,30 +142,55 @@ router.post("/like/:userId", auth, async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Add to likes
-    if (!currentUser.likes.includes(likedUser._id)) {
+    // Check if already liked (convert ObjectIds to strings for comparison)
+    const alreadyLiked = currentUser.likes.some(
+      id => id.toString() === likedUser._id.toString()
+    );
+
+    // Add to likes only if not already there
+    if (!alreadyLiked) {
       currentUser.likes.push(likedUser._id);
+      logger.info(`User ${currentUser.email} liked ${likedUser.email}`);
+    } else {
+      logger.info(`User ${currentUser.email} already liked ${likedUser.email}`);
     }
 
     // Check if it's a match
     let isMatch = false;
     let matchedUser = null;
 
-    if (likedUser.likes.includes(currentUser._id)) {
-      isMatch = true;
-      currentUser.matches.push(likedUser._id);
-      likedUser.matches.push(currentUser._id);
-      await likedUser.save();
-      matchedUser = likedUser.toObject();
+    const otherUserLikesMe = likedUser.likes.some(
+      id => id.toString() === currentUser._id.toString()
+    );
 
-      // 🔔 Send push notification for match
-      if (likedUser.pushTokens && likedUser.pushTokens.length > 0) {
-        await sendPushNotification(
-          likedUser.pushTokens,
-          "🎉 It's a Match!",
-          `You and ${currentUser.name} matched!`,
-          { type: "match", userId: currentUser._id.toString() },
-        );
+    if (otherUserLikesMe) {
+      // Check if already matched
+      const alreadyMatched = currentUser.matches.some(
+        id => id.toString() === likedUser._id.toString()
+      );
+
+      if (!alreadyMatched) {
+        isMatch = true;
+        currentUser.matches.push(likedUser._id);
+        likedUser.matches.push(currentUser._id);
+        await likedUser.save();
+        matchedUser = likedUser.toObject();
+
+        logger.info(`🎉 Match created between ${currentUser.email} and ${likedUser.email}`);
+
+        // 🔔 Send push notification for match
+        if (likedUser.pushTokens && likedUser.pushTokens.length > 0) {
+          await sendPushNotification(
+            likedUser.pushTokens,
+            "🎉 It's a Match!",
+            `You and ${currentUser.name} matched!`,
+            { type: "match", userId: currentUser._id.toString() },
+          );
+        }
+      } else {
+        logger.info(`Already matched with ${likedUser.email}`);
+        matchedUser = likedUser.toObject();
+        isMatch = true; // Still return true since they're matched
       }
     }
 
@@ -175,7 +203,8 @@ router.post("/like/:userId", auth, async (req, res) => {
     });
   } catch (error) {
     logger.error("Like user error:", error);
-    res.status(500).json({ message: "Error liking user" });
+    logger.error("Error stack:", error.stack);
+    res.status(500).json({ message: "Error liking user", error: error.message });
   }
 });
 
@@ -399,50 +428,45 @@ router.post("/:userId/report", auth, async (req, res) => {
 // @desc    Block a user
 // @access  Private
 // Block user
-// Block user
 router.post("/:userId/block", auth, async (req, res) => {
   try {
-    const currentUser = await User.findById(req.userId); // Changed from req.user.userId
+    logger.info(`Attempting to block user. Current user ID: ${req.userId}, Target user: ${req.params.userId}`);
+    
+    const currentUser = await User.findById(req.userId);
+    
+    if (!currentUser) {
+      logger.error(`Current user not found: ${req.userId}`);
+      return res.status(404).json({ message: "User not found" });
+    }
+    
     const userToBlockId = req.params.userId;
+    logger.info(`Current user blockedUsers array:`, currentUser.blockedUsers);
 
     // Add to blocked list if not already there
     if (!currentUser.blockedUsers.includes(userToBlockId)) {
       currentUser.blockedUsers.push(userToBlockId);
+      logger.info(`Added ${userToBlockId} to blocked list`);
       await currentUser.save();
+      logger.info(`User saved successfully`);
     }
 
     // Delete all messages between these users
-    await Message.deleteMany({
+    logger.info(`Attempting to delete messages between ${req.userId} and ${userToBlockId}`);
+    const deleteResult = await Message.deleteMany({
       $or: [
-        { sender: req.userId, recipient: userToBlockId }, // Changed from req.user.userId
-        { sender: userToBlockId, recipient: req.userId }  // Changed from req.user.userId
+        { sender: req.userId, recipient: userToBlockId },
+        { sender: userToBlockId, recipient: req.userId }
       ]
     });
-
+    
+    logger.info(`Deleted ${deleteResult.deletedCount} messages`);
     logger.info(`User ${req.userId} blocked ${userToBlockId} and deleted message history`);
+    
     res.json({ message: "User blocked and message history deleted" });
   } catch (error) {
-    logger.error("Error blocking user:", error);
-    res.status(500).json({ message: "Error blocking user" });
-  }
-});
-
-// Unblock user
-router.delete("/:userId/block", auth, async (req, res) => {
-  try {
-    const currentUser = await User.findById(req.userId); 
-    const userToUnblockId = req.params.userId;
-
-    currentUser.blockedUsers = currentUser.blockedUsers.filter(
-      id => id.toString() !== userToUnblockId
-    );
-    await currentUser.save();
-
-    logger.info(`User ${req.userId} unblocked ${userToUnblockId}`);
-    res.json({ message: "User unblocked successfully" });
-  } catch (error) {
-    logger.error("Error unblocking user:", error);
-    res.status(500).json({ message: "Error unblocking user" });
+    logger.error("Error blocking user - Full error:", error);
+    logger.error("Error stack:", error.stack);
+    res.status(500).json({ message: "Error blocking user", error: error.message });
   }
 });
 
