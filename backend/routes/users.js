@@ -4,6 +4,7 @@ const User = require("../models/User");
 const auth = require("../middleware/auth");
 const { sendPushNotification } = require("../utils/pushNotifications");
 const logger = require("../utils/logger");
+const Message = require("../models/Message");
 
 // ===== DISCOVER ROUTE =====
 
@@ -397,52 +398,30 @@ router.post("/:userId/report", auth, async (req, res) => {
 // @route   POST /api/users/:userId/block
 // @desc    Block a user
 // @access  Private
+// Block user
 router.post("/:userId/block", auth, async (req, res) => {
   try {
-    const { userId } = req.params;
-    const blockerId = req.userId;
+    const currentUser = await User.findById(req.user.userId);
+    const userToBlockId = req.params.userId;
 
-    logger.info("\n========== BLOCK USER ==========");
-    logger.info("Blocker:", blockerId);
-    logger.info("Blocked User:", userId);
-
-    if (userId === blockerId) {
-      return res.status(400).json({ message: "You cannot block yourself" });
+    // Add to blocked list if not already there
+    if (!currentUser.blockedUsers.includes(userToBlockId)) {
+      currentUser.blockedUsers.push(userToBlockId);
+      await currentUser.save();
     }
 
-    const blocker = await User.findById(blockerId);
-    const blockedUser = await User.findById(userId);
+    // Delete all messages between these users
+    await Message.deleteMany({
+      $or: [
+        { sender: req.user.userId, recipient: userToBlockId },
+        { sender: userToBlockId, recipient: req.user.userId }
+      ]
+    });
 
-    if (!blockedUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    if (!blocker.blocked) {
-      blocker.blocked = [];
-    }
-
-    if (blocker.blocked.includes(userId)) {
-      return res.status(400).json({ message: "User is already blocked" });
-    }
-
-    blocker.blocked.push(userId);
-
-    blocker.matches = blocker.matches.filter(
-      (matchId) => matchId.toString() !== userId,
-    );
-    blockedUser.matches = blockedUser.matches.filter(
-      (matchId) => matchId.toString() !== blockerId,
-    );
-
-    await blocker.save();
-    await blockedUser.save();
-
-    logger.info("✅ User blocked successfully");
-    logger.info("====================================\n");
-
-    res.status(200).json({ message: "User blocked successfully" });
+    logger.info(`User ${req.user.userId} blocked ${userToBlockId} and deleted message history`);
+    res.json({ message: "User blocked and message history deleted" });
   } catch (error) {
-    logger.error("❌ Block user error:", error);
+    logger.error("Error blocking user:", error);
     res.status(500).json({ message: "Error blocking user" });
   }
 });
@@ -452,26 +431,21 @@ router.post("/:userId/block", auth, async (req, res) => {
 // @route   DELETE /api/users/:userId/block
 // @desc    Unblock a user
 // @access  Private
+// Unblock user
 router.delete("/:userId/block", auth, async (req, res) => {
   try {
-    const { userId } = req.params;
-    const unblockerId = req.userId;
+    const currentUser = await User.findById(req.user.userId);
+    const userToUnblockId = req.params.userId;
 
-    const unblocker = await User.findById(unblockerId);
-
-    if (!unblocker.blocked || !unblocker.blocked.includes(userId)) {
-      return res.status(400).json({ message: "User is not blocked" });
-    }
-
-    unblocker.blocked = unblocker.blocked.filter(
-      (blockedId) => blockedId.toString() !== userId,
+    currentUser.blockedUsers = currentUser.blockedUsers.filter(
+      id => id.toString() !== userToUnblockId
     );
+    await currentUser.save();
 
-    await unblocker.save();
-
-    res.status(200).json({ message: "User unblocked successfully" });
+    logger.info(`User ${req.user.userId} unblocked ${userToUnblockId}`);
+    res.json({ message: "User unblocked successfully" });
   } catch (error) {
-    logger.error("❌ Unblock user error:", error);
+    logger.error("Error unblocking user:", error);
     res.status(500).json({ message: "Error unblocking user" });
   }
 });
