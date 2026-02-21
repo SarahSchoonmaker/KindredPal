@@ -475,13 +475,14 @@ router.post("/:userId/block", auth, async (req, res) => {
 // @route   GET /api/users/blocked
 // @desc    Get list of blocked users
 // @access  Private
+// ===== GET BLOCKED USERS =====
 router.get("/blocked", auth, async (req, res) => {
   try {
     const user = await User.findById(req.userId)
-      .populate("blocked", "name profilePhoto")
-      .lean(); // ← Added .lean()
+      .populate("blockedUsers", "name profilePhoto")  
+      .lean();
 
-    res.json(user.blocked || []);
+    res.json(user.blockedUsers || []);  
   } catch (error) {
     logger.error("❌ Get blocked users error:", error);
     res.status(500).json({ message: "Error fetching blocked users" });
