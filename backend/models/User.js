@@ -438,109 +438,79 @@ userSchema.methods.meetsLocationPreference = function (otherUser) {
 };
 
 // Calculate match score with location preference
+// Calculate match score with location preference
 userSchema.methods.calculateMatchScore = function (otherUser) {
   // First check location preference
   if (!this.meetsLocationPreference(otherUser)) {
     return 0;
   }
 
-  let score = 0;
-  let totalWeight = 0;
+  let totalPoints = 0;
+  let matchedPoints = 0;
 
-  // Weight distribution
-  const weights = {
-    lifeStage: 35,
-    location: 25,
-    age: 15,
-    causes: 10,
-    politicalBeliefs: 10,
-    religion: 5,
-  };
+  // Political Beliefs (20 points)
+  totalPoints += 20;
+  const user1Political = Array.isArray(this.politicalBeliefs)
+    ? this.politicalBeliefs
+    : [this.politicalBeliefs];
+  const user2Political = Array.isArray(otherUser.politicalBeliefs)
+    ? otherUser.politicalBeliefs
+    : [otherUser.politicalBeliefs];
 
-  // 1. Life Stage Matching (35%)
-  const commonLifeStages = this.lifeStage.filter((stage) =>
-    otherUser.lifeStage.includes(stage),
+  const politicalMatch = user1Political.some((belief) =>
+    user2Political.includes(belief),
   );
-  if (this.lifeStage.length > 0 && otherUser.lifeStage.length > 0) {
-    const lifeStageScore =
-      commonLifeStages.length /
-      Math.max(this.lifeStage.length, otherUser.lifeStage.length);
-    score += lifeStageScore * weights.lifeStage;
-    totalWeight += weights.lifeStage;
+  if (politicalMatch) matchedPoints += 20;
+
+  // Religion (20 points)
+  totalPoints += 20;
+  if (this.religion === otherUser.religion) {
+    matchedPoints += 20;
   }
 
-  // 2. Location Matching (25%)
-  if (this.state === otherUser.state) {
-    score += weights.location;
-    if (this.city.toLowerCase() === otherUser.city.toLowerCase()) {
-      score += 5;
-    }
-    totalWeight += weights.location;
+  // Life Stage (30 points) - MOST IMPORTANT
+  totalPoints += 30;
+  const user1LifeStage = Array.isArray(this.lifeStage)
+    ? this.lifeStage
+    : [this.lifeStage];
+  const user2LifeStage = Array.isArray(otherUser.lifeStage)
+    ? otherUser.lifeStage
+    : [otherUser.lifeStage];
+
+  const lifeStageMatches = user1LifeStage.filter((stage) =>
+    user2LifeStage.includes(stage),
+  ).length;
+
+  if (lifeStageMatches > 0) {
+    matchedPoints += Math.min(30, lifeStageMatches * 10);
   }
 
-  // 3. Age Compatibility (15%)
-  const ageDiff = Math.abs(this.age - otherUser.age);
-  if (ageDiff <= 5) {
-    score += weights.age;
-  } else if (ageDiff <= 10) {
-    score += weights.age * 0.7;
-  } else if (ageDiff <= 15) {
-    score += weights.age * 0.4;
-  }
-  totalWeight += weights.age;
+  // Causes (20 points)
+  totalPoints += 20;
+  const causesMatches = (this.causes || []).filter((cause) =>
+    (otherUser.causes || []).includes(cause),
+  ).length;
 
-  // 4. Causes/Interests Matching (10%)
-  if (this.causes.length > 0 && otherUser.causes.length > 0) {
-    const commonCauses = this.causes.filter((cause) =>
-      otherUser.causes.includes(cause),
-    );
-    const causesScore =
-      commonCauses.length /
-      Math.max(this.causes.length, otherUser.causes.length);
-    score += causesScore * weights.causes;
-    totalWeight += weights.causes;
+  if (causesMatches > 0) {
+    matchedPoints += Math.min(20, causesMatches * 4);
   }
 
-  // 5. Political Beliefs (10%)
-  if (
-    this.politicalBeliefs.length > 0 &&
-    otherUser.politicalBeliefs.length > 0
-  ) {
-    const commonPolitics = this.politicalBeliefs.filter((belief) =>
-      otherUser.politicalBeliefs.includes(belief),
-    );
-    if (commonPolitics.length > 0) {
-      score += weights.politicalBeliefs;
-    } else {
-      const moderateBeliefs = ["Moderate", "Independent", "Apolitical"];
-      const hasModerate =
-        this.politicalBeliefs.some((b) => moderateBeliefs.includes(b)) ||
-        otherUser.politicalBeliefs.some((b) => moderateBeliefs.includes(b));
-      if (hasModerate) {
-        score += weights.politicalBeliefs * 0.5;
-      }
-    }
-    totalWeight += weights.politicalBeliefs;
-  }
+  // Looking For (10 points)
+  totalPoints += 10;
+  const user1LookingFor = Array.isArray(this.lookingFor)
+    ? this.lookingFor
+    : [this.lookingFor];
+  const user2LookingFor = Array.isArray(otherUser.lookingFor)
+    ? otherUser.lookingFor
+    : [otherUser.lookingFor];
 
-  // 6. Religion (5%)
-  if (this.religion && otherUser.religion) {
-    if (this.religion === otherUser.religion) {
-      score += weights.religion;
-    } else {
-      const openMinded = ["Seeking/Undecided", "Agnostic", "Prefer not to say"];
-      const eitherOpenMinded =
-        openMinded.includes(this.religion) ||
-        openMinded.includes(otherUser.religion);
-      if (eitherOpenMinded) {
-        score += weights.religion * 0.5;
-      }
-    }
-    totalWeight += weights.religion;
-  }
+  const lookingForMatch = user1LookingFor.some((goal) =>
+    user2LookingFor.includes(goal),
+  );
+  if (lookingForMatch) matchedPoints += 10;
 
-  // Normalize score to 0-100
-  return totalWeight > 0 ? Math.round((score / totalWeight) * 100) : 0;
+  // Calculate percentage
+  return Math.round((matchedPoints / totalPoints) * 100);
 };
 
 // Remove sensitive data from JSON response
