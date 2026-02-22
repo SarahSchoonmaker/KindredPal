@@ -11,6 +11,9 @@ const Message = require("../models/Message");
 // @route   GET /api/users/discover
 // @desc    Get potential matches for discovery
 // @access  Private
+// @route   GET /api/users/discover
+// @desc    Get potential matches for discovery
+// @access  Private
 router.get("/discover", auth, async (req, res) => {
   try {
     const currentUser = await User.findById(req.userId);
@@ -28,17 +31,24 @@ router.get("/discover", auth, async (req, res) => {
       currentUser.locationPreference || "Home state (default)",
     );
 
-    // Get all users except current user, liked, passed, and blocked
+    // Get all users who have blocked the current user
+    const usersWhoBlockedMe = await User.find({
+      blockedUsers: currentUser._id,
+    }).select("_id");
+    const blockedMeIds = usersWhoBlockedMe.map(u => u._id);
+
+    // Get all users except current user, liked, passed, blocked, and who blocked me
     const excludedIds = [
       req.userId,
       ...(currentUser.likes || []),
       ...(currentUser.passed || []),
-      ...(currentUser.blocked || []),
+      ...(currentUser.blockedUsers || []), // FIXED: was "blocked"
+      ...blockedMeIds, // ADDED: exclude users who blocked me
     ];
 
     logger.info("🚫 Excluding", excludedIds.length, "users");
 
-    // Find potential matches - USE .lean() for better performance
+    // Find potential matches
     let potentialMatches = await User.find({
       _id: { $nin: excludedIds },
       isDeleted: { $ne: true },
@@ -47,17 +57,16 @@ router.get("/discover", auth, async (req, res) => {
       .select(
         "name age city state profilePhoto bio causes lifeStage politicalBeliefs religion lookingFor",
       )
-      .lean(); // ← Added .lean()
+      .lean();
 
     logger.info("📊 Total users in database:", potentialMatches.length);
 
-    // Since we used .lean(), we need to filter manually (no methods available)
+    // Filter by location preference
     const locationPref = currentUser.locationPreference || "Home state";
     logger.info("🔍 Applying location filter:", locationPref);
 
     potentialMatches = potentialMatches.filter((user) => {
       try {
-        // Use currentUser method (it's not lean)
         const meets = currentUser.meetsLocationPreference(user);
         if (!meets) {
           logger.info(
