@@ -30,6 +30,12 @@ router.get("/discover", auth, async (req, res) => {
       "🎯 Location Preference:",
       currentUser.locationPreference || "Home state (default)",
     );
+    logger.info("👤 Current User Details:");
+    logger.info("   Political:", JSON.stringify(currentUser.politicalBeliefs));
+    logger.info("   Religion:", currentUser.religion);
+    logger.info("   LifeStage:", JSON.stringify(currentUser.lifeStage));
+    logger.info("   Causes:", JSON.stringify(currentUser.causes));
+    logger.info("   LookingFor:", JSON.stringify(currentUser.lookingFor));
 
     // Get all users who have blocked the current user
     const usersWhoBlockedMe = await User.find({
@@ -42,11 +48,15 @@ router.get("/discover", auth, async (req, res) => {
       req.userId,
       ...(currentUser.likes || []),
       ...(currentUser.passed || []),
-      ...(currentUser.blockedUsers || []), // FIXED: was "blocked"
-      ...blockedMeIds, // ADDED: exclude users who blocked me
+      ...(currentUser.blockedUsers || []),
+      ...blockedMeIds,
     ];
 
     logger.info("🚫 Excluding", excludedIds.length, "users");
+    logger.info("   Liked:", (currentUser.likes || []).length);
+    logger.info("   Passed:", (currentUser.passed || []).length);
+    logger.info("   Blocked:", (currentUser.blockedUsers || []).length);
+    logger.info("   Blocked me:", blockedMeIds.length);
 
     // Find potential matches
     let potentialMatches = await User.find({
@@ -94,7 +104,14 @@ router.get("/discover", auth, async (req, res) => {
       .map((user) => {
         try {
           const score = currentUser.calculateMatchScore(user);
-          logger.info(`   🎯 ${user.name}: ${score}% match`);
+          logger.info(`\n   🎯 ${user.name}: ${score}% match`);
+          logger.info(`      Location: ${user.city}, ${user.state}`);
+          logger.info(`      Political: ${JSON.stringify(user.politicalBeliefs)}`);
+          logger.info(`      Religion: ${user.religion}`);
+          logger.info(`      LifeStage: ${JSON.stringify(user.lifeStage)}`);
+          logger.info(`      Causes: ${JSON.stringify(user.causes)}`);
+          logger.info(`      LookingFor: ${JSON.stringify(user.lookingFor)}`);
+          
           return {
             ...user,
             matchScore: score,
@@ -104,16 +121,18 @@ router.get("/discover", auth, async (req, res) => {
             `   ⚠️ Error calculating score for user ${user._id}:`,
             err.message,
           );
+          logger.error(`   Stack:`, err.stack);
           return null;
         }
       })
-      .filter((user) => user && user.matchScore > 0);
+      .filter((user) => user !== null); // CHANGED: Show all users, even 0% matches
 
     logger.info(
-      "✨ After match score filter:",
+      "\n✨ Total matches with scores:",
       matchesWithScores.length,
-      "users",
     );
+    logger.info("   0% matches:", matchesWithScores.filter(u => u.matchScore === 0).length);
+    logger.info("   >0% matches:", matchesWithScores.filter(u => u.matchScore > 0).length);
 
     // Sort by match score (highest first)
     matchesWithScores.sort((a, b) => b.matchScore - a.matchScore);
@@ -130,9 +149,13 @@ router.get("/discover", auth, async (req, res) => {
     });
   } catch (error) {
     logger.error("❌ Discover error:", error);
+    logger.error("Stack:", error.stack);
     res.status(500).json({ message: "Error fetching discover users" });
   }
 });
+
+
+
 
 // ===== LIKE USER =====
 
