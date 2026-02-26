@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useRef, lazy, Suspense } from "react";
+import React from "react";
 import {
-  Platform,
   View,
   ActivityIndicator,
   Text,
@@ -17,46 +16,28 @@ import {
   Calendar,
   Users,
 } from "lucide-react-native";
-import * as Notifications from "expo-notifications";
-import * as Device from "expo-device";
-import * as SecureStore from "expo-secure-store";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import api from "./src/services/api";
 
-// Eagerly load auth screens (needed immediately)
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+// Import ALL screens directly (no lazy loading)
 import LoginScreen from "./src/screens/LoginScreen";
 import ForgotPasswordScreen from "./src/screens/ForgotPasswordScreen";
 import SignupScreen from "./src/screens/SignupScreen";
-
-// Lazy load main app screens (loaded when needed)
-const DiscoverScreen = lazy(() => import("./src/screens/DiscoverScreen"));
-const InterestedScreen = lazy(() => import("./src/screens/InterestedScreen"));
-const MessagesScreen = lazy(() => import("./src/screens/MessagesScreen"));
-const ProfileScreen = lazy(() => import("./src/screens/ProfileScreen"));
-const ChatScreen = lazy(() => import("./src/screens/ChatScreen"));
-const MeetupsScreen = lazy(() => import("./src/screens/MeetupsScreen"));
-const MeetupDetailsScreen = lazy(
-  () => import("./src/screens/MeetupsDetailScreen"),
-);
-const WebViewScreen = lazy(() => import("./src/screens/WebViewScreen"));
-const UserProfileScreen = lazy(() => import("./src/screens/UserProfileScreen"));
-const PreferencesScreen = lazy(() => import("./src/screens/PreferencesScreen"));
-const EditProfileScreen = lazy(() => import("./src/screens/EditProfileScreen"));
-const BlockedUsersScreen = lazy(
-  () => import("./src/screens/BlockedUsersScreen"),
-);
+import DiscoverScreen from "./src/screens/DiscoverScreen";
+import InterestedScreen from "./src/screens/InterestedScreen";
+import MessagesScreen from "./src/screens/MessagesScreen";
+import ProfileScreen from "./src/screens/ProfileScreen";
+import ChatScreen from "./src/screens/ChatScreen";
+import MeetupsScreen from "./src/screens/MeetupsScreen";
+import MeetupDetailsScreen from "./src/screens/MeetupsDetailScreen";
+import WebViewScreen from "./src/screens/WebViewScreen";
+import UserProfileScreen from "./src/screens/UserProfileScreen";
+import PreferencesScreen from "./src/screens/PreferencesScreen";
+import EditProfileScreen from "./src/screens/EditProfileScreen";
+import BlockedUsersScreen from "./src/screens/BlockedUsersScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
-
-// Configure how notifications are displayed
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
 
 // KindredPal theme
 const theme = {
@@ -113,175 +94,63 @@ function MainTabs() {
     >
       <Tab.Screen
         name="Discover"
+        component={DiscoverScreen}
         options={{
           tabBarLabel: "Discover",
           tabBarIcon: ({ color, size }) => <Heart color={color} size={size} />,
         }}
-      >
-        {() => (
-          <Suspense fallback={<LoadingScreen />}>
-            <DiscoverScreen />
-          </Suspense>
-        )}
-      </Tab.Screen>
+      />
 
       <Tab.Screen
         name="Interested"
+        component={InterestedScreen}
         options={{
           tabBarLabel: "Interested",
           tabBarIcon: ({ color, size }) => <Users color={color} size={size} />,
         }}
-      >
-        {() => (
-          <Suspense fallback={<LoadingScreen />}>
-            <InterestedScreen />
-          </Suspense>
-        )}
-      </Tab.Screen>
+      />
 
       <Tab.Screen
         name="Messages"
+        component={MessagesScreen}
         options={{
           tabBarLabel: "Messages",
           tabBarIcon: ({ color, size }) => (
             <MessageCircle color={color} size={size} />
           ),
         }}
-      >
-        {() => (
-          <Suspense fallback={<LoadingScreen />}>
-            <MessagesScreen />
-          </Suspense>
-        )}
-      </Tab.Screen>
+      />
 
       <Tab.Screen
         name="Meetups"
+        component={MeetupsScreen}
         options={{
           tabBarLabel: "Meetups",
           tabBarIcon: ({ color, size }) => (
             <Calendar color={color} size={size} />
           ),
         }}
-      >
-        {() => (
-          <Suspense fallback={<LoadingScreen />}>
-            <MeetupsScreen />
-          </Suspense>
-        )}
-      </Tab.Screen>
+      />
 
       <Tab.Screen
         name="Profile"
+        component={ProfileScreen}
         options={{
           tabBarLabel: "Profile",
           tabBarIcon: ({ color, size }) => <User color={color} size={size} />,
         }}
-      >
-        {() => (
-          <Suspense fallback={<LoadingScreen />}>
-            <ProfileScreen />
-          </Suspense>
-        )}
-      </Tab.Screen>
+      />
     </Tab.Navigator>
   );
 }
 
 export default function App() {
-  const [expoPushToken, setExpoPushToken] = useState("");
-  const notificationListener = useRef();
-  const responseListener = useRef();
-
-  useEffect(() => {
-    registerForPushNotificationsAsync().then((token) => {
-      if (token) {
-        setExpoPushToken(token);
-        savePushToken(token);
-      }
-    });
-
-    // Listen for notifications when app is in foreground
-    notificationListener.current =
-      Notifications.addNotificationReceivedListener((notification) => {
-        console.log("📨 Notification received:", notification);
-      });
-
-    // Listen for notification taps
-    responseListener.current =
-      Notifications.addNotificationResponseReceivedListener((response) => {
-        console.log("👆 Notification tapped:", response);
-      });
-
-    return () => {
-      if (notificationListener.current) {
-        Notifications.removeNotificationSubscription(
-          notificationListener.current,
-        );
-      }
-      if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
-      }
-    };
-  }, []);
-
-  const registerForPushNotificationsAsync = async () => {
-    let token;
-
-    if (Platform.OS === "android") {
-      await Notifications.setNotificationChannelAsync("default", {
-        name: "default",
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: "#2B6CB0",
-      });
-    }
-
-    if (Device.isDevice) {
-      const { status: existingStatus } =
-        await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
-
-      if (existingStatus !== "granted") {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-      }
-
-      if (finalStatus !== "granted") {
-        console.log("❌ Failed to get push token");
-        return;
-      }
-
-      token = (await Notifications.getExpoPushTokenAsync()).data;
-      console.log("✅ Push token:", token);
-    } else {
-      console.log("⚠️ Must use physical device for Push Notifications");
-    }
-
-    return token;
-  };
-
-  const savePushToken = async (token) => {
-    try {
-      const authToken = await SecureStore.getItemAsync("token");
-      if (authToken && token) {
-        await api.post("/users/push-token", {
-          token,
-          device: Platform.OS,
-        });
-        console.log("✅ Push token saved to backend");
-      }
-    } catch (error) {
-      console.error("❌ Error saving push token:", error);
-    }
-  };
-
   return (
     <QueryClientProvider client={queryClient}>
       <PaperProvider theme={theme}>
         <NavigationContainer>
           <Stack.Navigator>
-            {/* Auth Screens - NOT lazy loaded (needed immediately) */}
+            {/* Auth Screens */}
             <Stack.Screen
               name="Login"
               component={LoginScreen}
@@ -313,112 +182,77 @@ export default function App() {
               options={{ headerShown: false }}
             />
 
-            {/* Lazy loaded screens */}
+            {/* Other screens */}
             <Stack.Screen
               name="Chat"
+              component={ChatScreen}
               options={{
                 title: "Chat",
                 headerStyle: { backgroundColor: "#2B6CB0" },
                 headerTintColor: "#fff",
               }}
-            >
-              {(props) => (
-                <Suspense fallback={<LoadingScreen />}>
-                  <ChatScreen {...props} />
-                </Suspense>
-              )}
-            </Stack.Screen>
+            />
 
             <Stack.Screen
               name="UserProfile"
+              component={UserProfileScreen}
               options={{
                 title: "Profile",
                 headerStyle: { backgroundColor: "#2B6CB0" },
                 headerTintColor: "#fff",
               }}
-            >
-              {(props) => (
-                <Suspense fallback={<LoadingScreen />}>
-                  <UserProfileScreen {...props} />
-                </Suspense>
-              )}
-            </Stack.Screen>
+            />
 
             <Stack.Screen
               name="Preferences"
+              component={PreferencesScreen}
               options={{
                 title: "Search Preferences",
                 headerStyle: { backgroundColor: "#2B6CB0" },
                 headerTintColor: "#fff",
               }}
-            >
-              {(props) => (
-                <Suspense fallback={<LoadingScreen />}>
-                  <PreferencesScreen {...props} />
-                </Suspense>
-              )}
-            </Stack.Screen>
+            />
 
             <Stack.Screen
               name="EditProfile"
+              component={EditProfileScreen}
               options={{
                 title: "Edit Profile",
                 headerStyle: { backgroundColor: "#2B6CB0" },
                 headerTintColor: "#fff",
               }}
-            >
-              {(props) => (
-                <Suspense fallback={<LoadingScreen />}>
-                  <EditProfileScreen {...props} />
-                </Suspense>
-              )}
-            </Stack.Screen>
+            />
 
             <Stack.Screen
               name="BlockedUsers"
+              component={BlockedUsersScreen}
               options={{
                 title: "Blocked Users",
                 headerStyle: { backgroundColor: "#2B6CB0" },
                 headerTintColor: "#fff",
               }}
-            >
-              {(props) => (
-                <Suspense fallback={<LoadingScreen />}>
-                  <BlockedUsersScreen {...props} />
-                </Suspense>
-              )}
-            </Stack.Screen>
+            />
 
             <Stack.Screen
               name="MeetupDetails"
+              component={MeetupDetailsScreen}
               options={{
                 title: "Meetup Details",
                 headerStyle: { backgroundColor: "#2B6CB0" },
                 headerTintColor: "#fff",
               }}
-            >
-              {(props) => (
-                <Suspense fallback={<LoadingScreen />}>
-                  <MeetupDetailsScreen {...props} />
-                </Suspense>
-              )}
-            </Stack.Screen>
+            />
 
             <Stack.Screen
               name="WebView"
+              component={WebViewScreen}
               options={({ route }) => ({
                 title: route.params?.title || "Loading...",
                 headerStyle: { backgroundColor: "#2B6CB0" },
                 headerTintColor: "#fff",
                 headerBackTitle: "Back",
               })}
-            >
-              {(props) => (
-                <Suspense fallback={<LoadingScreen />}>
-                  <WebViewScreen {...props} />
-                </Suspense>
-              )}
-            </Stack.Screen>
+            />
           </Stack.Navigator>
         </NavigationContainer>
       </PaperProvider>
