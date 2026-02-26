@@ -133,11 +133,9 @@ const Signup = () => {
   // ✅ FIXED: Aligned with backend enums
   const lookingForOptions = [
     "Friendship",
-    "Romance",
     "Networking",
     "Activity Partner",
     "Mentor",
-    "Community",
   ];
 
   const handleChange = (e) => {

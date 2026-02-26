@@ -154,7 +154,7 @@ export default function MeetupsScreen({ navigation }) {
           <Calendar color="#CBD5E0" size={64} />
           <Text style={styles.emptyTitle}>No Meetups Yet</Text>
           <Text style={styles.emptyText}>
-            Create a meetup to connect with your matches in person!
+            Create a meetup to Connect in person with your local community!
           </Text>
         </View>
       ) : (

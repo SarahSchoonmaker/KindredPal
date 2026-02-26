@@ -208,14 +208,7 @@ const userSchema = new mongoose.Schema(
     lookingFor: [
       {
         type: String,
-        enum: [
-          "Friendship",
-          "Romance",
-          "Networking",
-          "Activity Partner",
-          "Mentor",
-          "Community",
-        ],
+        enum: ["Friendship", "Networking", "Activity Partner", "Mentor"],
       },
     ],
 

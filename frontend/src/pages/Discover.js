@@ -92,7 +92,7 @@ function Discover() {
       <div className="discover-page">
         <div className="loading-spinner">
           <div className="spinner"></div>
-          <p>Finding your people...</p>
+          <p>Find Your Support Network</p>
         </div>
       </div>
     );
@@ -182,7 +182,6 @@ function Discover() {
               >
                 <div className="card-image-small">
                   <img src={user.profilePhoto} alt={user.name} />
-                  <div className="match-badge">{user.matchScore}% Match</div>
                 </div>
 
                 <div className="card-info-small">

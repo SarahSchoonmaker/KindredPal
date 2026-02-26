@@ -176,12 +176,12 @@ const Support = () => {
             </h3>
             <p>
               KindredPal is designed for <strong>meaningful connections</strong>{" "}
-              based on shared values, not just romance:
+              based on shared values:
             </p>
             <ul>
               <li>
-                You can specify if you're looking for friendship, romance,
-                networking, or community
+                You can specify if you're looking for friendship, networking,
+                activity partner
               </li>
               <li>
                 Matches are based on compatibility, values, and life stage

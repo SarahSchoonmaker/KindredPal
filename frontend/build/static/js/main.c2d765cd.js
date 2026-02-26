@@ -16640,11 +16640,11 @@
                               className: "checkbox-grid",
                               children: [
                                 "Friendship",
-                                "Romance",
+                                
                                 "Networking",
                                 "Activity Partner",
                                 "Mentor",
-                                "Community",
+                               
                               ].map((e) =>
                                 (0, ni.jsxs)(
                                   "label",

@@ -8,245 +8,518 @@ const PrivacyPolicy = () => {
       <div className="legal-header">
         <Shield size={48} />
         <h1>Privacy Policy</h1>
-        <p className="last-updated">Last Updated: January 28, 2026</p>
+        <p className="last-updated">Last Updated: February 24, 2026</p>
       </div>
 
       <div className="legal-content">
         <section>
           <h2>Introduction</h2>
           <p>
-            Welcome to KindredPal ("we," "our," or "us"). We are committed to
-            protecting your privacy and personal information. This Privacy
-            Policy explains how we collect, use, disclose, and safeguard your
-            information when you use our mobile application and website
-            (collectively, the "Service").
+            Welcome to KindredPal, a life stage support and mental wellness
+            community platform. We understand that seeking support during life
+            transitions is deeply personal. Your privacy and the security of
+            your personal information are fundamental to the safe, supportive
+            environment we strive to create.
           </p>
           <p>
-            By using KindredPal, you agree to the collection and use of
-            information in accordance with this policy.
+            KindredPal connects people navigating similar life stages—from new
+            parenthood to career transitions to retirement—to build peer support
+            networks and reduce isolation. This Privacy Policy explains how we
+            collect, use, protect, and share your information as you use our
+            platform to find community and support.
           </p>
+        </section>
+
+        <section>
+          <h2>Our Commitment to Your Privacy</h2>
+          <p>
+            As a platform focused on mental health support and community
+            connection, we recognize the sensitive nature of the information you
+            share. We are committed to:
+          </p>
+          <ul>
+            <li>Protecting your personal and health-related information</li>
+            <li>Being transparent about what data we collect and why</li>
+            <li>Giving you control over your information</li>
+            <li>Never selling your data to third parties</li>
+            <li>Maintaining the highest security standards</li>
+            <li>
+              Respecting the confidential nature of peer support communities
+            </li>
+          </ul>
         </section>
 
         <section>
           <h2>Information We Collect</h2>
 
-          <h3>Information You Provide to Us</h3>
+          <h3>1. Account Information</h3>
+          <p>When you create an account, we collect:</p>
           <ul>
-            <li>
-              <strong>Account Information:</strong> Name, email address, age,
-              gender, location (city and state)
-            </li>
-            <li>
-              <strong>Profile Information:</strong> Bio, photos, political
-              beliefs, religion, causes you care about, life stage, and what
-              you're looking for
-            </li>
-            <li>
-              <strong>User Content:</strong> Messages, meetup posts, and any
-              other content you create or share on the Service
-            </li>
-            <li>
-              <strong>Payment Information:</strong> If you purchase premium
-              features, payment information is processed securely through our
-              payment processor (we do not store your credit card details)
-            </li>
+            <li>Email address and password (encrypted)</li>
+            <li>Name, age, and location (city, state)</li>
+            <li>Profile photo (optional)</li>
           </ul>
 
-          <h3>Information Collected Automatically</h3>
+          <h3>2. Life Stage & Support Preferences</h3>
+          <p>
+            To connect you with appropriate peer support networks, we collect
+            information about:
+          </p>
           <ul>
             <li>
-              <strong>Usage Data:</strong> How you interact with the Service,
-              including pages viewed, features used, and time spent
+              <strong>Life Stage:</strong> Current life circumstances (e.g., new
+              parent, career transition, empty nester, retired, caregiver,
+              recent graduate)
             </li>
             <li>
-              <strong>Device Information:</strong> Device type, operating
-              system, unique device identifiers, IP address
+              <strong>Support Needs:</strong> What you're seeking (friendship,
+              mentorship, peer support, networking, activity partners,
+              community)
             </li>
             <li>
-              <strong>Location Data:</strong> Approximate location based on IP
-              address (we do not track precise GPS location)
+              <strong>Values & Beliefs:</strong> Political beliefs, religious
+              views, and causes you care about (to match you with compatible
+              support networks)
             </li>
             <li>
-              <strong>Cookies and Similar Technologies:</strong> We use cookies
-              and similar tracking technologies to track activity on our Service
+              <strong>Interests:</strong> Activities, hobbies, and topics you're
+              passionate about
             </li>
           </ul>
+          <p>
+            <strong>Why we collect this:</strong> This information helps us
+            connect you with others who understand your journey and can provide
+            meaningful support during life transitions.
+          </p>
+
+          <h3>3. Profile & Bio Information</h3>
+          <p>You may choose to share:</p>
+          <ul>
+            <li>
+              A bio describing your current life stage and what you're
+              navigating
+            </li>
+            <li>Additional photos (optional)</li>
+            <li>Detailed information about your interests and support needs</li>
+          </ul>
+          <p>
+            <strong>Important:</strong> Share only what you're comfortable with.
+            Your profile is visible to other community members, so avoid
+            including sensitive personal details you wouldn't want shared in a
+            support group setting.
+          </p>
+
+          <h3>4. Communication & Support Interactions</h3>
+          <p>We store:</p>
+          <ul>
+            <li>Messages exchanged with other community members</li>
+            <li>Meetup event details and RSVPs</li>
+            <li>Support group participation</li>
+          </ul>
+          <p>
+            <strong>Privacy note:</strong> Your conversations are private
+            between you and your connections. We do not read your messages
+            unless required for safety investigations (e.g., reports of abuse or
+            harm).
+          </p>
+
+          <h3>5. Usage & Analytics</h3>
+          <p>To improve our platform and support features, we collect:</p>
+          <ul>
+            <li>How you use the platform (pages visited, features used)</li>
+            <li>Device information (type, operating system)</li>
+            <li>Technical data (IP address, browser type)</li>
+            <li>Crash reports and performance data</li>
+          </ul>
+          <p>
+            This helps us understand how people use KindredPal for support and
+            improve our mental wellness features.
+          </p>
         </section>
 
         <section>
           <h2>How We Use Your Information</h2>
-          <p>We use your information to:</p>
+
+          <h3>1. Building Support Networks</h3>
+          <p>We use your life stage, values, and location information to:</p>
           <ul>
-            <li>Provide, maintain, and improve the Service</li>
-            <li>Create and manage your account</li>
+            <li>Match you with people navigating similar life transitions</li>
             <li>
-              Connect you with other users based on shared values and interests
+              Connect you with peer support communities that align with your
+              values
             </li>
-            <li>Send you notifications about matches, messages, and meetups</li>
-            <li>Process transactions and send related information</li>
-            <li>
-              Send you technical notices, updates, security alerts, and support
-              messages
-            </li>
-            <li>
-              Respond to your comments, questions, and customer service requests
-            </li>
-            <li>
-              Monitor and analyze trends, usage, and activities in connection
-              with the Service
-            </li>
-            <li>
-              Detect, prevent, and address technical issues and fraudulent
-              activity
-            </li>
-            <li>Comply with legal obligations</li>
+            <li>Suggest relevant local meetups and support groups</li>
+            <li>Calculate compatibility scores based on shared experiences</li>
           </ul>
+
+          <h3>2. Facilitating Community Connection</h3>
+          <p>Your information helps us:</p>
+          <ul>
+            <li>Enable messaging with your support network</li>
+            <li>Coordinate community events and meetups</li>
+            <li>Notify you of connection requests and messages</li>
+            <li>Help you find mentorship opportunities</li>
+          </ul>
+
+          <h3>3. Maintaining a Safe, Supportive Environment</h3>
+          <p>We use your data to:</p>
+          <ul>
+            <li>
+              Investigate reports of harassment, abuse, or policy violations
+            </li>
+            <li>Prevent spam, fraud, and harmful behavior</li>
+            <li>Enforce our Community Guidelines</li>
+            <li>Protect the mental health and safety of our community</li>
+          </ul>
+
+          <h3>4. Platform Improvement & Research</h3>
+          <p>We analyze aggregated, anonymized data to:</p>
+          <ul>
+            <li>Understand how people seek and provide peer support</li>
+            <li>
+              Improve our matching algorithm for better support connections
+            </li>
+            <li>Develop new features to serve community needs</li>
+            <li>Research effectiveness of life stage-based support networks</li>
+          </ul>
+          <p>
+            <strong>Note:</strong> We never share individual user data in
+            research or analytics. All insights are derived from aggregated,
+            anonymous data only.
+          </p>
+
+          <h3>5. Communication</h3>
+          <p>We may email you about:</p>
+          <ul>
+            <li>New connections and messages</li>
+            <li>Upcoming meetups you've RSVP'd to</li>
+            <li>Important account or safety updates</li>
+            <li>Platform improvements (if you opt in)</li>
+          </ul>
+          <p>You can control email preferences in your account settings.</p>
         </section>
 
         <section>
-          <h2>How We Share Your Information</h2>
+          <h2>Information Sharing & Disclosure</h2>
 
-          <h3>With Other Users</h3>
+          <h3>What's Visible to Other Users</h3>
+          <p>Other KindredPal community members can see:</p>
+          <ul>
+            <li>Your name, age, and location</li>
+            <li>Your profile photo and bio</li>
+            <li>Your life stage, values, interests, and what you're seeking</li>
+            <li>Whether you're active on the platform</li>
+          </ul>
+          <p>
+            <strong>Your control:</strong> You choose what to include in your
+            profile. Share what you're comfortable with in a peer support
+            community setting.
+          </p>
+
+          <h3>What We NEVER Share</h3>
           <ul>
             <li>
-              Your profile information (name, age, location, bio, photos,
-              values) is visible to other users you match with
+              Your private messages (except when legally required or for safety
+              investigations)
             </li>
-            <li>Messages you send are visible to recipients</li>
+            <li>Your email address or password</li>
+            <li>Your precise location (we only show city/state)</li>
             <li>
-              Meetup information you create is visible to your connections
+              Your individual usage patterns or personal data to advertisers
             </li>
           </ul>
 
-          <h3>With Service Providers</h3>
+          <h3>When We May Disclose Information</h3>
           <p>
-            We share information with third-party service providers who perform
-            services on our behalf, including:
+            We may share your information only in these limited circumstances:
           </p>
-          <ul>
-            <li>Cloud hosting providers (Railway, MongoDB Atlas)</li>
-            <li>Email service providers</li>
-            <li>Payment processors (Stripe)</li>
-            <li>Analytics providers</li>
-          </ul>
-
-          <h3>For Legal Reasons</h3>
-          <p>
-            We may disclose your information if required to do so by law or in
-            response to valid requests by public authorities.
-          </p>
-
-          <h3>Business Transfers</h3>
-          <p>
-            If KindredPal is involved in a merger, acquisition, or sale of
-            assets, your information may be transferred as part of that
-            transaction.
-          </p>
-        </section>
-
-        <section>
-          <h2>Your Privacy Rights</h2>
-
-          <h3>Access and Portability</h3>
-          <p>
-            You can access and download your personal information through your
-            account settings.
-          </p>
-
-          <h3>Correction and Deletion</h3>
-          <p>
-            You can update your profile information at any time. You can delete
-            your account by going to Profile &gt; Delete Account. Account
-            deletion is permanent and cannot be undone.
-          </p>
-
-          <h3>Marketing Communications</h3>
-          <p>
-            You can opt out of marketing emails by clicking the "unsubscribe"
-            link in any marketing email or by adjusting your notification
-            settings in your account.
-          </p>
-
-          <h3>Your California Privacy Rights (CCPA)</h3>
-          <p>If you are a California resident, you have the right to:</p>
           <ul>
             <li>
-              Know what personal information we collect, use, and disclose
+              <strong>Legal Requirements:</strong> When required by law, court
+              order, or to protect rights and safety
             </li>
-            <li>Request deletion of your personal information</li>
             <li>
-              Opt-out of the sale of your personal information (Note: We do not
-              sell your personal information)
+              <strong>Safety Emergencies:</strong> If we believe someone is in
+              imminent danger of harm to themselves or others
             </li>
-            <li>Non-discrimination for exercising your privacy rights</li>
+            <li>
+              <strong>Business Transfers:</strong> In the event of a merger or
+              acquisition (with continued privacy protections)
+            </li>
+            <li>
+              <strong>With Your Consent:</strong> When you explicitly authorize
+              us to share specific information
+            </li>
           </ul>
-          <p>To exercise these rights, email us at support@kindredpal.com.</p>
 
-          <h3>European Privacy Rights (GDPR)</h3>
-          <p>
-            If you are in the European Economic Area (EEA), you have the right
-            to:
-          </p>
+          <h3>Third-Party Service Providers</h3>
+          <p>We use trusted third-party services to operate KindredPal:</p>
           <ul>
-            <li>Access your personal data</li>
-            <li>Correct inaccurate personal data</li>
-            <li>Request deletion of your personal data</li>
-            <li>Object to or restrict processing of your personal data</li>
-            <li>Data portability</li>
-            <li>Withdraw consent</li>
+            <li>
+              <strong>Cloud hosting:</strong> To store data securely
+            </li>
+            <li>
+              <strong>Email services:</strong> To send notifications
+            </li>
+            <li>
+              <strong>Analytics:</strong> To understand platform usage
+              (anonymized data only)
+            </li>
           </ul>
-          <p>To exercise these rights, email us at support@kindredpal.com.</p>
+          <p>
+            These providers are contractually required to protect your data and
+            cannot use it for other purposes.
+          </p>
+
+          <h3>We Do NOT Sell Your Data</h3>
+          <p>
+            <strong>
+              KindredPal will never sell your personal information to
+              advertisers, data brokers, or any third parties.
+            </strong>{" "}
+            Your support network and mental health journey are not for sale.
+          </p>
         </section>
 
         <section>
           <h2>Data Security</h2>
           <p>
-            We implement appropriate technical and organizational security
-            measures to protect your information. However, no method of
-            transmission over the internet or electronic storage is 100% secure.
+            Protecting your information is critical, especially given the
+            sensitive nature of life stage transitions and mental health
+            support. We implement:
           </p>
-          <p>Security measures we implement include:</p>
           <ul>
-            <li>Encryption of data in transit (HTTPS/TLS)</li>
-            <li>Encryption of data at rest</li>
-            <li>Secure password hashing (bcrypt)</li>
-            <li>Regular security audits</li>
-            <li>Access controls and authentication</li>
-            <li>Secure token-based authentication (JWT)</li>
+            <li>
+              <strong>Encryption:</strong> All passwords are encrypted; data
+              transmitted between your device and our servers is encrypted
+            </li>
+            <li>
+              <strong>Secure Storage:</strong> Industry-standard database
+              security and access controls
+            </li>
+            <li>
+              <strong>Limited Access:</strong> Only authorized personnel can
+              access user data, and only when necessary
+            </li>
+            <li>
+              <strong>Regular Security Audits:</strong> We continuously monitor
+              and improve our security measures
+            </li>
+            <li>
+              <strong>Prompt Breach Notification:</strong> If a breach occurs,
+              we'll notify affected users promptly
+            </li>
+          </ul>
+          <p>
+            <strong>Your Role:</strong> Use a strong, unique password and never
+            share your account credentials with anyone.
+          </p>
+        </section>
+
+        <section>
+          <h2>Your Privacy Rights & Control</h2>
+
+          <h3>Access & Correction</h3>
+          <p>You can:</p>
+          <ul>
+            <li>View and edit your profile information anytime</li>
+            <li>Update your life stage, support preferences, and interests</li>
+            <li>Change your location preferences</li>
+            <li>
+              Request a copy of your data by contacting support@kindredpal.com
+            </li>
+          </ul>
+
+          <h3>Privacy Controls</h3>
+          <p>You have control over:</p>
+          <ul>
+            <li>
+              <strong>Who sees your profile:</strong> Only matched community
+              members see your full profile
+            </li>
+            <li>
+              <strong>Email notifications:</strong> Customize what emails you
+              receive
+            </li>
+            <li>
+              <strong>Blocking:</strong> Block any user who makes you
+              uncomfortable
+            </li>
+            <li>
+              <strong>Search preferences:</strong> Control who can discover your
+              profile based on location
+            </li>
+          </ul>
+
+          <h3>Account Deletion</h3>
+          <p>
+            You can delete your account at any time from your Profile settings.
+            When you delete:
+          </p>
+          <ul>
+            <li>Your profile becomes immediately invisible</li>
+            <li>
+              Your personal information is permanently deleted within 30 days
+            </li>
+            <li>Your messages to others are deleted</li>
+            <li>Your RSVP history and meetup participation is removed</li>
+          </ul>
+          <p>
+            <strong>Note:</strong> Some anonymized data may be retained for
+            analytics and platform improvement, but it cannot be linked back to
+            you.
+          </p>
+
+          <h3>Data Portability</h3>
+          <p>
+            You can request a copy of your data in a common format. Email
+            support@kindredpal.com with your request.
+          </p>
+        </section>
+
+        <section>
+          <h2>Special Considerations for Mental Health Support</h2>
+
+          <h3>Crisis Situations</h3>
+          <p>
+            KindredPal is a peer support platform,{" "}
+            <strong>
+              not a crisis intervention service or substitute for professional
+              mental health care
+            </strong>
+            . If you or someone you know is in crisis:
+          </p>
+          <ul>
+            <li>
+              <strong>US:</strong> Call 988 (Suicide & Crisis Lifeline) or text
+              "HELLO" to 741741 (Crisis Text Line)
+            </li>
+            <li>
+              <strong>Emergency:</strong> Call 911 or go to your nearest
+              emergency room
+            </li>
+          </ul>
+          <p>
+            If we become aware of an imminent safety risk, we may contact
+            emergency services or share information as necessary to protect
+            life.
+          </p>
+
+          <h3>Peer Support Limitations</h3>
+          <p>KindredPal facilitates peer support connections, but:</p>
+          <ul>
+            <li>We are not mental health professionals</li>
+            <li>Peer support does not replace therapy or medical treatment</li>
+            <li>Community members are not trained counselors</li>
+            <li>
+              We encourage seeking professional help for mental health concerns
+            </li>
+          </ul>
+
+          <h3>Anonymity & Pseudonyms</h3>
+          <p>
+            While we require real information for account creation, you may:
+          </p>
+          <ul>
+            <li>Use a nickname or first name only on your profile</li>
+            <li>Share as much or as little as you're comfortable with</li>
+            <li>Control what personal details you disclose</li>
           </ul>
         </section>
 
         <section>
           <h2>Children's Privacy</h2>
           <p>
-            KindredPal is not intended for users under the age of 18. We do not
-            knowingly collect personal information from children under 18. If
-            you are a parent or guardian and believe your child has provided us
-            with personal information, please contact us at
-            support@kindredpal.com.
+            KindredPal is designed for adults (18+) seeking life stage support.
+            We do not knowingly collect information from anyone under 18. If we
+            discover a user is under 18, we will delete their account
+            immediately.
+          </p>
+          <p>
+            Parents and guardians: If you believe your child has created an
+            account, please contact us at support@kindredpal.com.
           </p>
         </section>
 
         <section>
-          <h2>Changes to This Privacy Policy</h2>
+          <h2>International Users</h2>
           <p>
-            We may update this Privacy Policy from time to time. We will notify
-            you of any changes by posting the new Privacy Policy on this page
-            and updating the "Last Updated" date. Significant changes will be
-            communicated via email or prominent notice within the Service.
+            KindredPal is based in the United States. If you use our platform
+            from outside the US, your information will be transferred to,
+            stored, and processed in the United States.
+          </p>
+          <p>
+            <strong>For EU Users:</strong> We comply with applicable data
+            protection laws including GDPR. You have additional rights including
+            data portability, objection to processing, and the right to lodge
+            complaints with supervisory authorities.
+          </p>
+        </section>
+
+        <section>
+          <h2>Changes to This Policy</h2>
+          <p>
+            We may update this Privacy Policy to reflect changes in our
+            practices or legal requirements. We will:
+          </p>
+          <ul>
+            <li>Update the "Last Updated" date at the top</li>
+            <li>
+              Notify you of material changes via email or platform notification
+            </li>
+            <li>
+              Give you the opportunity to review changes before they take effect
+            </li>
+          </ul>
+          <p>
+            Continued use of KindredPal after policy updates constitutes
+            acceptance of the new terms.
           </p>
         </section>
 
         <section>
           <h2>Contact Us</h2>
           <p>
-            If you have questions about this Privacy Policy or our privacy
-            practices, please contact us:
+            Questions, concerns, or requests regarding your privacy? We're here
+            to help.
           </p>
           <p className="contact-info">
             <strong>Email:</strong> support@kindredpal.com
             <br />
-            <strong>Company:</strong> Rommco
+            <strong>Subject Line:</strong> Privacy Inquiry
+            <br />
+            <strong>Response Time:</strong> We aim to respond within 48 hours
+          </p>
+          <p>
+            For data access, correction, or deletion requests, please include
+            "Data Request" in your subject line and provide your registered
+            email address for verification.
+          </p>
+        </section>
+
+        <section>
+          <h2>Summary</h2>
+          <p>
+            At KindredPal, your privacy and well-being are our top priorities.
+            We're committed to:
+          </p>
+          <ul>
+            <li>Protecting your personal and sensitive information</li>
+            <li>
+              Using your data only to facilitate peer support and community
+              connection
+            </li>
+            <li>Never selling your information</li>
+            <li>Giving you control over your privacy</li>
+            <li>
+              Maintaining a safe, supportive environment for mental health and
+              life stage transitions
+            </li>
+          </ul>
+          <p>
+            Thank you for trusting KindredPal as part of your support network.
+            Together, we're building a community where no one has to navigate
+            life's transitions alone.
           </p>
         </section>
       </div>
