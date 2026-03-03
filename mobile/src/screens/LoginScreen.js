@@ -36,7 +36,7 @@ export default function LoginScreen({ navigation }) {
       await SecureStore.setItemAsync("token", token);
       await SecureStore.setItemAsync("userId", userId);
 
-      console.log("✅ Login successful! Token and userId saved securely."); // ← CHANGED
+      console.log("✅ Login successful! Token and userId saved securely.");
 
       navigation.replace("MainTabs");
     } catch (error) {
@@ -68,7 +68,7 @@ export default function LoginScreen({ navigation }) {
         {/* Hero Section */}
         <View style={styles.hero}>
           <Text style={styles.logo}>KindredPal</Text>
-          <Text style={styles.tagline}>Connect through shared values</Text>
+          <Text style={styles.tagline}>Find Your Support Network</Text>
 
           {/* Feature Icons */}
           <View style={styles.features}>

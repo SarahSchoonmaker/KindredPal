@@ -405,11 +405,18 @@ const Profile = () => {
                   >
                     <option value="">Select...</option>
                     <option value="Friendship">Friendship</option>
+<<<<<<< HEAD
                     <option value="Networking">Networking</option>
                     <option value="Activity Partner">Activity Partner</option>
                     <option value="Mentor">Mentor</option>
                     <option value="Support Group">Support Group</option>
                     <option value="Activity Group">Activity Group</option>
+=======
+
+                    <option value="Networking">Networking</option>
+                    <option value="Activity Partner">Activity Partner</option>
+                    <option value="Mentor">Mentor</option>
+>>>>>>> bfacd441c8807d527a5e2d68f3d7e04e8814b65b
                   </select>
                 </div>
               </section>

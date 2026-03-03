@@ -148,19 +148,6 @@
   transform: scale(1.05);
 }
 
-.match-badge {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  background: linear-gradient(135deg, #2b6cb0 0%, #3b82f6 100%);
-  color: white;
-  padding: 8px 16px;
-  border-radius: 24px;
-  font-weight: 700;
-  font-size: 14px;
-  box-shadow: 0 4px 12px rgba(43, 108, 176, 0.4);
-}
-
 /* Card Info */
 .card-info-small {
   padding: 20px;

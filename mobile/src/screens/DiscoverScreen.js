@@ -32,9 +32,6 @@ const ProfileCard = memo(({ user, onPress, onLike, onPass }) => {
           style={styles.image}
           resizeMode="cover"
         />
-        <View style={styles.matchBadge}>
-          <Text style={styles.matchBadgeText}>{user.matchScore}% Match</Text>
-        </View>
       </View>
 
       {/* Info */}
@@ -278,7 +275,7 @@ export default function DiscoverScreen({ navigation }) {
       {/* Header with search info and filters */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>Discover Your People</Text>
+          <Text style={styles.headerTitle}>Find Your Community</Text>
           {currentUser && (
             <View style={styles.searchInfo}>
               <MapPin size={14} color="#2B6CB0" />

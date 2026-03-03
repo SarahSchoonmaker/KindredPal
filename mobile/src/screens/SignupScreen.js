@@ -119,7 +119,7 @@ export default function SignupScreen({ navigation }) {
     "Activity Partner",
     "Mentor",
     "Support Group",
-    "Activity Group"
+    "Activity Group",
   ];
 
   const pickImage = async () => {
@@ -395,6 +395,11 @@ export default function SignupScreen({ navigation }) {
               Life Stage & Goals
             </Text>
 
+            {/* ADD THIS - Section Description */}
+            <Text variant="bodyMedium" style={styles.sectionDescription}>
+              Connect with people navigating similar life experiences
+            </Text>
+
             <Text variant="bodyMedium" style={styles.label}>
               Life Stage (select all that apply)
             </Text>
@@ -428,7 +433,6 @@ export default function SignupScreen({ navigation }) {
             </View>
           </View>
         )}
-
         {/* Step 4: Values */}
         {step === 4 && (
           <View style={styles.stepContainer}>
@@ -566,6 +570,13 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginVertical: 12,
     color: "#666",
+  },
+  sectionDescription: {
+    textAlign: "center",
+    color: "#666",
+    marginBottom: 20,
+    paddingHorizontal: 20,
+    fontStyle: "italic",
   },
   scrollView: {
     flex: 1,

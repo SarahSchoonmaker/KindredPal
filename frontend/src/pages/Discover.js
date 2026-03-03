@@ -114,7 +114,11 @@ function Discover() {
       <div className="discover-page">
         <div className="loading-spinner">
           <div className="spinner"></div>
+<<<<<<< HEAD
           <p>Finding your community...</p>
+=======
+          <p>Find Your Support Network</p>
+>>>>>>> bfacd441c8807d527a5e2d68f3d7e04e8814b65b
         </div>
       </div>
     );
@@ -203,7 +207,10 @@ function Discover() {
               >
                 <div className="card-image-small">
                   <img src={user.profilePhoto} alt={user.name} />
+<<<<<<< HEAD
                   {/* REMOVED match-badge */}
+=======
+>>>>>>> bfacd441c8807d527a5e2d68f3d7e04e8814b65b
                 </div>
 
                 <div className="card-info-small">

@@ -152,7 +152,7 @@ export default function MessagesScreen({ navigation }) {
             No Matches Yet
           </Text>
           <Text variant="bodyLarge" style={styles.emptyText}>
-            Start swiping to find your matches!
+            Start swiping to find your community!!
           </Text>
         </View>
       </ScrollView>

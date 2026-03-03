@@ -104,7 +104,7 @@ function LikesYou() {
             >
               <div className="card-image-small">
                 <img src={user.profilePhoto} alt={user.name} />
-                <div className="match-badge">{user.matchScore}% Match</div>
+                {/* <div className="match-badge">{user.matchScore}% Match</div> */}
               </div>
 
               <div className="card-info-small">

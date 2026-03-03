@@ -177,6 +177,7 @@ const Support = () => {
           <div className="faq-item">
             <h3>What types of connections can I make on KindredPal?</h3>
             <p>
+<<<<<<< HEAD
               KindredPal supports multiple types of meaningful connections:
             </p>
             <ul>
@@ -186,6 +187,23 @@ const Support = () => {
               <li><strong>Networking:</strong> Connect professionally with like-minded individuals</li>
               <li><strong>Activity Partners:</strong> Find people to pursue hobbies and interests together</li>
               <li><strong>Community:</strong> Join local groups and support networks</li>
+=======
+              KindredPal is designed for <strong>meaningful connections</strong>{" "}
+              based on shared values:
+            </p>
+            <ul>
+              <li>
+                You can specify if you're looking for friendship, networking,
+                activity partner
+              </li>
+              <li>
+                Matches are based on compatibility, values, and life stage
+              </li>
+              <li>
+                The platform supports various types of connections, from casual
+                friendships to romantic relationships
+              </li>
+>>>>>>> bfacd441c8807d527a5e2d68f3d7e04e8814b65b
             </ul>
           </div>
 

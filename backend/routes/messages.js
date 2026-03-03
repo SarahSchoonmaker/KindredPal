@@ -130,7 +130,7 @@ router.post("/", auth, async (req, res) => {
     if (!currentUser.matches.includes(recipientId)) {
       return res
         .status(403)
-        .json({ message: "You can only message your matches" });
+        .json({ message: "You can only message your connections" });
     }
 
     const message = new Message({

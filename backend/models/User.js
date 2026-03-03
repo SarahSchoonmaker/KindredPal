@@ -216,7 +216,7 @@ locationPreference: {
       "Activity Partner",
       "Mentor",
       "Support Group",
-      "Activity Group"
+      "Activity Group",
     ],
   },
 ],

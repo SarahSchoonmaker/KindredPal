@@ -143,7 +143,6 @@ useEffect(() => {
     "Mentor",
     "Support Group",
     "Activity Group",
-    "Community",
   ];
 
   const handleChange = (e) => {
