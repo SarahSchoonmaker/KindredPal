@@ -13,6 +13,8 @@ function Discover() {
   const [showMatchModal, setShowMatchModal] = useState(false);
   const [matchedUser, setMatchedUser] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
+  const [likedUsers, setLikedUsers] = useState(new Set()); // NEW: Track liked users
+  const [actionLoading, setActionLoading] = useState({}); // NEW: Track loading per user
 
   useEffect(() => {
     fetchCurrentUser();
@@ -41,6 +43,7 @@ function Discover() {
       const response = await api.get("/users/discover");
       console.log("📥 Received users:", response.data.users?.length || 0);
       setUsers(response.data.users || []);
+      setLikedUsers(new Set()); // Reset liked users when fetching new
     } catch (error) {
       console.error("Error fetching users:", error);
       console.error("Error details:", error.response?.data);
@@ -52,29 +55,48 @@ function Discover() {
   const handleLike = async (userId, e) => {
     e.stopPropagation();
 
+    // Prevent double-clicking
+    if (actionLoading[userId] || likedUsers.has(userId)) return;
+
+    setActionLoading(prev => ({ ...prev, [userId]: true }));
+
     try {
       const response = await api.post(`/users/like/${userId}`);
+
+      // Add to liked users
+      setLikedUsers(prev => new Set([...prev, userId]));
 
       if (response.data.isMatch) {
         setMatchedUser(response.data.matchedUser);
         setShowMatchModal(true);
       }
 
-      setUsers((prev) => prev.filter((u) => u._id !== userId));
+      // Remove from list after delay to show "Request Sent"
+      setTimeout(() => {
+        setUsers((prev) => prev.filter((u) => u._id !== userId));
+        setActionLoading(prev => ({ ...prev, [userId]: false }));
+      }, 1000);
     } catch (error) {
       console.error("Error liking user:", error);
       alert(error.response?.data?.message || "Error connecting with user");
+      setActionLoading(prev => ({ ...prev, [userId]: false }));
     }
   };
 
   const handlePass = async (userId, e) => {
     e.stopPropagation();
 
+    // Prevent double-clicking
+    if (actionLoading[userId]) return;
+
+    setActionLoading(prev => ({ ...prev, [userId]: true }));
+
     try {
       await api.post(`/users/pass/${userId}`);
       setUsers((prev) => prev.filter((u) => u._id !== userId));
     } catch (error) {
       console.error("Error passing user:", error);
+      setActionLoading(prev => ({ ...prev, [userId]: false }));
     }
   };
 
@@ -92,7 +114,7 @@ function Discover() {
       <div className="discover-page">
         <div className="loading-spinner">
           <div className="spinner"></div>
-          <p>Finding your people...</p>
+          <p>Finding your community...</p>
         </div>
       </div>
     );
@@ -103,9 +125,9 @@ function Discover() {
       <div className="discover-header">
         <div className="header-content">
           <div className="header-text">
-            <h1>Discover Your People</h1>
+            <h1>Find Your Community</h1>
             <p className="subtitle">
-              Connect with people who share your values and passions
+              Connect with people who understand your life journey
             </p>
             {currentUser && (
               <p className="search-info">
@@ -136,7 +158,6 @@ function Discover() {
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
             >
-              {/* Clean magnifying glass */}
               <circle
                 cx="50"
                 cy="50"
@@ -156,8 +177,8 @@ function Discover() {
               />
             </svg>
           </div>
-          <h2>No More Users Right Now</h2>
-          <p>We've shown you everyone in your area!</p>
+          <h2>No More Community Members Right Now</h2>
+          <p>Check back later for new people to connect with!</p>
           {currentUser?.locationPreference === "Same city" && (
             <p className="tip">
               💡 Try expanding your search to "Home state" or "Anywhere" to see
@@ -165,7 +186,7 @@ function Discover() {
             </p>
           )}
           <button className="btn-primary" onClick={() => navigate("/matches")}>
-            View Your Matches
+            View Your Connections
           </button>
         </div>
       ) : (
@@ -182,7 +203,7 @@ function Discover() {
               >
                 <div className="card-image-small">
                   <img src={user.profilePhoto} alt={user.name} />
-                  <div className="match-badge">{user.matchScore}% Match</div>
+                  {/* REMOVED match-badge */}
                 </div>
 
                 <div className="card-info-small">
@@ -222,18 +243,20 @@ function Discover() {
                   <button
                     className="action-btn-small pass-btn"
                     onClick={(e) => handlePass(user._id, e)}
+                    disabled={actionLoading[user._id]}
                     title="Pass"
                   >
                     <X size={20} />
                     <span>Pass</span>
                   </button>
                   <button
-                    className="action-btn-small like-btn"
+                    className={`action-btn-small like-btn ${likedUsers.has(user._id) ? 'request-sent' : ''}`}
                     onClick={(e) => handleLike(user._id, e)}
-                    title="Connect"
+                    disabled={actionLoading[user._id] || likedUsers.has(user._id)}
+                    title={likedUsers.has(user._id) ? "Request Sent" : "Connect"}
                   >
                     <UserCheck size={20} />
-                    <span>Connect</span>
+                    <span>{likedUsers.has(user._id) ? 'Request Sent' : 'Connect'}</span>
                   </button>
                 </div>
               </div>
@@ -250,8 +273,8 @@ function Discover() {
         >
           <div className="match-modal" onClick={(e) => e.stopPropagation()}>
             <div className="match-celebration">🎉</div>
-            <h2>It's a Match!</h2>
-            <p>You and {matchedUser.name} connected!</p>
+            <h2>You're Connected!</h2>
+            <p>You and {matchedUser.name} can now message each other!</p>
             <div className="match-users">
               <div className="match-user">
                 <img

@@ -208,18 +208,18 @@ locationPreference: {
     ],
 
     lookingFor: [
-      {
-        type: String,
-        enum: [
-          "Friendship",
-          "Romance",
-          "Networking",
-          "Activity Partner",
-          "Mentor",
-          "Community",
-        ],
-      },
+  {
+    type: String,
+    enum: [
+      "Friendship",
+      "Networking",
+      "Activity Partner",
+      "Mentor",
+      "Support Group",
+      "Activity Group"
     ],
+  },
+],
 
  blockedUsers: [
   { 

@@ -30,19 +30,24 @@ const Signup = () => {
     lookingFor: [],
   });
 
-  // Scroll to top when step changes
-  useEffect(() => {
-    window.scrollTo(0, 0);
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
-  }, [step]);
-
-  // Scroll to top on page load
-  useEffect(() => {
-    window.scrollTo(0, 0);
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
-  }, []);
+ // Scroll to top when step changes
+useEffect(() => {
+  // Force scroll to absolute top
+  window.scrollTo(0, 0);
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+  
+  // Also scroll the auth container if it exists
+  const authContainer = document.querySelector('.auth-container');
+  if (authContainer) {
+    authContainer.scrollTop = 0;
+  }
+  
+  const authCard = document.querySelector('.auth-card');
+  if (authCard) {
+    authCard.scrollTop = 0;
+  }
+}, [step]);
 
   const politicalOptions = [
     "Liberal",
@@ -130,13 +135,14 @@ const Signup = () => {
     "Dual-Income No Kids (DINK)",
   ];
 
-  // ✅ FIXED: Aligned with backend enums
+  // ✅ UPDATED: Added "Community"
   const lookingForOptions = [
     "Friendship",
-    "Romance",
     "Networking",
     "Activity Partner",
     "Mentor",
+    "Support Group",
+    "Activity Group",
     "Community",
   ];
 
@@ -308,7 +314,7 @@ const Signup = () => {
         <div className="auth-card signup-card">
           <h2>Join KindredPal</h2>
           <p className="auth-subtitle">
-            Find your people based on what matters most
+            Find your support community based on shared life experiences
           </p>
 
           <div className="progress-bar">
@@ -485,10 +491,9 @@ const Signup = () => {
 
             {step === 3 && (
               <div className="form-step">
-                <h3>Life Stage & Goals</h3>
+                <h3>Life Stage & Support Needs</h3>
                 <p className="form-help">
-                  ⭐ This is the MOST important for matching! Select all that
-                  apply.
+                  ⭐ This is the MOST important for finding your community! Select all that apply.
                 </p>
 
                 <div className="form-group">

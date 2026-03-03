@@ -33,6 +33,16 @@ const Support = () => {
           <h2>Frequently Asked Questions</h2>
 
           <div className="faq-item">
+            <h3>What is KindredPal?</h3>
+            <p>
+              KindredPal is a <strong>life stage support and community platform</strong> designed to help people find peer support during major life transitions. Whether you're navigating new parenthood, career changes, retirement, or any other life stage—KindredPal connects you with people who understand your journey.
+            </p>
+            <p>
+              We are <strong>not a dating app</strong>. Our focus is on building supportive communities based on shared life experiences and values.
+            </p>
+          </div>
+
+          <div className="faq-item">
             <h3>How do I reset my password?</h3>
             <p>To reset your password:</p>
             <ol>
@@ -59,7 +69,7 @@ const Support = () => {
             </ol>
             <p>
               <strong>Warning:</strong> Account deletion is permanent. All your
-              matches, messages, and profile data will be permanently deleted
+              connections, messages, and profile data will be permanently deleted
               and cannot be recovered.
             </p>
           </div>
@@ -67,33 +77,27 @@ const Support = () => {
           <div className="faq-item">
             <h3>How does the matching algorithm work?</h3>
             <p>
-              Our matching algorithm considers multiple factors to find
-              compatible connections:
+              Our matching algorithm connects you with people who share similar life experiences and values:
             </p>
             <ul>
               <li>
-                <strong>Life Stage (35%):</strong> Current life situation and
-                relationship status
+                <strong>Life Stage (30%):</strong> Current life situation and experiences
               </li>
               <li>
-                <strong>Location (25%):</strong> Geographic proximity based on
-                your preferences
+                <strong>Values Alignment (20%):</strong> Political beliefs and religious views
               </li>
               <li>
-                <strong>Age Compatibility (15%):</strong> Similar age ranges
+                <strong>Shared Interests (20%):</strong> Common causes and activities
               </li>
               <li>
-                <strong>Shared Interests (10%):</strong> Common causes and
-                activities
+                <strong>Looking For (10%):</strong> Type of support or connection sought (friendship, mentorship, networking, etc.)
               </li>
               <li>
-                <strong>Values (15%):</strong> Political beliefs and religious
-                views
+                <strong>Location (20%):</strong> Geographic proximity based on your preferences
               </li>
             </ul>
             <p>
-              Match scores range from 0-100%, with higher scores indicating
-              stronger compatibility.
+              This helps ensure you connect with people who can provide meaningful peer support during your life transitions.
             </p>
           </div>
 
@@ -101,8 +105,8 @@ const Support = () => {
             <h3>How do I change my search preferences?</h3>
             <p>To adjust your location search preferences:</p>
             <ol>
-              <li>Go to the Discover page</li>
-              <li>Click "Search Preferences" in the top right</li>
+              <li>Go to the Find Community page</li>
+              <li>Click "Search Preferences"</li>
               <li>
                 Choose your preferred search distance (same city, same state,
                 within miles, or anywhere)
@@ -111,7 +115,7 @@ const Support = () => {
             </ol>
             <p>
               Your new preferences will take effect immediately and you'll see
-              matches based on your updated settings.
+              community members based on your updated settings.
             </p>
           </div>
 
@@ -171,25 +175,17 @@ const Support = () => {
           </div>
 
           <div className="faq-item">
-            <h3>
-              What's the difference between dating and friendship on KindredPal?
-            </h3>
+            <h3>What types of connections can I make on KindredPal?</h3>
             <p>
-              KindredPal is designed for <strong>meaningful connections</strong>{" "}
-              based on shared values, not just romance:
+              KindredPal supports multiple types of meaningful connections:
             </p>
             <ul>
-              <li>
-                You can specify if you're looking for friendship, romance,
-                networking, or community
-              </li>
-              <li>
-                Matches are based on compatibility, values, and life stage
-              </li>
-              <li>
-                The platform supports various types of connections, from casual
-                friendships to romantic relationships
-              </li>
+              <li><strong>Friendship:</strong> Build platonic friendships with people who share your values</li>
+              <li><strong>Peer Support:</strong> Connect with others navigating similar life transitions</li>
+              <li><strong>Mentorship:</strong> Find guidance from those who've been through similar experiences</li>
+              <li><strong>Networking:</strong> Connect professionally with like-minded individuals</li>
+              <li><strong>Activity Partners:</strong> Find people to pursue hobbies and interests together</li>
+              <li><strong>Community:</strong> Join local groups and support networks</li>
             </ul>
           </div>
 
@@ -197,17 +193,17 @@ const Support = () => {
             <h3>How do Meetups work?</h3>
             <p>
               Meetups allow you to organize or join group events with your
-              matches:
+              community:
             </p>
             <ul>
               <li>Create a meetup with details about the event</li>
-              <li>Invite your matches to attend</li>
+              <li>Invite your connections to attend</li>
               <li>RSVP to meetups created by others</li>
               <li>Meet new people in a group setting</li>
             </ul>
             <p>
               Meetups are a great way to build community and make connections in
-              a comfortable, social environment.
+              a comfortable, social environment. Examples include support groups, hobby gatherings, coffee meetups, or volunteer activities.
             </p>
           </div>
 
@@ -240,6 +236,24 @@ const Support = () => {
               <li>We'll verify your identity and update your account</li>
             </ol>
           </div>
+
+          <div className="faq-item">
+            <h3>Is KindredPal a substitute for therapy or professional mental health care?</h3>
+            <p>
+              <strong>No.</strong> KindredPal is a peer support community platform, not a mental health service or substitute for professional care.
+            </p>
+            <p>
+              While peer support can be incredibly valuable during life transitions, we strongly encourage seeking professional help for mental health concerns. KindredPal complements—but does not replace—therapy, counseling, or medical treatment.
+            </p>
+            <p>
+              <strong>Crisis Resources:</strong>
+            </p>
+            <ul>
+              <li><strong>US:</strong> Call or text 988 (Suicide & Crisis Lifeline)</li>
+              <li><strong>Crisis Text Line:</strong> Text "HELLO" to 741741</li>
+              <li><strong>Emergency:</strong> Call 911 or go to your nearest emergency room</li>
+            </ul>
+          </div>
         </section>
 
         <section>
@@ -256,8 +270,8 @@ const Support = () => {
           </p>
           <p>Key safety reminders:</p>
           <ul>
-            <li>Never share financial information with matches</li>
-            <li>Meet in public places for first meetings</li>
+            <li>Never share financial information with connections</li>
+            <li>Meet in public places for first in-person meetings</li>
             <li>Tell someone where you're going</li>
             <li>Trust your instincts - report suspicious behavior</li>
             <li>Use the block feature if someone makes you uncomfortable</li>

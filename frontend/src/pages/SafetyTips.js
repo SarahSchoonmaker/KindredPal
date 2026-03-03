@@ -1,5 +1,5 @@
 import React from "react";
-import { Shield, AlertTriangle, Phone, Lock, Eye, UserX } from "lucide-react";
+import { Shield, AlertTriangle, Lock, Eye, UserX } from "lucide-react";
 import "./LegalPage.css";
 
 const SafetyTips = () => {
@@ -189,91 +189,7 @@ const SafetyTips = () => {
           </ul>
         </section>
 
-        <section>
-          <h2>
-            <Phone
-              size={24}
-              style={{ display: "inline", marginRight: "8px" }}
-            />
-            Common Scams to Avoid
-          </h2>
-
-          <h3>Romance Scams</h3>
-          <p>
-            <strong>
-              Never send money to someone you've met on KindredPal.
-            </strong>{" "}
-            Common scam tactics include:
-          </p>
-          <ul>
-            <li>
-              <strong>Emergency requests</strong> - Sudden urgent need for money
-              (medical emergency, travel emergency, etc.)
-            </li>
-            <li>
-              <strong>Investment opportunities</strong> - Promises of high
-              returns or "insider" knowledge
-            </li>
-            <li>
-              <strong>Package receiving</strong> - Asking you to receive
-              packages at your address
-            </li>
-            <li>
-              <strong>Moving money</strong> - Requests to transfer money or cash
-              checks on their behalf
-            </li>
-            <li>
-              <strong>Gift cards</strong> - Asking you to buy and send gift
-              cards
-            </li>
-          </ul>
-
-          <h3>Catfishing Red Flags</h3>
-          <ul>
-            <li>Refuses to video chat despite ongoing conversations</li>
-            <li>
-              Photos look like they're from a modeling portfolio or magazine
-            </li>
-            <li>Multiple cancellations when trying to meet in person</li>
-            <li>Story details that don't add up or change frequently</li>
-            <li>Very limited online presence or social media</li>
-          </ul>
-        </section>
-
-        <section>
-          <h2>Sexual Health & Consent</h2>
-
-          <h3>Consent is Essential</h3>
-          <ul>
-            <li>
-              <strong>Consent must be clear and enthusiastic</strong> - "Yes
-              means yes"
-            </li>
-            <li>
-              <strong>Consent can be withdrawn at any time</strong> - Anyone can
-              change their mind
-            </li>
-            <li>
-              <strong>Consent requires capacity</strong> - People who are
-              intoxicated cannot give consent
-            </li>
-            <li>
-              <strong>Silence is not consent</strong> - Absence of "no" doesn't
-              mean "yes"
-            </li>
-          </ul>
-
-          <h3>Sexual Health</h3>
-          <ul>
-            <li>
-              Have open, honest conversations about sexual health and STI
-              testing
-            </li>
-            <li>Use protection and get tested regularly</li>
-            <li>Don't assume someone's status - ask and communicate</li>
-            <li>Respect boundaries and comfort levels</li>
-          </ul>
-        </section>
+       
 
         <section>
           <h2>Resources & Support</h2>

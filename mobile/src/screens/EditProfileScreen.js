@@ -4,187 +4,86 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
-  Image,
   TouchableOpacity,
+  Image,
 } from "react-native";
-import {
-  Text,
-  TextInput,
-  Button,
-  ActivityIndicator,
-  Chip,
-} from "react-native-paper";
-import { Camera, X } from "lucide-react-native";
+import { Text, TextInput, Button, ActivityIndicator } from "react-native-paper";
+import { userAPI, authAPI } from "../services/api";
 import * as ImagePicker from "expo-image-picker";
-import { authAPI, userAPI } from "../services/api";
+import { Camera } from "lucide-react-native";
 
 export default function EditProfileScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState({
+    email: "",
     name: "",
     age: "",
+    bio: "",
     city: "",
     state: "",
-    bio: "",
-    politicalBeliefs: "",
-    religion: "",
-    causes: [],
-    lifeStage: "",
-    lookingFor: "",
     profilePhoto: "",
   });
 
-  const causeOptions = [
-    "Environment",
-    "Travel & Adventure",
-    "Health & Wellness",
-    "Healthcare & Medical Causes",
-    "Education & Continuous Learning",
-    "Art & Design",
-    "Theater & Performing Arts",
-    "Film & Cinema",
-    "Music",
-    "Books & Literature",
-    "Museums & History",
-    "Poetry & Writing",
-    "Comedy & Entertainment",
-    "Fashion & Style",
-    "Video Games & Gaming",
-    "Community Service",
-    "Animal Welfare",
-    "Social Justice",
-    "Technology & Innovation",
-    "Entrepreneurship",
-    "Fitness & Active Living",
-    "Skilled Trades & Craftsmanship",
-    "Ministry",
-    "Psychology & Mental Health",
-    "Philosophy",
-    "Food & Cooking",
-    "Photography",
-    "Outdoor Activities",
-  ];
-
-  const politicalOptions = [
-    "Liberal",
-    "Conservative",
-    "Republican",
-    "Democrat",
-    "Libertarian",
-    "Moderate",
-    "Progressive",
-    "Independent",
-    "Apolitical",
-  ];
-  const religionOptions = [
-    "Christian",
-    "Catholic",
-    "Protestant",
-    "Muslim",
-    "Jewish",
-    "Hindu",
-    "Buddhist",
-    "Sikh",
-    "Seeking/Undecided",
-    "Agnostic",
-    "Atheist",
-    "Other",
-    "Prefer not to say",
-  ];
-  const lifeStageOptions = [
-    "Single",
-    "Divorced",
-    "Widowed",
-    "Single Parent",
-    "Married",
-    "Separated",
-    "Engaged",
-    "Empty Nester",
-    "Retired",
-    "Career Focused",
-    "Single Income No Kids (SINK)",
-    "Dual-Income No Kids (DINK)",
-    "College or Graduate Student",
-    "Recent Graduate",
-    "Career Transition",
-    "Caregiver",
-  ];
-  const lookingForOptions = ["Friendship", "Dating", "Either"];
-
   useEffect(() => {
     fetchProfile();
-    requestPermissions();
   }, []);
-
-  const requestPermissions = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Permission needed", "Please allow access to your photos");
-    }
-  };
 
   const fetchProfile = async () => {
     try {
       const response = await authAPI.getProfile();
-      const userData = response.data.user || response.data;
       setProfile({
-        name: userData.name || "",
-        age: String(userData.age || ""),
-        city: userData.city || "",
-        state: userData.state || "",
-        bio: userData.bio || "",
-        politicalBeliefs: userData.politicalBeliefs || "",
-        religion: userData.religion || "",
-        causes: userData.causes || [],
-        lifeStage: userData.lifeStage || "",
-        lookingFor: userData.lookingFor || "",
-        profilePhoto: userData.profilePhoto || "",
+        email: response.data.email || "",
+        name: response.data.name || "",
+        age: response.data.age?.toString() || "",
+        bio: response.data.bio || "",
+        city: response.data.city || "",
+        state: response.data.state || "",
+        profilePhoto: response.data.profilePhoto || "",
       });
     } catch (error) {
       console.error("Error fetching profile:", error);
+      Alert.alert("Error", "Failed to load profile");
     } finally {
       setLoading(false);
     }
   };
 
   const pickImage = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-        base64: true,
-      });
-
-      if (!result.canceled && result.assets[0].base64) {
-        const base64Image = `data:image/jpeg;base64,${result.assets[0].base64}`;
-        setProfile((prev) => ({ ...prev, profilePhoto: base64Image }));
-      }
-    } catch (error) {
-      console.error("Error picking image:", error);
-      Alert.alert("Error", "Could not pick image");
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    
+    if (status !== "granted") {
+      Alert.alert("Permission needed", "Please allow access to your photos");
+      return;
     }
-  };
 
-  const toggleCause = (cause) => {
-    setProfile((prev) => ({
-      ...prev,
-      causes: prev.causes.includes(cause)
-        ? prev.causes.filter((c) => c !== cause)
-        : [...prev.causes, cause],
-    }));
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      
+      // Convert to base64
+      const response = await fetch(asset.uri);
+      const blob = await response.blob();
+      const reader = new FileReader();
+      
+      reader.onloadend = () => {
+        const base64data = reader.result;
+        setProfile({ ...profile, profilePhoto: base64data });
+      };
+      
+      reader.readAsDataURL(blob);
+    }
   };
 
   const handleSave = async () => {
-    // Validation
-    if (!profile.name.trim()) {
-      Alert.alert("Error", "Name is required");
-      return;
-    }
-    if (!profile.age || isNaN(profile.age) || profile.age < 18) {
-      Alert.alert("Error", "Please enter a valid age (18+)");
+    if (!profile.name || !profile.age || !profile.bio || !profile.city || !profile.state) {
+      Alert.alert("Error", "Please fill in all required fields");
       return;
     }
 
@@ -193,22 +92,18 @@ export default function EditProfileScreen({ navigation }) {
       await userAPI.updateProfile({
         name: profile.name,
         age: parseInt(profile.age),
+        bio: profile.bio,
         city: profile.city,
         state: profile.state,
-        bio: profile.bio,
-        politicalBeliefs: profile.politicalBeliefs,
-        religion: profile.religion,
-        causes: profile.causes,
-        lifeStage: profile.lifeStage,
-        lookingFor: profile.lookingFor,
         profilePhoto: profile.profilePhoto,
       });
 
-      Alert.alert("Success", "Profile updated successfully!");
-      navigation.goBack();
+      Alert.alert("Success", "Profile updated successfully", [
+        { text: "OK", onPress: () => navigation.goBack() },
+      ]);
     } catch (error) {
-      console.error("Error saving profile:", error);
-      Alert.alert("Error", "Could not save profile. Please try again.");
+      console.error("Error updating profile:", error);
+      Alert.alert("Error", "Failed to update profile");
     } finally {
       setSaving(false);
     }
@@ -239,201 +134,108 @@ export default function EditProfileScreen({ navigation }) {
           )}
           <View style={styles.photoOverlay}>
             <Camera size={24} color="white" />
-            <Text style={styles.photoText}>Change Photo</Text>
+            <Text style={styles.photoOverlayText}>Change Photo</Text>
           </View>
         </TouchableOpacity>
       </View>
 
-      {/* Basic Info */}
+      {/* Email - Read Only */}
       <View style={styles.section}>
-        <Text variant="titleMedium" style={styles.sectionTitle}>
-          Basic Information
-        </Text>
-
+        <Text style={styles.label}>Email</Text>
         <TextInput
           mode="outlined"
-          label="Name *"
-          value={profile.name}
-          onChangeText={(text) =>
-            setProfile((prev) => ({ ...prev, name: text }))
-          }
-          style={styles.input}
+          value={profile.email}
+          disabled
+          style={[styles.input, styles.disabledInput]}
+          outlineColor="#E2E8F0"
+          activeOutlineColor="#2B6CB0"
         />
+        <Text style={styles.helperText}>Email cannot be changed</Text>
+      </View>
 
+      {/* Name */}
+      <View style={styles.section}>
+        <Text style={styles.label}>Name *</Text>
         <TextInput
           mode="outlined"
-          label="Age *"
+          value={profile.name}
+          onChangeText={(text) => setProfile({ ...profile, name: text })}
+          style={styles.input}
+          outlineColor="#E2E8F0"
+          activeOutlineColor="#2B6CB0"
+        />
+      </View>
+
+      {/* Age */}
+      <View style={styles.section}>
+        <Text style={styles.label}>Age *</Text>
+        <TextInput
+          mode="outlined"
           value={profile.age}
-          onChangeText={(text) =>
-            setProfile((prev) => ({ ...prev, age: text }))
-          }
+          onChangeText={(text) => setProfile({ ...profile, age: text })}
           keyboardType="numeric"
           style={styles.input}
+          outlineColor="#E2E8F0"
+          activeOutlineColor="#2B6CB0"
         />
+      </View>
 
+      {/* City */}
+      <View style={styles.section}>
+        <Text style={styles.label}>City *</Text>
         <TextInput
           mode="outlined"
-          label="City"
           value={profile.city}
-          onChangeText={(text) =>
-            setProfile((prev) => ({ ...prev, city: text }))
-          }
+          onChangeText={(text) => setProfile({ ...profile, city: text })}
           style={styles.input}
+          outlineColor="#E2E8F0"
+          activeOutlineColor="#2B6CB0"
         />
+      </View>
 
+      {/* State */}
+      <View style={styles.section}>
+        <Text style={styles.label}>State *</Text>
         <TextInput
           mode="outlined"
-          label="State"
           value={profile.state}
-          onChangeText={(text) =>
-            setProfile((prev) => ({ ...prev, state: text }))
-          }
+          onChangeText={(text) => setProfile({ ...profile, state: text })}
           style={styles.input}
+          outlineColor="#E2E8F0"
+          activeOutlineColor="#2B6CB0"
         />
+      </View>
 
+      {/* Bio */}
+      <View style={styles.section}>
+        <Text style={styles.label}>Bio *</Text>
         <TextInput
           mode="outlined"
-          label="Bio"
           value={profile.bio}
-          onChangeText={(text) =>
-            setProfile((prev) => ({ ...prev, bio: text }))
-          }
+          onChangeText={(text) => setProfile({ ...profile, bio: text })}
           multiline
           numberOfLines={4}
-          style={styles.input}
+          style={[styles.input, styles.bioInput]}
+          outlineColor="#E2E8F0"
+          activeOutlineColor="#2B6CB0"
+          maxLength={500}
         />
-      </View>
-
-      {/* Political Beliefs */}
-      <View style={styles.section}>
-        <Text variant="titleMedium" style={styles.sectionTitle}>
-          Political Beliefs
-        </Text>
-        <View style={styles.chipContainer}>
-          {politicalOptions.map((option) => (
-            <Chip
-              key={option}
-              selected={profile.politicalBeliefs === option}
-              onPress={() =>
-                setProfile((prev) => ({ ...prev, politicalBeliefs: option }))
-              }
-              style={styles.chip}
-            >
-              {option}
-            </Chip>
-          ))}
-        </View>
-      </View>
-
-      {/* Religion */}
-      <View style={styles.section}>
-        <Text variant="titleMedium" style={styles.sectionTitle}>
-          Religion
-        </Text>
-        <View style={styles.chipContainer}>
-          {religionOptions.map((option) => (
-            <Chip
-              key={option}
-              selected={profile.religion === option}
-              onPress={() =>
-                setProfile((prev) => ({ ...prev, religion: option }))
-              }
-              style={styles.chip}
-            >
-              {option}
-            </Chip>
-          ))}
-        </View>
-      </View>
-
-      {/* Life Stage */}
-      <View style={styles.section}>
-        <Text variant="titleMedium" style={styles.sectionTitle}>
-          Life Stage
-        </Text>
-        <View style={styles.chipContainer}>
-          {lifeStageOptions.map((option) => (
-            <Chip
-              key={option}
-              selected={profile.lifeStage === option}
-              onPress={() =>
-                setProfile((prev) => ({ ...prev, lifeStage: option }))
-              }
-              style={styles.chip}
-            >
-              {option}
-            </Chip>
-          ))}
-        </View>
-      </View>
-
-      {/* Looking For */}
-      <View style={styles.section}>
-        <Text variant="titleMedium" style={styles.sectionTitle}>
-          Looking For
-        </Text>
-        <View style={styles.chipContainer}>
-          {lookingForOptions.map((option) => (
-            <Chip
-              key={option}
-              selected={profile.lookingFor === option}
-              onPress={() =>
-                setProfile((prev) => ({ ...prev, lookingFor: option }))
-              }
-              style={styles.chip}
-            >
-              {option}
-            </Chip>
-          ))}
-        </View>
-      </View>
-
-      {/* Causes/Interests */}
-      <View style={styles.section}>
-        <Text variant="titleMedium" style={styles.sectionTitle}>
-          Causes & Interests
-        </Text>
-        <Text variant="bodySmall" style={styles.subtitle}>
-          Select up to 5 causes you care about
-        </Text>
-        <View style={styles.chipContainer}>
-          {causeOptions.map((cause) => (
-            <Chip
-              key={cause}
-              selected={profile.causes.includes(cause)}
-              onPress={() => toggleCause(cause)}
-              disabled={
-                !profile.causes.includes(cause) && profile.causes.length >= 5
-              }
-              style={styles.chip}
-            >
-              {cause}
-            </Chip>
-          ))}
-        </View>
+        <Text style={styles.charCount}>{profile.bio.length}/500</Text>
       </View>
 
       {/* Save Button */}
-      <View style={styles.buttonContainer}>
-        <Button
-          mode="contained"
-          onPress={handleSave}
-          loading={saving}
-          disabled={saving}
-          style={styles.saveButton}
-        >
-          Save Changes
-        </Button>
-        <Button
-          mode="text"
-          onPress={() => navigation.goBack()}
-          disabled={saving}
-        >
-          Cancel
-        </Button>
-      </View>
+      <Button
+        mode="contained"
+        onPress={handleSave}
+        loading={saving}
+        disabled={saving}
+        style={styles.saveButton}
+        buttonColor="#2B6CB0"
+      >
+        Save Changes
+      </Button>
 
-      <View style={styles.footer} />
+      <View style={styles.bottomPadding} />
     </ScrollView>
   );
 }
@@ -447,24 +249,28 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#F7FAFC",
   },
   photoSection: {
     alignItems: "center",
-    paddingVertical: 24,
+    paddingVertical: 30,
     backgroundColor: "white",
+    marginBottom: 20,
   },
   photoContainer: {
     position: "relative",
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    overflow: "hidden",
   },
   photo: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: "100%",
+    height: "100%",
   },
   photoPlaceholder: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: "100%",
+    height: "100%",
     backgroundColor: "#E2E8F0",
     justifyContent: "center",
     alignItems: "center",
@@ -474,55 +280,55 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "rgba(43, 108, 176, 0.9)",
-    padding: 8,
-    borderBottomLeftRadius: 60,
-    borderBottomRightRadius: 60,
-    flexDirection: "row",
-    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.6)",
+    paddingVertical: 8,
     alignItems: "center",
-    gap: 4,
+    justifyContent: "center",
   },
-  photoText: {
+  photoOverlayText: {
     color: "white",
     fontSize: 12,
-    fontWeight: "600",
+    marginTop: 4,
   },
   section: {
-    padding: 16,
     backgroundColor: "white",
-    marginTop: 12,
+    padding: 20,
+    marginBottom: 1,
   },
-  sectionTitle: {
+  label: {
+    fontSize: 14,
     fontWeight: "600",
-    color: "#2d2d2d",
-    marginBottom: 12,
-  },
-  subtitle: {
-    color: "#666",
-    marginBottom: 12,
-  },
-  input: {
-    marginBottom: 12,
-    backgroundColor: "white",
-  },
-  chipContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  chip: {
+    color: "#2D3748",
     marginBottom: 8,
   },
-  buttonContainer: {
-    padding: 20,
-    gap: 12,
+  input: {
+    backgroundColor: "white",
+  },
+  disabledInput: {
+    backgroundColor: "#F7FAFC",
+    opacity: 0.7,
+  },
+  helperText: {
+    fontSize: 12,
+    color: "#999",
+    marginTop: 4,
+    marginLeft: 4,
+  },
+  bioInput: {
+    minHeight: 100,
+    textAlignVertical: "top",
+  },
+  charCount: {
+    fontSize: 12,
+    color: "#999",
+    textAlign: "right",
+    marginTop: 4,
   },
   saveButton: {
-    backgroundColor: "#2B6CB0",
-    paddingVertical: 6,
+    margin: 20,
+    paddingVertical: 8,
   },
-  footer: {
+  bottomPadding: {
     height: 40,
   },
 });

@@ -115,11 +115,11 @@ export default function SignupScreen({ navigation }) {
 
   const lookingForOptions = [
     "Friendship",
-    "Romance",
     "Networking",
     "Activity Partner",
     "Mentor",
-    "Community",
+    "Support Group",
+    "Activity Group"
   ];
 
   const pickImage = async () => {
