@@ -189,30 +189,7 @@ const SafetyTips = () => {
           </ul>
         </section>
 
-<<<<<<< HEAD
        
-=======
-        <section>
-          <h2>
-            <Phone
-              size={24}
-              style={{ display: "inline", marginRight: "8px" }}
-            />
-            Common Scams to Avoid
-          </h2>
-
-          <h3>Catfishing Red Flags</h3>
-          <ul>
-            <li>Refuses to video chat despite ongoing conversations</li>
-            <li>
-              Photos look like they're from a modeling portfolio or magazine
-            </li>
-            <li>Multiple cancellations when trying to meet in person</li>
-            <li>Story details that don't add up or change frequently</li>
-            <li>Very limited online presence or social media</li>
-          </ul>
-        </section>
->>>>>>> bfacd441c8807d527a5e2d68f3d7e04e8814b65b
 
         <section>
           <h2>Resources & Support</h2>
