@@ -34,7 +34,6 @@ const Matches = () => {
     navigate(`/messages/${matchId}`);
   };
 
-  // ← ADD THIS HANDLER
   const handleUserActionComplete = () => {
     // Reload matches after blocking someone
     loadMatches();
@@ -88,7 +87,7 @@ const Matches = () => {
               <div className="match-photo">
                 <img src={match.profilePhoto} alt={match.name} />
 
-                {/* ← ADD THIS - Three dots menu on photo */}
+                {/* Three dots menu on photo */}
                 <div
                   className="match-card-menu"
                   onClick={(e) => e.stopPropagation()}
@@ -97,6 +96,7 @@ const Matches = () => {
                     userId={match._id}
                     userName={match.name}
                     onComplete={handleUserActionComplete}
+                    showUnmatch={true}
                   />
                 </div>
               </div>

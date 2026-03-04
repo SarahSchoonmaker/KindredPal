@@ -1,9 +1,14 @@
 import React, { useState } from "react";
-import { MoreVertical, Flag, UserX, X } from "lucide-react";
+import { MoreVertical, Flag, UserX, X, UserMinus } from "lucide-react";
 import { userAPI } from "../services/api";
 import "./UserActionsMenu.css";
 
-const UserActionsMenu = ({ userId, userName, onComplete }) => {
+const UserActionsMenu = ({
+  userId,
+  userName,
+  onComplete,
+  showUnmatch = false,
+}) => {
   const [showMenu, setShowMenu] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState("");
@@ -41,7 +46,7 @@ const UserActionsMenu = ({ userId, userName, onComplete }) => {
   };
 
   const handleBlock = async () => {
-    console.log("🚫 Block button clicked for user:", userId);
+    console.log("🚫 Block clicked for user:", userId);
 
     if (
       !window.confirm(
@@ -65,7 +70,7 @@ const UserActionsMenu = ({ userId, userName, onComplete }) => {
       console.log("🔄 Calling onComplete callback...");
       if (onComplete) {
         onComplete();
-        console.log("✅ onComplete called successfully");
+        console.log("✅ onComplete called - should refresh list");
       } else {
         console.warn("⚠️ No onComplete callback provided!");
       }
@@ -73,6 +78,44 @@ const UserActionsMenu = ({ userId, userName, onComplete }) => {
       console.error("❌ Error blocking user:", error);
       console.error("❌ Error response:", error.response?.data);
       alert("Failed to block user. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUnmatch = async () => {
+    console.log("🔓 Unmatch clicked for user:", userId);
+
+    if (
+      !window.confirm(
+        `Are you sure you want to unmatch with ${userName}? You'll no longer be able to message each other.`,
+      )
+    ) {
+      console.log("❌ User cancelled unmatch");
+      return;
+    }
+
+    console.log("✅ User confirmed unmatch, calling API...");
+    setLoading(true);
+
+    try {
+      const response = await userAPI.unmatchUser(userId);
+      console.log("✅ Unmatch API response:", response);
+
+      alert(`You've unmatched with ${userName}.`);
+      setShowMenu(false);
+
+      console.log("🔄 Calling onComplete callback...");
+      if (onComplete) {
+        onComplete();
+        console.log("✅ onComplete called - should refresh matches list");
+      } else {
+        console.warn("⚠️ No onComplete callback provided!");
+      }
+    } catch (error) {
+      console.error("❌ Error unmatching user:", error);
+      console.error("❌ Error response:", error.response?.data);
+      alert("Failed to unmatch. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -92,6 +135,13 @@ const UserActionsMenu = ({ userId, userName, onComplete }) => {
         <>
           <div className="menu-overlay" onClick={() => setShowMenu(false)} />
           <div className="menu-dropdown">
+            {showUnmatch && (
+              <button className="menu-item unmatch" onClick={handleUnmatch}>
+                <UserMinus size={18} />
+                <span>Unmatch</span>
+              </button>
+            )}
+
             <button
               className="menu-item report"
               onClick={() => {
@@ -102,6 +152,7 @@ const UserActionsMenu = ({ userId, userName, onComplete }) => {
               <Flag size={18} />
               <span>Report User</span>
             </button>
+
             <button className="menu-item block" onClick={handleBlock}>
               <UserX size={18} />
               <span>Block User</span>
