@@ -41,22 +41,37 @@ const UserActionsMenu = ({ userId, userName, onComplete }) => {
   };
 
   const handleBlock = async () => {
+    console.log("🚫 Block button clicked for user:", userId);
+
     if (
       !window.confirm(
         `Are you sure you want to block ${userName}? They won't be able to see your profile or contact you.`,
       )
     ) {
+      console.log("❌ User cancelled block");
       return;
     }
 
+    console.log("✅ User confirmed block, calling API...");
     setLoading(true);
+
     try {
-      await userAPI.blockUser(userId);
+      const response = await userAPI.blockUser(userId);
+      console.log("✅ Block API response:", response);
+
       alert(`${userName} has been blocked.`);
       setShowMenu(false);
-      if (onComplete) onComplete();
+
+      console.log("🔄 Calling onComplete callback...");
+      if (onComplete) {
+        onComplete();
+        console.log("✅ onComplete called successfully");
+      } else {
+        console.warn("⚠️ No onComplete callback provided!");
+      }
     } catch (error) {
-      console.error("Error blocking user:", error);
+      console.error("❌ Error blocking user:", error);
+      console.error("❌ Error response:", error.response?.data);
       alert("Failed to block user. Please try again.");
     } finally {
       setLoading(false);

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { UserCircle, MapPin, MessageCircle } from "lucide-react";
 import { userAPI } from "../services/api";
-import UserActionsMenu from "../components/UserActionsMenu"; // ← ADD THIS IMPORT
+import UserActionsMenu from "../components/UserActionsMenu";
 import "./Matches.css";
 
 const Matches = () => {
