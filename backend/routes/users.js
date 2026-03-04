@@ -26,16 +26,6 @@ router.get("/discover", auth, async (req, res) => {
     logger.info("\n========== DISCOVER REQUEST ==========");
     logger.info("👤 User:", currentUser.email);
     logger.info("📍 Location:", currentUser.city, currentUser.state);
-    logger.info(
-      "🎯 Location Preference:",
-      currentUser.locationPreference || "Home state (default)",
-    );
-    logger.info("👤 Current User Details:");
-    logger.info("   Political:", JSON.stringify(currentUser.politicalBeliefs));
-    logger.info("   Religion:", currentUser.religion);
-    logger.info("   LifeStage:", JSON.stringify(currentUser.lifeStage));
-    logger.info("   Causes:", JSON.stringify(currentUser.causes));
-    logger.info("   LookingFor:", JSON.stringify(currentUser.lookingFor));
 
     // Get all users who have blocked the current user
     const usersWhoBlockedMe = await User.find({
@@ -52,11 +42,20 @@ router.get("/discover", auth, async (req, res) => {
       ...blockedMeIds,
     ];
 
+    // ✅ ADD DETAILED LOGGING HERE
     logger.info("🚫 Excluding", excludedIds.length, "users");
     logger.info("   Liked:", (currentUser.likes || []).length);
+    logger.info(
+      "   Liked IDs:",
+      currentUser.likes.map((id) => id.toString()).join(", "),
+    );
     logger.info("   Passed:", (currentUser.passed || []).length);
     logger.info("   Blocked:", (currentUser.blockedUsers || []).length);
     logger.info("   Blocked me:", blockedMeIds.length);
+    logger.info(
+      "   All excluded IDs:",
+      excludedIds.map((id) => id.toString()).join(", "),
+    );
 
     // Find potential matches
     let potentialMatches = await User.find({
@@ -69,24 +68,19 @@ router.get("/discover", auth, async (req, res) => {
       )
       .lean();
 
-    logger.info("📊 Total users in database:", potentialMatches.length);
+    logger.info("📊 After exclusion filter:", potentialMatches.length, "users");
+    logger.info(
+      "   User IDs:",
+      potentialMatches.map((u) => `${u.name} (${u._id})`).join(", "),
+    );
 
     // Filter by location preference
-    const locationPref = currentUser.locationPreference || "Home state";
+    const locationPref = currentUser.locationPreference || "Same state";
     logger.info("🔍 Applying location filter:", locationPref);
 
     potentialMatches = potentialMatches.filter((user) => {
       try {
         const meets = currentUser.meetsLocationPreference(user);
-        if (!meets) {
-          logger.info(
-            `   ❌ ${user.name} (${user.city}, ${user.state}) - doesn't meet location preference`,
-          );
-        } else {
-          logger.info(
-            `   ✅ ${user.name} (${user.city}, ${user.state}) - meets location preference`,
-          );
-        }
         return meets;
       } catch (err) {
         logger.error(
@@ -104,16 +98,6 @@ router.get("/discover", auth, async (req, res) => {
       .map((user) => {
         try {
           const score = currentUser.calculateMatchScore(user);
-          logger.info(`\n   🎯 ${user.name}: ${score}% match`);
-          logger.info(`      Location: ${user.city}, ${user.state}`);
-          logger.info(
-            `      Political: ${JSON.stringify(user.politicalBeliefs)}`,
-          );
-          logger.info(`      Religion: ${user.religion}`);
-          logger.info(`      LifeStage: ${JSON.stringify(user.lifeStage)}`);
-          logger.info(`      Causes: ${JSON.stringify(user.causes)}`);
-          logger.info(`      LookingFor: ${JSON.stringify(user.lookingFor)}`);
-
           return {
             ...user,
             matchScore: score,
@@ -123,21 +107,10 @@ router.get("/discover", auth, async (req, res) => {
             `   ⚠️ Error calculating score for user ${user._id}:`,
             err.message,
           );
-          logger.error(`   Stack:`, err.stack);
           return null;
         }
       })
-      .filter((user) => user !== null); // CHANGED: Show all users, even 0% matches
-
-    logger.info("\n✨ Total matches with scores:", matchesWithScores.length);
-    logger.info(
-      "   0% matches:",
-      matchesWithScores.filter((u) => u.matchScore === 0).length,
-    );
-    logger.info(
-      "   >0% matches:",
-      matchesWithScores.filter((u) => u.matchScore > 0).length,
-    );
+      .filter((user) => user !== null);
 
     // Sort by match score (highest first)
     matchesWithScores.sort((a, b) => b.matchScore - a.matchScore);
