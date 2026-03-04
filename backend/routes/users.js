@@ -289,10 +289,12 @@ router.get("/likes-you", auth, async (req, res) => {
   try {
     const currentUser = await User.findById(req.userId);
 
-    // Find users who have liked the current user but are not yet matched
+    // Find users who have liked the current user but are NOT yet matched
     const usersWhoLikedYou = await User.find({
       likes: currentUser._id,
-      _id: { $nin: currentUser.matches },
+      _id: {
+        $nin: [...currentUser.matches, ...currentUser.blockedUsers],
+      },
     })
       .select(
         "name age city state profilePhoto bio causes lifeStage politicalBeliefs religion lookingFor",
@@ -306,7 +308,7 @@ router.get("/likes-you", auth, async (req, res) => {
     // Return in the format the frontend expects
     res.json({
       users: usersWhoLikedYou,
-      dailyLikesRemaining: 10, // You can implement daily limits later
+      dailyLikesRemaining: 10,
     });
   } catch (error) {
     logger.error("Likes you error:", error);
