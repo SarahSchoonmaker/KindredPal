@@ -197,10 +197,6 @@ const userSchema = new mongoose.Schema(
           "Career Transition",
           "Retired",
           "Semi-Retired",
-
-          // Financial (keep these for now)
-          "Single Income No Kids (SINK)",
-          "Dual-Income No Kids (DINK)",
         ],
       },
     ],
