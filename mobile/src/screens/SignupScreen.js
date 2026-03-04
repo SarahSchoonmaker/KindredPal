@@ -109,8 +109,7 @@ export default function SignupScreen({ navigation }) {
     "Career Transition",
     "Retired",
     "Semi-Retired",
-    "Single Income No Kids (SINK)",
-    "Dual-Income No Kids (DINK)",
+    "It's Complicated",
   ];
 
   const lookingForOptions = [

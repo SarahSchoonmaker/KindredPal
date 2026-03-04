@@ -1,16 +1,11 @@
 import React from "react";
-import {
-  View,
-  ActivityIndicator,
-  Text,
-  StyleSheet,
-} from "react-native";
+import { View, ActivityIndicator, Text, StyleSheet } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { PaperProvider, MD3LightTheme } from "react-native-paper";
 import {
-  Heart,
+  Search,
   MessageCircle,
   User,
   Calendar,
@@ -97,7 +92,7 @@ function MainTabs() {
         component={DiscoverScreen}
         options={{
           tabBarLabel: "Discover",
-          tabBarIcon: ({ color, size }) => <Heart color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <Search color={color} size={size} />,
         }}
       />
 

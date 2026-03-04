@@ -227,6 +227,32 @@ const Profile = () => {
             {isEditing ? (
               <div className="form-fields">
                 <div className="form-field">
+                  <label>Email</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={user.email}
+                    disabled
+                    style={{
+                      backgroundColor: "#f5f5f5",
+                      cursor: "not-allowed",
+                      color: "#666",
+                    }}
+                  />
+                  <small
+                    style={{
+                      color: "#666",
+                      fontSize: "12px",
+                      display: "block",
+                      marginTop: "4px",
+                    }}
+                  >
+                    Email cannot be changed. Contact support if you need to
+                    update it.
+                  </small>
+                </div>
+
+                <div className="form-field">
                   <label>Name</label>
                   <input
                     type="text"
@@ -235,6 +261,7 @@ const Profile = () => {
                     onChange={handleChange}
                   />
                 </div>
+
                 <div className="form-field">
                   <label>Age</label>
                   <input
@@ -244,6 +271,7 @@ const Profile = () => {
                     onChange={handleChange}
                   />
                 </div>
+
                 <div className="form-field">
                   <label>City</label>
                   <input
@@ -253,6 +281,7 @@ const Profile = () => {
                     onChange={handleChange}
                   />
                 </div>
+
                 <div className="form-field">
                   <label>State</label>
                   <input
@@ -260,8 +289,11 @@ const Profile = () => {
                     name="state"
                     value={formData.state}
                     onChange={handleChange}
+                    maxLength={2}
+                    placeholder="e.g., CA"
                   />
                 </div>
+
                 <div className="form-field">
                   <label>Bio</label>
                   <textarea
@@ -269,11 +301,25 @@ const Profile = () => {
                     value={formData.bio}
                     onChange={handleChange}
                     rows="4"
+                    maxLength={500}
                   />
+                  <small
+                    style={{
+                      color: "#666",
+                      fontSize: "12px",
+                      display: "block",
+                      marginTop: "4px",
+                    }}
+                  >
+                    {formData.bio.length}/500 characters
+                  </small>
                 </div>
               </div>
             ) : (
               <div className="info-display">
+                <p>
+                  <strong>Email:</strong> {user.email}
+                </p>
                 <p>
                   <strong>Name:</strong> {user.name}, {user.age}
                 </p>
@@ -355,6 +401,7 @@ const Profile = () => {
                     <option value="Married">Married</option>
                     <option value="Separated">Separated</option>
                     <option value="Divorced">Divorced</option>
+                    <option value="It's Complicated">It's Complicated</option>
                     <option value="Widowed">Widowed</option>
                     <option value="Single Parent">Single Parent</option>
                     <option value="Have Children">Have Children</option>
@@ -380,12 +427,6 @@ const Profile = () => {
                     <option value="Career Transition">Career Transition</option>
                     <option value="Retired">Retired</option>
                     <option value="Semi-Retired">Semi-Retired</option>
-                    <option value="Single Income No Kids (SINK)">
-                      Single Income No Kids (SINK)
-                    </option>
-                    <option value="Dual-Income No Kids (DINK)">
-                      Dual-Income No Kids (DINK)
-                    </option>
                   </select>
                 </div>
               </section>

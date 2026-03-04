@@ -13,7 +13,7 @@ import {
   Button,
   ActivityIndicator,
 } from "react-native-paper";
-import { Heart } from "lucide-react-native";
+import { Users } from "lucide-react-native"; // Changed from Heart
 import { userAPI } from "../services/api";
 
 export default function InterestedScreen({ navigation }) {
@@ -30,9 +30,12 @@ export default function InterestedScreen({ navigation }) {
       console.log("📥 Fetching likes...");
       const response = await userAPI.getLikesYou();
       console.log("✅ Likes response:", response.data);
-      setLikes(response.data || []);
+
+      // FIX: Access response.data.users instead of response.data
+      setLikes(response.data.users || []);
     } catch (error) {
       console.error("❌ Error fetching likes:", error);
+      console.error("Error details:", error.response?.data);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -100,9 +103,8 @@ export default function InterestedScreen({ navigation }) {
             mode="contained"
             onPress={() => handleLike(item._id)}
             style={styles.likeButton}
-            icon={() => <Heart color="white" size={20} fill="white" />}
           >
-            Like
+            Connect
           </Button>
         </View>
       </Card.Content>
@@ -121,13 +123,20 @@ export default function InterestedScreen({ navigation }) {
   if (likes.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <Heart size={64} color="#CBD5E0" />
+        <Users size={64} color="#CBD5E0" />
         <Text variant="headlineMedium" style={styles.emptyTitle}>
-          No Likes Yet
+          No Connection Requests Yet
         </Text>
         <Text variant="bodyLarge" style={styles.emptyText}>
-          People who like you will appear here
+          People who want to connect with you will appear here
         </Text>
+        <Button
+          mode="contained"
+          onPress={() => navigation.navigate("Discover")}
+          style={styles.discoverButton}
+        >
+          Find Community
+        </Button>
       </View>
     );
   }
@@ -167,10 +176,15 @@ const styles = StyleSheet.create({
     marginTop: 24,
     marginBottom: 8,
     color: "#2d2d2d",
+    textAlign: "center",
   },
   emptyText: {
     textAlign: "center",
     color: "#666",
+    marginBottom: 24,
+  },
+  discoverButton: {
+    backgroundColor: "#2B6CB0",
   },
   list: {
     padding: 16,

@@ -34,11 +34,15 @@ function LikesYou() {
       await api.post(`/users/like/${userId}`);
       setUsers((prev) => prev.filter((u) => u._id !== userId));
     } catch (error) {
-      console.error("Error liking user:", error);
-      alert(error.response?.data?.message || "Error connecting");
+      console.error("❌ Error liking user:", error);
+      console.error("❌ Error response:", error.response?.data);
+      console.error("❌ Error status:", error.response?.status);
+
+      const errorMessage =
+        error.response?.data?.message || error.message || "Error connecting";
+      alert(`Error: ${errorMessage}`);
     }
   };
-
   const handlePass = async (userId, e) => {
     e.stopPropagation();
 

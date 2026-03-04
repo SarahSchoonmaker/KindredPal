@@ -234,9 +234,9 @@ const Messages = () => {
                     <p>Start a conversation below</p>
                   </div>
                 ) : (
-                  messages.map((message, index) => (
+                  messages.map((message) => (
                     <div
-                      key={index}
+                      key={message._id}
                       className={`message ${message.senderId === user.id ? "sent" : "received"}`}
                     >
                       <div className="message-bubble">

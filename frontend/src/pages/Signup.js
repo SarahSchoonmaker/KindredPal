@@ -30,24 +30,24 @@ const Signup = () => {
     lookingFor: [],
   });
 
- // Scroll to top when step changes
-useEffect(() => {
-  // Force scroll to absolute top
-  window.scrollTo(0, 0);
-  document.documentElement.scrollTop = 0;
-  document.body.scrollTop = 0;
-  
-  // Also scroll the auth container if it exists
-  const authContainer = document.querySelector('.auth-container');
-  if (authContainer) {
-    authContainer.scrollTop = 0;
-  }
-  
-  const authCard = document.querySelector('.auth-card');
-  if (authCard) {
-    authCard.scrollTop = 0;
-  }
-}, [step]);
+  // Scroll to top when step changes
+  useEffect(() => {
+    // Force scroll to absolute top
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+
+    // Also scroll the auth container if it exists
+    const authContainer = document.querySelector(".auth-container");
+    if (authContainer) {
+      authContainer.scrollTop = 0;
+    }
+
+    const authCard = document.querySelector(".auth-card");
+    if (authCard) {
+      authCard.scrollTop = 0;
+    }
+  }, [step]);
 
   const politicalOptions = [
     "Liberal",
@@ -111,6 +111,7 @@ useEffect(() => {
     "Divorced",
     "Widowed",
     "Separated",
+    "It's Complicated",
     // Family
     "Single Parent",
     "Have Children",
@@ -130,9 +131,6 @@ useEffect(() => {
     "Career Transition",
     "Retired",
     "Semi-Retired",
-    // Financial
-    "Single Income No Kids (SINK)",
-    "Dual-Income No Kids (DINK)",
   ];
 
   // ✅ UPDATED: Added "Community"
@@ -492,7 +490,8 @@ useEffect(() => {
               <div className="form-step">
                 <h3>Life Stage & Support Needs</h3>
                 <p className="form-help">
-                  ⭐ This is the MOST important for finding your community! Select all that apply.
+                  ⭐ This is the MOST important for finding your community!
+                  Select all that apply.
                 </p>
 
                 <div className="form-group">

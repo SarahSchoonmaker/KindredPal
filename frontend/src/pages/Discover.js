@@ -54,17 +54,19 @@ function Discover() {
 
   const handleLike = async (userId, e) => {
     e.stopPropagation();
+    console.log("🎯 Liking user:", userId);
+    console.log("👤 Current user ID:", currentUser._id); // Check format
 
     // Prevent double-clicking
     if (actionLoading[userId] || likedUsers.has(userId)) return;
 
-    setActionLoading(prev => ({ ...prev, [userId]: true }));
+    setActionLoading((prev) => ({ ...prev, [userId]: true }));
 
     try {
       const response = await api.post(`/users/like/${userId}`);
 
       // Add to liked users
-      setLikedUsers(prev => new Set([...prev, userId]));
+      setLikedUsers((prev) => new Set([...prev, userId]));
 
       if (response.data.isMatch) {
         setMatchedUser(response.data.matchedUser);
@@ -74,12 +76,12 @@ function Discover() {
       // Remove from list after delay to show "Request Sent"
       setTimeout(() => {
         setUsers((prev) => prev.filter((u) => u._id !== userId));
-        setActionLoading(prev => ({ ...prev, [userId]: false }));
+        setActionLoading((prev) => ({ ...prev, [userId]: false }));
       }, 1000);
     } catch (error) {
       console.error("Error liking user:", error);
       alert(error.response?.data?.message || "Error connecting with user");
-      setActionLoading(prev => ({ ...prev, [userId]: false }));
+      setActionLoading((prev) => ({ ...prev, [userId]: false }));
     }
   };
 
@@ -89,14 +91,14 @@ function Discover() {
     // Prevent double-clicking
     if (actionLoading[userId]) return;
 
-    setActionLoading(prev => ({ ...prev, [userId]: true }));
+    setActionLoading((prev) => ({ ...prev, [userId]: true }));
 
     try {
       await api.post(`/users/pass/${userId}`);
       setUsers((prev) => prev.filter((u) => u._id !== userId));
     } catch (error) {
       console.error("Error passing user:", error);
-      setActionLoading(prev => ({ ...prev, [userId]: false }));
+      setActionLoading((prev) => ({ ...prev, [userId]: false }));
     }
   };
 
@@ -250,13 +252,19 @@ function Discover() {
                     <span>Pass</span>
                   </button>
                   <button
-                    className={`action-btn-small like-btn ${likedUsers.has(user._id) ? 'request-sent' : ''}`}
+                    className={`action-btn-small like-btn ${likedUsers.has(user._id) ? "request-sent" : ""}`}
                     onClick={(e) => handleLike(user._id, e)}
-                    disabled={actionLoading[user._id] || likedUsers.has(user._id)}
-                    title={likedUsers.has(user._id) ? "Request Sent" : "Connect"}
+                    disabled={
+                      actionLoading[user._id] || likedUsers.has(user._id)
+                    }
+                    title={
+                      likedUsers.has(user._id) ? "Request Sent" : "Connect"
+                    }
                   >
                     <UserCheck size={20} />
-                    <span>{likedUsers.has(user._id) ? 'Request Sent' : 'Connect'}</span>
+                    <span>
+                      {likedUsers.has(user._id) ? "Request Sent" : "Connect"}
+                    </span>
                   </button>
                 </div>
               </div>

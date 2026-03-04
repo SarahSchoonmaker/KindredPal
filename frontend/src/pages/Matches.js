@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { UserCircle, MapPin, MessageCircle } from "lucide-react"; // ← Changed from Users
-
+import { UserCircle, MapPin, MessageCircle } from "lucide-react";
 import { userAPI } from "../services/api";
+import UserActionsMenu from "../components/UserActionsMenu"; // ← ADD THIS IMPORT
 import "./Matches.css";
 
 const Matches = () => {
@@ -30,8 +30,14 @@ const Matches = () => {
   };
 
   const handleMessage = (matchId, e) => {
-    e.stopPropagation(); // Prevent card click
+    e.stopPropagation();
     navigate(`/messages/${matchId}`);
+  };
+
+  // ← ADD THIS HANDLER
+  const handleUserActionComplete = () => {
+    // Reload matches after blocking someone
+    loadMatches();
   };
 
   if (loading) {
@@ -81,6 +87,18 @@ const Matches = () => {
               {/* Profile Photo */}
               <div className="match-photo">
                 <img src={match.profilePhoto} alt={match.name} />
+
+                {/* ← ADD THIS - Three dots menu on photo */}
+                <div
+                  className="match-card-menu"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <UserActionsMenu
+                    userId={match._id}
+                    userName={match.name}
+                    onComplete={handleUserActionComplete}
+                  />
+                </div>
               </div>
 
               {/* Match Info */}
@@ -95,7 +113,6 @@ const Matches = () => {
                   </span>
                 </div>
 
-                {/* Life Stage Preview */}
                 {match.lifeStage && match.lifeStage.length > 0 && (
                   <div className="match-tags">
                     {match.lifeStage.slice(0, 2).map((stage) => (
@@ -106,7 +123,6 @@ const Matches = () => {
                   </div>
                 )}
 
-                {/* Message Button */}
                 <button
                   className="btn-message"
                   onClick={(e) => handleMessage(match._id, e)}

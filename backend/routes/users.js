@@ -41,7 +41,7 @@ router.get("/discover", auth, async (req, res) => {
     const usersWhoBlockedMe = await User.find({
       blockedUsers: currentUser._id,
     }).select("_id");
-    const blockedMeIds = usersWhoBlockedMe.map(u => u._id);
+    const blockedMeIds = usersWhoBlockedMe.map((u) => u._id);
 
     // Get all users except current user, liked, passed, blocked, and who blocked me
     const excludedIds = [
@@ -106,12 +106,14 @@ router.get("/discover", auth, async (req, res) => {
           const score = currentUser.calculateMatchScore(user);
           logger.info(`\n   🎯 ${user.name}: ${score}% match`);
           logger.info(`      Location: ${user.city}, ${user.state}`);
-          logger.info(`      Political: ${JSON.stringify(user.politicalBeliefs)}`);
+          logger.info(
+            `      Political: ${JSON.stringify(user.politicalBeliefs)}`,
+          );
           logger.info(`      Religion: ${user.religion}`);
           logger.info(`      LifeStage: ${JSON.stringify(user.lifeStage)}`);
           logger.info(`      Causes: ${JSON.stringify(user.causes)}`);
           logger.info(`      LookingFor: ${JSON.stringify(user.lookingFor)}`);
-          
+
           return {
             ...user,
             matchScore: score,
@@ -127,12 +129,15 @@ router.get("/discover", auth, async (req, res) => {
       })
       .filter((user) => user !== null); // CHANGED: Show all users, even 0% matches
 
+    logger.info("\n✨ Total matches with scores:", matchesWithScores.length);
     logger.info(
-      "\n✨ Total matches with scores:",
-      matchesWithScores.length,
+      "   0% matches:",
+      matchesWithScores.filter((u) => u.matchScore === 0).length,
     );
-    logger.info("   0% matches:", matchesWithScores.filter(u => u.matchScore === 0).length);
-    logger.info("   >0% matches:", matchesWithScores.filter(u => u.matchScore > 0).length);
+    logger.info(
+      "   >0% matches:",
+      matchesWithScores.filter((u) => u.matchScore > 0).length,
+    );
 
     // Sort by match score (highest first)
     matchesWithScores.sort((a, b) => b.matchScore - a.matchScore);
@@ -154,19 +159,16 @@ router.get("/discover", auth, async (req, res) => {
   }
 });
 
-
-
-
 // ===== LIKE USER =====
 
 // @route   POST /api/users/like/:userId
 // @desc    Like a user
 // @access  Private
-// @route   POST /api/users/like/:userId
-// @desc    Like a user
-// @access  Private
+
 router.post("/like/:userId", auth, async (req, res) => {
   try {
+    logger.info(`📥 Like request: ${req.userId} → ${req.params.userId}`);
+
     const currentUser = await User.findById(req.userId);
     const likedUser = await User.findById(req.params.userId);
 
@@ -174,17 +176,15 @@ router.post("/like/:userId", auth, async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Check if already liked (convert ObjectIds to strings for comparison)
+    // Check if already liked
     const alreadyLiked = currentUser.likes.some(
-      id => id.toString() === likedUser._id.toString()
+      (id) => id.toString() === likedUser._id.toString(),
     );
 
     // Add to likes only if not already there
     if (!alreadyLiked) {
       currentUser.likes.push(likedUser._id);
-      logger.info(`User ${currentUser.email} liked ${likedUser.email}`);
-    } else {
-      logger.info(`User ${currentUser.email} already liked ${likedUser.email}`);
+      logger.info(`✅ Added ${likedUser.email} to likes`);
     }
 
     // Check if it's a match
@@ -192,41 +192,48 @@ router.post("/like/:userId", auth, async (req, res) => {
     let matchedUser = null;
 
     const otherUserLikesMe = likedUser.likes.some(
-      id => id.toString() === currentUser._id.toString()
+      (id) => id.toString() === currentUser._id.toString(),
     );
 
     if (otherUserLikesMe) {
-      // Check if already matched
       const alreadyMatched = currentUser.matches.some(
-        id => id.toString() === likedUser._id.toString()
+        (id) => id.toString() === likedUser._id.toString(),
       );
 
       if (!alreadyMatched) {
         isMatch = true;
         currentUser.matches.push(likedUser._id);
         likedUser.matches.push(currentUser._id);
+
         await likedUser.save();
         matchedUser = likedUser.toObject();
 
-        logger.info(`🎉 Match created between ${currentUser.email} and ${likedUser.email}`);
+        logger.info(
+          `🎉 Match created between ${currentUser.email} and ${likedUser.email}`,
+        );
 
-        // 🔔 Send push notification for match
+        // Push notification
         if (likedUser.pushTokens && likedUser.pushTokens.length > 0) {
-          await sendPushNotification(
-            likedUser.pushTokens,
-            "🎉 It's a Match!",
-            `You and ${currentUser.name} matched!`,
-            { type: "match", userId: currentUser._id.toString() },
-          );
+          try {
+            await sendPushNotification(
+              likedUser.pushTokens,
+              "🎉 It's a Match!",
+              `You and ${currentUser.name} matched!`,
+              { type: "match", userId: currentUser._id.toString() },
+            );
+          } catch (pushError) {
+            logger.error("⚠️ Push notification failed:", pushError.message);
+          }
         }
       } else {
-        logger.info(`Already matched with ${likedUser.email}`);
         matchedUser = likedUser.toObject();
-        isMatch = true; // Still return true since they're matched
+        isMatch = true;
       }
     }
 
+    // ✅ CRITICAL: Save BEFORE responding
     await currentUser.save();
+    logger.info(`✅ Current user saved with ${currentUser.likes.length} likes`);
 
     res.json({
       message: isMatch ? "It's a match!" : "User liked",
@@ -234,9 +241,12 @@ router.post("/like/:userId", auth, async (req, res) => {
       matchedUser,
     });
   } catch (error) {
-    logger.error("Like user error:", error);
-    logger.error("Error stack:", error.stack);
-    res.status(500).json({ message: "Error liking user", error: error.message });
+    logger.error("❌ Like user error:", error);
+    logger.error("❌ Error message:", error.message);
+    logger.error("❌ Error stack:", error.stack);
+    res
+      .status(500)
+      .json({ message: "Error liking user", error: error.message });
   }
 });
 
@@ -297,10 +307,14 @@ router.get("/likes-you", auth, async (req, res) => {
       likes: currentUser._id,
       _id: { $nin: currentUser.matches },
     })
-      .select("name age city state profilePhoto bio causes lifeStage politicalBeliefs religion lookingFor")
+      .select(
+        "name age city state profilePhoto bio causes lifeStage politicalBeliefs religion lookingFor",
+      )
       .lean();
 
-    logger.info(`📬 Likes-You request for ${currentUser.email}: ${usersWhoLikedYou.length} users found`);
+    logger.info(
+      `📬 Likes-You request for ${currentUser.email}: ${usersWhoLikedYou.length} users found`,
+    );
 
     // Return in the format the frontend expects
     res.json({
@@ -469,15 +483,17 @@ router.post("/:userId/report", auth, async (req, res) => {
 // ===== BLOCK USER =====
 router.post("/:userId/block", auth, async (req, res) => {
   try {
-    logger.info(`Attempting to block user. Current user ID: ${req.userId}, Target user: ${req.params.userId}`);
-    
+    logger.info(
+      `Attempting to block user. Current user ID: ${req.userId}, Target user: ${req.params.userId}`,
+    );
+
     const currentUser = await User.findById(req.userId);
-    
+
     if (!currentUser) {
       logger.error(`Current user not found: ${req.userId}`);
       return res.status(404).json({ message: "User not found" });
     }
-    
+
     const userToBlockId = req.params.userId;
     logger.info(`Current user blockedUsers array:`, currentUser.blockedUsers);
 
@@ -488,41 +504,49 @@ router.post("/:userId/block", auth, async (req, res) => {
       logger.info(`User saved successfully`);
     }
 
-    logger.info(`Attempting to delete messages between ${req.userId} and ${userToBlockId}`);
+    logger.info(
+      `Attempting to delete messages between ${req.userId} and ${userToBlockId}`,
+    );
     const deleteResult = await Message.deleteMany({
       $or: [
         { sender: req.userId, recipient: userToBlockId },
-        { sender: userToBlockId, recipient: req.userId }
-      ]
+        { sender: userToBlockId, recipient: req.userId },
+      ],
     });
-    
+
     logger.info(`Deleted ${deleteResult.deletedCount} messages`);
-    logger.info(`User ${req.userId} blocked ${userToBlockId} and deleted message history`);
-    
+    logger.info(
+      `User ${req.userId} blocked ${userToBlockId} and deleted message history`,
+    );
+
     res.json({ message: "User blocked and message history deleted" });
   } catch (error) {
     logger.error("Error blocking user - Full error:", error);
     logger.error("Error stack:", error.stack);
-    res.status(500).json({ message: "Error blocking user", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error blocking user", error: error.message });
   }
 });
 
 // ===== UNBLOCK USER =====
 router.delete("/:userId/block", auth, async (req, res) => {
   try {
-    logger.info(`Attempting to unblock user. Current user ID: ${req.userId}, Target user: ${req.params.userId}`);
-    
+    logger.info(
+      `Attempting to unblock user. Current user ID: ${req.userId}, Target user: ${req.params.userId}`,
+    );
+
     const currentUser = await User.findById(req.userId);
-    
+
     if (!currentUser) {
       logger.error(`Current user not found: ${req.userId}`);
       return res.status(404).json({ message: "User not found" });
     }
-    
+
     const userToUnblockId = req.params.userId;
 
     currentUser.blockedUsers = currentUser.blockedUsers.filter(
-      id => id.toString() !== userToUnblockId
+      (id) => id.toString() !== userToUnblockId,
     );
     await currentUser.save();
 
@@ -531,7 +555,9 @@ router.delete("/:userId/block", auth, async (req, res) => {
   } catch (error) {
     logger.error("Error unblocking user - Full error:", error);
     logger.error("Error stack:", error.stack);
-    res.status(500).json({ message: "Error unblocking user", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error unblocking user", error: error.message });
   }
 });
 
@@ -539,10 +565,10 @@ router.delete("/:userId/block", auth, async (req, res) => {
 router.get("/blocked", auth, async (req, res) => {
   try {
     const user = await User.findById(req.userId)
-      .populate("blockedUsers", "name profilePhoto")  
+      .populate("blockedUsers", "name profilePhoto")
       .lean();
 
-    res.json(user.blockedUsers || []);  
+    res.json(user.blockedUsers || []);
   } catch (error) {
     logger.error("❌ Get blocked users error:", error);
     res.status(500).json({ message: "Error fetching blocked users" });

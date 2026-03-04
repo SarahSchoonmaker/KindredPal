@@ -22,12 +22,24 @@ export default function MessagesScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    fetchMatches();
-  }, []);
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => {
+            // Handle menu action
+            console.log("Menu pressed");
+          }}
+          style={{ marginRight: 16 }} // ← Adjust this margin
+        >
+          <Text style={{ color: "white", fontSize: 24 }}>⋮</Text>
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation]);
 
   // Refresh when screen comes into focus (after blocking someone)
   useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
+    const unsubscribe = navigation.addListener("focus", () => {
       fetchMatches();
     });
     return unsubscribe;
@@ -47,7 +59,7 @@ export default function MessagesScreen({ navigation }) {
       let blockedUserIds = [];
       try {
         const blockedResponse = await userAPI.getBlockedUsers();
-        blockedUserIds = (blockedResponse.data || []).map(u => u._id);
+        blockedUserIds = (blockedResponse.data || []).map((u) => u._id);
         console.log("🚫 Blocked users:", blockedUserIds);
       } catch (err) {
         console.log("⚠️ Could not fetch blocked users:", err);
@@ -55,9 +67,11 @@ export default function MessagesScreen({ navigation }) {
 
       // Filter out blocked users from matches
       const filteredMatches = matchData.filter(
-        match => !blockedUserIds.includes(match._id)
+        (match) => !blockedUserIds.includes(match._id),
       );
-      console.log(`✅ Filtered ${matchData.length} matches to ${filteredMatches.length} (removed ${matchData.length - filteredMatches.length} blocked)`);
+      console.log(
+        `✅ Filtered ${matchData.length} matches to ${filteredMatches.length} (removed ${matchData.length - filteredMatches.length} blocked)`,
+      );
 
       // Get conversations for last messages
       try {
