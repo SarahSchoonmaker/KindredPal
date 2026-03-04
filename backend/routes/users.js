@@ -146,18 +146,22 @@ router.post("/like/:userId", auth, async (req, res) => {
     const likedUser = await User.findById(req.params.userId);
 
     if (!likedUser) {
+      logger.error(`❌ Liked user not found: ${req.params.userId}`);
       return res.status(404).json({ message: "User not found" });
     }
+
+    logger.info(`Current user likes before: ${currentUser.likes.length}`);
 
     // Check if already liked
     const alreadyLiked = currentUser.likes.some(
       (id) => id.toString() === likedUser._id.toString(),
     );
+    logger.info(`Already liked? ${alreadyLiked}`);
 
     // Add to likes only if not already there
     if (!alreadyLiked) {
       currentUser.likes.push(likedUser._id);
-      logger.info(`✅ Added ${likedUser.email} to likes`);
+      logger.info(`✅ Added ${likedUser._id} to likes array`);
     }
 
     // Check if it's a match
@@ -167,6 +171,7 @@ router.post("/like/:userId", auth, async (req, res) => {
     const otherUserLikesMe = likedUser.likes.some(
       (id) => id.toString() === currentUser._id.toString(),
     );
+    logger.info(`Other user likes me? ${otherUserLikesMe}`);
 
     if (otherUserLikesMe) {
       const alreadyMatched = currentUser.matches.some(
@@ -178,14 +183,13 @@ router.post("/like/:userId", auth, async (req, res) => {
         currentUser.matches.push(likedUser._id);
         likedUser.matches.push(currentUser._id);
 
-        await likedUser.save();
+        logger.info(`💾 Saving likedUser...`);
+        await likedUser.save({ validateBeforeSave: false });
+        logger.info(`✅ likedUser saved`);
+
         matchedUser = likedUser.toObject();
+        logger.info(`🎉 Match created`);
 
-        logger.info(
-          `🎉 Match created between ${currentUser.email} and ${likedUser.email}`,
-        );
-
-        // Push notification
         if (likedUser.pushTokens && likedUser.pushTokens.length > 0) {
           try {
             await sendPushNotification(
@@ -194,6 +198,7 @@ router.post("/like/:userId", auth, async (req, res) => {
               `You and ${currentUser.name} matched!`,
               { type: "match", userId: currentUser._id.toString() },
             );
+            logger.info(`✅ Push notification sent`);
           } catch (pushError) {
             logger.error("⚠️ Push notification failed:", pushError.message);
           }
@@ -204,9 +209,18 @@ router.post("/like/:userId", auth, async (req, res) => {
       }
     }
 
-    // ✅ CRITICAL: Save BEFORE responding
-    await currentUser.save();
-    logger.info(`✅ Current user saved with ${currentUser.likes.length} likes`);
+    // ✅ CRITICAL: Save current user
+    logger.info(
+      `💾 Saving currentUser with ${currentUser.likes.length} likes...`,
+    );
+    try {
+      await currentUser.save({ validateBeforeSave: false });
+      logger.info(`✅ currentUser saved successfully!`);
+      logger.info(`Final likes count: ${currentUser.likes.length}`);
+    } catch (saveError) {
+      logger.error(`❌ Failed to save currentUser:`, saveError);
+      throw saveError;
+    }
 
     res.json({
       message: isMatch ? "It's a match!" : "User liked",
@@ -387,6 +401,42 @@ router.put("/notification-settings", auth, async (req, res) => {
   } catch (error) {
     logger.error("Update notifications error:", error);
     res.status(500).json({ message: "Error updating settings" });
+  }
+});
+
+// ===== UNMATCH USER =====
+
+// @route   POST /api/users/unmatch/:userId
+// @desc    Unmatch with a user
+// @access  Private
+router.post("/unmatch/:userId", auth, async (req, res) => {
+  try {
+    const currentUser = await User.findById(req.userId);
+    const otherUserId = req.params.userId;
+
+    logger.info(`🔓 Unmatch request: ${req.userId} unmatch ${otherUserId}`);
+
+    // Remove from both users' matches arrays
+    currentUser.matches = currentUser.matches.filter(
+      (id) => id.toString() !== otherUserId,
+    );
+
+    const otherUser = await User.findById(otherUserId);
+    if (otherUser) {
+      otherUser.matches = otherUser.matches.filter(
+        (id) => id.toString() !== req.userId,
+      );
+      await otherUser.save({ validateBeforeSave: false });
+      logger.info(`✅ Removed ${req.userId} from ${otherUserId}'s matches`);
+    }
+
+    await currentUser.save({ validateBeforeSave: false });
+    logger.info(`✅ Removed ${otherUserId} from ${req.userId}'s matches`);
+
+    res.json({ message: "Successfully unmatched" });
+  } catch (error) {
+    logger.error("❌ Unmatch error:", error);
+    res.status(500).json({ message: "Error unmatching user" });
   }
 });
 
