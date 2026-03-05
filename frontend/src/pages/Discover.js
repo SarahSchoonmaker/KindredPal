@@ -114,21 +114,20 @@ function Discover() {
 
   const handlePreferencesUpdate = async (updatedPreferences) => {
     console.log("🔄 Preferences updated - clearing liked users and refreshing");
+    console.log("   New preferences:", updatedPreferences);
 
-    // Optimistically update currentUser state immediately
-    if (updatedPreferences) {
-      setCurrentUser((prev) => ({
-        ...prev,
-        ...updatedPreferences,
-      }));
-      console.log("✅ Current user updated optimistically");
-    }
+    // IMMEDIATELY update currentUser state with new preferences
+    setCurrentUser((prev) => ({
+      ...prev,
+      ...updatedPreferences,
+    }));
+    console.log("✅ Current user updated optimistically");
 
-    // Clear liked users from localStorage
+    // Clear liked users from localStorage so they can appear again with new filters
     localStorage.removeItem("likedUserIds");
     setLikedUsers(new Set());
 
-    // Refetch to ensure sync
+    // Refetch current user and discover results to ensure sync
     await fetchCurrentUser();
     await fetchUsers();
   };

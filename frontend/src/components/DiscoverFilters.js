@@ -113,32 +113,27 @@ const DiscoverFilters = ({ currentUser, onUpdate }) => {
   };
 
   const handleSave = async () => {
-    console.log("💾 Saving preferences:", {
+    const updatedPreferences = {
       locationPreference,
       filterPoliticalBeliefs: selectedPoliticalBeliefs,
       filterReligions: selectedReligions,
       filterLifeStages: selectedLifeStages,
-    });
+    };
+
+    console.log("💾 Saving preferences:", updatedPreferences);
     setSaving(true);
+
     try {
-      const response = await userAPI.updateProfile({
-        locationPreference,
-        filterPoliticalBeliefs: selectedPoliticalBeliefs,
-        filterReligions: selectedReligions,
-        filterLifeStages: selectedLifeStages,
-      });
+      const response = await userAPI.updateProfile(updatedPreferences);
       console.log("✅ Profile updated:", response.data);
+
       setShowModal(false);
 
+      // Pass the updated preferences back to parent immediately
       if (onUpdate) {
-        // Pass the updated preferences to parent
-        onUpdate({
-          locationPreference,
-          filterPoliticalBeliefs: selectedPoliticalBeliefs,
-          filterReligions: selectedReligions,
-          filterLifeStages: selectedLifeStages,
-        });
+        onUpdate(updatedPreferences);
       }
+
       alert("Preferences updated! Refreshing matches...");
     } catch (error) {
       console.error("❌ Error updating preferences:", error);
