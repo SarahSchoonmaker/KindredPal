@@ -69,7 +69,7 @@ const UserActionsMenu = ({
 
       console.log("🔄 Calling onComplete callback...");
       if (onComplete) {
-        onComplete();
+        onComplete(userId); // ← Also pass userId for blocking
         console.log("✅ onComplete called - should refresh list");
       } else {
         console.warn("⚠️ No onComplete callback provided!");
@@ -77,7 +77,9 @@ const UserActionsMenu = ({
     } catch (error) {
       console.error("❌ Error blocking user:", error);
       console.error("❌ Error response:", error.response?.data);
-      alert("Failed to block user. Please try again.");
+
+      const errorMsg = error.response?.data?.message || "Failed to block user";
+      alert(`Error: ${errorMsg}`);
     } finally {
       setLoading(false);
     }
@@ -105,17 +107,19 @@ const UserActionsMenu = ({
       alert(`You've unmatched with ${userName}.`);
       setShowMenu(false);
 
-      console.log("🔄 Calling onComplete callback...");
+      console.log("🔄 Calling onComplete callback with userId...");
       if (onComplete) {
-        onComplete(userId); // ← Pass userId to parent
-        console.log("✅ onComplete called - should refresh matches list");
+        onComplete(userId); // ← Pass userId to remove from UI
+        console.log("✅ onComplete called - user should be removed from UI");
       } else {
         console.warn("⚠️ No onComplete callback provided!");
       }
     } catch (error) {
       console.error("❌ Error unmatching user:", error);
       console.error("❌ Error response:", error.response?.data);
-      alert("Failed to unmatch. Please try again.");
+
+      const errorMsg = error.response?.data?.message || "Failed to unmatch";
+      alert(`Error: ${errorMsg}`);
     } finally {
       setLoading(false);
     }

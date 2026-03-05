@@ -9,6 +9,7 @@ const Matches = () => {
   const navigate = useNavigate();
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [removedUserIds, setRemovedUserIds] = useState(new Set()); // ← Track removed users
 
   useEffect(() => {
     loadMatches();
@@ -17,7 +18,16 @@ const Matches = () => {
   const loadMatches = async () => {
     try {
       const response = await userAPI.getMatches();
-      setMatches(response.data);
+
+      // Filter out any users that were manually removed
+      const filteredMatches = response.data.filter(
+        (match) => !removedUserIds.has(match._id),
+      );
+
+      console.log(
+        `📊 Loaded ${response.data.length} matches, showing ${filteredMatches.length} after filtering`,
+      );
+      setMatches(filteredMatches);
     } catch (error) {
       console.error("Error loading matches:", error);
     } finally {
@@ -35,19 +45,27 @@ const Matches = () => {
   };
 
   const handleUserActionComplete = async (unmatchedUserId) => {
-    console.log("🔄 User action complete, userId:", unmatchedUserId);
+    console.log("🔄 handleUserActionComplete called");
+    console.log("   Action userId:", unmatchedUserId);
 
     if (unmatchedUserId) {
-      // Optimistic update - remove immediately
-      console.log("➖ Removing user from matches immediately");
-      setMatches((prev) => prev.filter((m) => m._id !== unmatchedUserId));
-    }
+      // Track this user as removed
+      setRemovedUserIds((prev) => new Set([...prev, unmatchedUserId]));
 
-    // Then fetch fresh data after a delay
-    setTimeout(async () => {
-      console.log("🔄 Fetching fresh matches...");
+      // OPTIMISTIC UPDATE - Remove from UI immediately
+      console.log("➖ Removing user from matches (optimistic update)");
+      setMatches((prevMatches) => {
+        const filtered = prevMatches.filter((m) => m._id !== unmatchedUserId);
+        console.log(`   Before: ${prevMatches.length} matches`);
+        console.log(`   After: ${filtered.length} matches`);
+        return filtered;
+      });
+      console.log("✅ User removed from UI and tracked as removed");
+    } else {
+      // Only reload if no userId provided (for reports, etc.)
+      console.log("🔄 No userId provided - reloading all matches...");
       await loadMatches();
-    }, 500);
+    }
   };
 
   if (loading) {
