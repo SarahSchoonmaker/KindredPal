@@ -295,16 +295,23 @@ router.get("/likes-you", auth, async (req, res) => {
     }
 
     logger.info(`📬 Likes-You request for ${currentUser.email}`);
+    logger.info(`   Matches: ${currentUser.matches?.length || 0}`);
+    logger.info(`   Blocked: ${currentUser.blockedUsers?.length || 0}`);
+
+    // Build exclusion list with safety checks
+    const excludedIds = [
+      ...(currentUser.matches || []),
+      ...(currentUser.blockedUsers || []),
+    ];
+
+    logger.info(`   Excluding ${excludedIds.length} total users`);
 
     // Find users who have liked the current user but are NOT yet matched or blocked
     const usersWhoLikedYou = await User.find({
-      likes: currentUser._id, // They liked me
-      _id: {
-        $nin: [
-          ...currentUser.matches, // Exclude matched users
-          ...(currentUser.blockedUsers || []), // Exclude blocked users
-        ],
-      },
+      likes: currentUser._id,
+      _id: { $nin: excludedIds },
+      isDeleted: { $ne: true },
+      isActive: { $ne: false },
     })
       .select(
         "name age city state profilePhoto bio causes lifeStage politicalBeliefs religion lookingFor",
@@ -319,10 +326,12 @@ router.get("/likes-you", auth, async (req, res) => {
     });
   } catch (error) {
     logger.error("❌ Likes you error:", error);
+    logger.error("❌ Error message:", error.message);
     logger.error("❌ Error stack:", error.stack);
-    res
-      .status(500)
-      .json({ message: "Error fetching likes", error: error.message });
+    res.status(500).json({
+      message: "Error fetching likes",
+      error: error.message,
+    });
   }
 });
 
