@@ -183,6 +183,134 @@ function meetsLocationPreference(currentUser, otherUser, locationPref) {
   return true;
 }
 
+router.get("/discover/debug", auth, async (req, res) => {
+  try {
+    const currentUser = await User.findById(req.userId);
+
+    if (!currentUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Get all users who have blocked you
+    const usersWhoBlockedMe = await User.find({
+      blockedUsers: currentUser._id,
+    }).select("_id email name");
+
+    // Get total user count
+    const totalUsers = await User.countDocuments({
+      isDeleted: { $ne: true },
+      isActive: { $ne: false },
+    });
+
+    // Get users in each category
+    const likedUsers = await User.find({
+      _id: { $in: currentUser.likes },
+    }).select("_id email name");
+
+    const passedUsers = await User.find({
+      _id: { $in: currentUser.passed },
+    }).select("_id email name");
+
+    const matchedUsers = await User.find({
+      _id: { $in: currentUser.matches },
+    }).select("_id email name");
+
+    const blockedUsers = await User.find({
+      _id: { $in: currentUser.blockedUsers },
+    }).select("_id email name");
+
+    // Get users in your state
+    const sameStateUsers = await User.countDocuments({
+      _id: { $ne: req.userId },
+      state: currentUser.state,
+      isDeleted: { $ne: true },
+      isActive: { $ne: false },
+    });
+
+    // Get users available to discover (after exclusions)
+    const excludedIds = [
+      req.userId,
+      ...(currentUser.likes || []),
+      ...(currentUser.passed || []),
+      ...(currentUser.matches || []),
+      ...(currentUser.blockedUsers || []),
+      ...usersWhoBlockedMe.map((u) => u._id),
+    ];
+
+    const availableUsers = await User.find({
+      _id: { $nin: excludedIds },
+      isDeleted: { $ne: true },
+      isActive: { $ne: false },
+    }).select("_id email name city state");
+
+    res.json({
+      summary: {
+        totalActiveUsers: totalUsers,
+        sameStateUsers: sameStateUsers,
+        availableToDiscover: availableUsers.length,
+        excluded: excludedIds.length,
+      },
+      yourInfo: {
+        email: currentUser.email,
+        city: currentUser.city,
+        state: currentUser.state,
+        locationPreference: currentUser.locationPreference,
+      },
+      excluded: {
+        liked: {
+          count: likedUsers.length,
+          users: likedUsers.map((u) => ({
+            id: u._id,
+            name: u.name,
+            email: u.email,
+          })),
+        },
+        passed: {
+          count: passedUsers.length,
+          users: passedUsers.map((u) => ({
+            id: u._id,
+            name: u.name,
+            email: u.email,
+          })),
+        },
+        matches: {
+          count: matchedUsers.length,
+          users: matchedUsers.map((u) => ({
+            id: u._id,
+            name: u.name,
+            email: u.email,
+          })),
+        },
+        blocked: {
+          count: blockedUsers.length,
+          users: blockedUsers.map((u) => ({
+            id: u._id,
+            name: u.name,
+            email: u.email,
+          })),
+        },
+        blockedYou: {
+          count: usersWhoBlockedMe.length,
+          users: usersWhoBlockedMe.map((u) => ({
+            id: u._id,
+            name: u.name,
+            email: u.email,
+          })),
+        },
+      },
+      availableUsers: availableUsers.map((u) => ({
+        id: u._id,
+        name: u.name,
+        email: u.email,
+        location: `${u.city}, ${u.state}`,
+      })),
+    });
+  } catch (error) {
+    console.error("Debug endpoint error:", error);
+    res.status(500).json({ message: "Error", error: error.message });
+  }
+});
+
 // ===== LIKE USER =====
 
 // @route   POST /api/users/like/:userId
