@@ -34,9 +34,12 @@ const Matches = () => {
     navigate(`/messages/${matchId}`);
   };
 
-  const handleUserActionComplete = () => {
-    // Reload matches after blocking someone
-    loadMatches();
+  const handleUserActionComplete = async () => {
+    console.log("🔄 Refreshing matches list...");
+    setLoading(true);
+    await loadMatches();
+    setLoading(false);
+    console.log("✅ Matches refreshed");
   };
 
   if (loading) {

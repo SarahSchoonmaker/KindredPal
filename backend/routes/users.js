@@ -289,11 +289,21 @@ router.get("/likes-you", auth, async (req, res) => {
   try {
     const currentUser = await User.findById(req.userId);
 
-    // Find users who have liked the current user but are NOT yet matched
+    if (!currentUser) {
+      logger.error("❌ Current user not found:", req.userId);
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    logger.info(`📬 Likes-You request for ${currentUser.email}`);
+
+    // Find users who have liked the current user but are NOT yet matched or blocked
     const usersWhoLikedYou = await User.find({
-      likes: currentUser._id,
+      likes: currentUser._id, // They liked me
       _id: {
-        $nin: [...currentUser.matches, ...currentUser.blockedUsers],
+        $nin: [
+          ...currentUser.matches, // Exclude matched users
+          ...(currentUser.blockedUsers || []), // Exclude blocked users
+        ],
       },
     })
       .select(
@@ -301,18 +311,18 @@ router.get("/likes-you", auth, async (req, res) => {
       )
       .lean();
 
-    logger.info(
-      `📬 Likes-You request for ${currentUser.email}: ${usersWhoLikedYou.length} users found`,
-    );
+    logger.info(`   Found ${usersWhoLikedYou.length} users who liked you`);
 
-    // Return in the format the frontend expects
     res.json({
       users: usersWhoLikedYou,
       dailyLikesRemaining: 10,
     });
   } catch (error) {
-    logger.error("Likes you error:", error);
-    res.status(500).json({ message: "Error fetching likes" });
+    logger.error("❌ Likes you error:", error);
+    logger.error("❌ Error stack:", error.stack);
+    res
+      .status(500)
+      .json({ message: "Error fetching likes", error: error.message });
   }
 });
 
@@ -414,30 +424,67 @@ router.put("/notification-settings", auth, async (req, res) => {
 router.post("/unmatch/:userId", auth, async (req, res) => {
   try {
     const currentUser = await User.findById(req.userId);
-    const otherUserId = req.params.userId;
+    const targetUser = await User.findById(req.params.userId);
 
-    logger.info(`🔓 Unmatch request: ${req.userId} unmatch ${otherUserId}`);
-
-    // Remove from both users' matches arrays
-    currentUser.matches = currentUser.matches.filter(
-      (id) => id.toString() !== otherUserId,
-    );
-
-    const otherUser = await User.findById(otherUserId);
-    if (otherUser) {
-      otherUser.matches = otherUser.matches.filter(
-        (id) => id.toString() !== req.userId,
-      );
-      await otherUser.save({ validateBeforeSave: false });
-      logger.info(`✅ Removed ${req.userId} from ${otherUserId}'s matches`);
+    if (!targetUser) {
+      logger.error(`❌ Target user not found: ${req.params.userId}`);
+      return res.status(404).json({ message: "User not found" });
     }
 
-    await currentUser.save({ validateBeforeSave: false });
-    logger.info(`✅ Removed ${otherUserId} from ${req.userId}'s matches`);
+    // Check if they are matched
+    const isMatched = currentUser.matches.some(
+      (id) => id.toString() === targetUser._id.toString(),
+    );
 
-    res.json({ message: "Successfully unmatched" });
+    if (!isMatched) {
+      logger.warn(
+        `⚠️ Users not matched: ${req.userId} and ${req.params.userId}`,
+      );
+      return res.status(400).json({ message: "Not matched with this user" });
+    }
+
+    logger.info(`🔓 Unmatching ${currentUser.email} and ${targetUser.email}`);
+    logger.info(`Before - Current user matches: ${currentUser.matches.length}`);
+    logger.info(`Before - Target user matches: ${targetUser.matches.length}`);
+
+    // Remove from both users' matches - USE .toString()
+    currentUser.matches = currentUser.matches.filter(
+      (id) => id.toString() !== targetUser._id.toString(),
+    );
+    targetUser.matches = targetUser.matches.filter(
+      (id) => id.toString() !== currentUser._id.toString(),
+    );
+
+    // Also remove from likes if present
+    currentUser.likes = currentUser.likes.filter(
+      (id) => id.toString() !== targetUser._id.toString(),
+    );
+    targetUser.likes = targetUser.likes.filter(
+      (id) => id.toString() !== currentUser._id.toString(),
+    );
+
+    logger.info(`After - Current user matches: ${currentUser.matches.length}`);
+    logger.info(`After - Target user matches: ${targetUser.matches.length}`);
+
+    // Save with validation skipped
+    await currentUser.save({ validateBeforeSave: false });
+    logger.info(`✅ Current user saved`);
+
+    await targetUser.save({ validateBeforeSave: false });
+    logger.info(`✅ Target user saved`);
+
+    logger.info("✅ Unmatched successfully");
+
+    res.json({
+      message: "Successfully unmatched",
+      unmatchedUser: {
+        _id: targetUser._id,
+        name: targetUser.name,
+      },
+    });
   } catch (error) {
     logger.error("❌ Unmatch error:", error);
+    logger.error("❌ Error stack:", error.stack);
     res.status(500).json({ message: "Error unmatching user" });
   }
 });

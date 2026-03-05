@@ -84,6 +84,7 @@ export const userAPI = {
   blockUser: (userId) => api.post(`/users/${userId}/block`),
   unblockUser: (userId) => api.delete(`/users/${userId}/block`),
   getBlockedUsers: () => api.get("/users/blocked"),
+  unmatchUser: (userId) => api.post(`/users/unmatch/${userId}`),
 };
 
 // Message API endpoints
