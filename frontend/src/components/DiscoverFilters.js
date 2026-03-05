@@ -129,8 +129,15 @@ const DiscoverFilters = ({ currentUser, onUpdate }) => {
       });
       console.log("✅ Profile updated:", response.data);
       setShowModal(false);
+
       if (onUpdate) {
-        onUpdate();
+        // Pass the updated preferences to parent
+        onUpdate({
+          locationPreference,
+          filterPoliticalBeliefs: selectedPoliticalBeliefs,
+          filterReligions: selectedReligions,
+          filterLifeStages: selectedLifeStages,
+        });
       }
       alert("Preferences updated! Refreshing matches...");
     } catch (error) {

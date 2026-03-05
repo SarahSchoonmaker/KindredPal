@@ -112,16 +112,25 @@ function Discover() {
     navigate(`/profile/${userId}`);
   };
 
-  const handlePreferencesUpdate = () => {
+  const handlePreferencesUpdate = async (updatedPreferences) => {
     console.log("🔄 Preferences updated - clearing liked users and refreshing");
 
-    // Clear liked users from localStorage so they can appear again with new filters
+    // Optimistically update currentUser state immediately
+    if (updatedPreferences) {
+      setCurrentUser((prev) => ({
+        ...prev,
+        ...updatedPreferences,
+      }));
+      console.log("✅ Current user updated optimistically");
+    }
+
+    // Clear liked users from localStorage
     localStorage.removeItem("likedUserIds");
     setLikedUsers(new Set());
 
-    // Refetch current user and discover results
-    fetchCurrentUser();
-    fetchUsers();
+    // Refetch to ensure sync
+    await fetchCurrentUser();
+    await fetchUsers();
   };
 
   if (loading) {
