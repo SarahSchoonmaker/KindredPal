@@ -13,13 +13,20 @@ function Discover() {
   const [showMatchModal, setShowMatchModal] = useState(false);
   const [matchedUser, setMatchedUser] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
-  const [likedUsers, setLikedUsers] = useState(new Set()); // NEW: Track liked users
-  const [actionLoading, setActionLoading] = useState({}); // NEW: Track loading per user
+  const [likedUsers, setLikedUsers] = useState(() => {
+    const stored = localStorage.getItem("likedUserIds");
+    return stored ? new Set(JSON.parse(stored)) : new Set();
+  });
+  const [actionLoading, setActionLoading] = useState({});
 
   useEffect(() => {
     fetchCurrentUser();
     fetchUsers();
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem("likedUserIds", JSON.stringify([...likedUsers]));
+  }, [likedUsers]);
 
   const fetchCurrentUser = async () => {
     try {
@@ -43,7 +50,7 @@ function Discover() {
       const response = await api.get("/users/discover");
       console.log("📥 Received users:", response.data.users?.length || 0);
       setUsers(response.data.users || []);
-      setLikedUsers(new Set()); // Reset liked users when fetching new
+      // ← REMOVED: setLikedUsers(new Set());
     } catch (error) {
       console.error("Error fetching users:", error);
       console.error("Error details:", error.response?.data);

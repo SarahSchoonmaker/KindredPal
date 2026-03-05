@@ -9,11 +9,24 @@ const Matches = () => {
   const navigate = useNavigate();
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [removedUserIds, setRemovedUserIds] = useState(new Set()); // ← Track removed users
+
+  // Load removed users from localStorage on mount
+  const [removedUserIds, setRemovedUserIds] = useState(() => {
+    const stored = localStorage.getItem("removedMatchIds");
+    return stored ? new Set(JSON.parse(stored)) : new Set();
+  });
 
   useEffect(() => {
     loadMatches();
   }, []);
+
+  // Save removed users to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem(
+      "removedMatchIds",
+      JSON.stringify([...removedUserIds]),
+    );
+  }, [removedUserIds]);
 
   const loadMatches = async () => {
     try {
@@ -49,7 +62,7 @@ const Matches = () => {
     console.log("   Action userId:", unmatchedUserId);
 
     if (unmatchedUserId) {
-      // Track this user as removed
+      // Track this user as removed (will auto-save to localStorage)
       setRemovedUserIds((prev) => new Set([...prev, unmatchedUserId]));
 
       // OPTIMISTIC UPDATE - Remove from UI immediately
