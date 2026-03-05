@@ -121,14 +121,16 @@ function Discover() {
       ...prev,
       ...updatedPreferences,
     }));
-    console.log("✅ Current user updated optimistically");
+    console.log(
+      "✅ Current user updated optimistically with:",
+      updatedPreferences,
+    );
 
     // Clear liked users from localStorage so they can appear again with new filters
     localStorage.removeItem("likedUserIds");
     setLikedUsers(new Set());
 
-    // Refetch current user and discover results to ensure sync
-    await fetchCurrentUser();
+    // ONLY refetch discover results (don't refetch currentUser - we already have the updated data!)
     await fetchUsers();
   };
 
