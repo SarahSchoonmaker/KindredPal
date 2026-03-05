@@ -24,6 +24,12 @@ router.get("/discover", auth, async (req, res) => {
     logger.info("👤 User:", currentUser.email);
     logger.info("📍 User Location:", currentUser.city, currentUser.state);
     logger.info("🔍 Location Preference:", currentUser.locationPreference);
+    logger.info(
+      "🏛️ Political Filters:",
+      currentUser.filterPoliticalBeliefs || [],
+    );
+    logger.info("⛪ Religion Filters:", currentUser.filterReligions || []);
+    logger.info("👤 Life Stage Filters:", currentUser.filterLifeStages || []);
 
     // Get all users who have blocked the current user
     const usersWhoBlockedMe = await User.find({
@@ -423,6 +429,10 @@ router.put("/profile", auth, async (req, res) => {
     const updates = req.body;
     const user = await User.findById(req.userId);
 
+    logger.info("\n========== PROFILE UPDATE ==========");
+    logger.info("User:", user.email);
+    logger.info("Updates received:", JSON.stringify(updates, null, 2));
+
     // Update allowed fields
     const allowedUpdates = [
       "name",
@@ -446,10 +456,18 @@ router.put("/profile", auth, async (req, res) => {
     allowedUpdates.forEach((field) => {
       if (updates[field] !== undefined) {
         user[field] = updates[field];
+        logger.info(`   ✅ Updated ${field}:`, updates[field]);
       }
     });
 
     await user.save();
+
+    logger.info("✅ Profile saved successfully");
+    logger.info("   Location Preference:", user.locationPreference);
+    logger.info("   Political Filters:", user.filterPoliticalBeliefs);
+    logger.info("   Religion Filters:", user.filterReligions);
+    logger.info("   Life Stage Filters:", user.filterLifeStages);
+    logger.info("====================================\n");
 
     const userResponse = user.toObject();
     userResponse.id = userResponse._id.toString();

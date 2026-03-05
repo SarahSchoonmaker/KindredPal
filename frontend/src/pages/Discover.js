@@ -113,6 +113,13 @@ function Discover() {
   };
 
   const handlePreferencesUpdate = () => {
+    console.log("🔄 Preferences updated - clearing liked users and refreshing");
+
+    // Clear liked users from localStorage so they can appear again with new filters
+    localStorage.removeItem("likedUserIds");
+    setLikedUsers(new Set());
+
+    // Refetch current user and discover results
     fetchCurrentUser();
     fetchUsers();
   };
