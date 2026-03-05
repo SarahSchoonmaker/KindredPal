@@ -18,8 +18,13 @@ const mongoose = require("mongoose");
 // In /backend/routes/users.js
 // This version works with all Mongoose versions
 
+// SIMPLIFIED DISCOVER ROUTE - Won't timeout
+// Replace the entire discover route in /backend/routes/users.js
+
 router.get("/discover", auth, async (req, res) => {
   try {
+    logger.info("\n========== DISCOVER REQUEST START ==========");
+
     const currentUser = await User.findById(req.userId);
 
     if (!currentUser) {
@@ -27,52 +32,81 @@ router.get("/discover", auth, async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Use query params if provided, otherwise use user's saved preferences
+    logger.info("👤 User:", currentUser.email);
+    logger.info("📍 Location:", currentUser.city, currentUser.state);
+
+    // Get preferences (from query params OR database)
     const locationPref =
       req.query.locationPreference ||
       currentUser.locationPreference ||
       "Same state";
-    const filterPolitical = req.query.filterPoliticalBeliefs
-      ? JSON.parse(req.query.filterPoliticalBeliefs)
-      : currentUser.filterPoliticalBeliefs || [];
-    const filterReligions = req.query.filterReligions
-      ? JSON.parse(req.query.filterReligions)
-      : currentUser.filterReligions || [];
-    const filterLifeStages = req.query.filterLifeStages
-      ? JSON.parse(req.query.filterLifeStages)
-      : currentUser.filterLifeStages || [];
 
-    logger.info("\n========== DISCOVER REQUEST ==========");
-    logger.info("👤 User:", currentUser.email);
-    logger.info("🆔 User ID:", currentUser._id.toString());
-    logger.info("📍 User Location:", currentUser.city, currentUser.state);
+    let filterPolitical = [];
+    let filterReligions = [];
+    let filterLifeStages = [];
+
+    // SAFE parsing of query params
+    if (req.query.filterPoliticalBeliefs) {
+      try {
+        filterPolitical = JSON.parse(req.query.filterPoliticalBeliefs);
+      } catch (e) {
+        logger.error("Error parsing filterPoliticalBeliefs");
+        filterPolitical = currentUser.filterPoliticalBeliefs || [];
+      }
+    } else {
+      filterPolitical = currentUser.filterPoliticalBeliefs || [];
+    }
+
+    if (req.query.filterReligions) {
+      try {
+        filterReligions = JSON.parse(req.query.filterReligions);
+      } catch (e) {
+        logger.error("Error parsing filterReligions");
+        filterReligions = currentUser.filterReligions || [];
+      }
+    } else {
+      filterReligions = currentUser.filterReligions || [];
+    }
+
+    if (req.query.filterLifeStages) {
+      try {
+        filterLifeStages = JSON.parse(req.query.filterLifeStages);
+      } catch (e) {
+        logger.error("Error parsing filterLifeStages");
+        filterLifeStages = currentUser.filterLifeStages || [];
+      }
+    } else {
+      filterLifeStages = currentUser.filterLifeStages || [];
+    }
+
     logger.info("🔍 Location Preference:", locationPref);
+    logger.info("🏛️ Political Filters:", filterPolitical);
+    logger.info("⛪ Religion Filters:", filterReligions);
+    logger.info("👤 Life Stage Filters:", filterLifeStages);
 
-    // Get all users who have blocked the current user
-    const usersWhoBlockedMe = await User.find({
-      blockedUsers: currentUser._id,
-    }).select("_id");
-    const blockedMeIds = usersWhoBlockedMe.map((u) => u._id);
-
-    // ✅ SIMPLER FIX: Just use currentUser._id (already an ObjectId)
+    // Build exclusion list
     const excludedIds = [
-      currentUser._id, // ← Already an ObjectId from database!
+      currentUser._id,
       ...(currentUser.matches || []),
       ...(currentUser.likes || []),
       ...(currentUser.passed || []),
       ...(currentUser.blockedUsers || []),
-      ...blockedMeIds,
     ];
 
-    logger.info("🚫 Excluding", excludedIds.length, "users");
-    logger.info("   Self:", currentUser._id.toString());
-    logger.info("   Matches:", (currentUser.matches || []).length);
-    logger.info("   Liked:", (currentUser.likes || []).length);
-    logger.info("   Passed:", (currentUser.passed || []).length);
-    logger.info("   Blocked:", (currentUser.blockedUsers || []).length);
-    logger.info("   Blocked me:", blockedMeIds.length);
+    // Get users who blocked me
+    const blockedBy = await User.find({
+      blockedUsers: currentUser._id,
+    })
+      .select("_id")
+      .lean();
 
-    // Find potential matches
+    blockedBy.forEach((u) => excludedIds.push(u._id));
+
+    logger.info("🚫 Excluding", excludedIds.length, "users");
+
+    // SIMPLIFIED QUERY - No initial location filter
+    logger.info("📊 Fetching all non-excluded users...");
+
     let potentialMatches = await User.find({
       _id: { $nin: excludedIds },
       isDeleted: { $ne: true },
@@ -81,106 +115,94 @@ router.get("/discover", auth, async (req, res) => {
       .select(
         "name age city state profilePhoto bio causes lifeStage politicalBeliefs religion lookingFor",
       )
+      .limit(100) // ← SAFETY: Limit to 100 users max
       .lean();
 
-    logger.info("📊 After exclusion filter:", potentialMatches.length, "users");
+    logger.info("📊 Found", potentialMatches.length, "potential matches");
 
-    // ✅ SAFETY CHECK: Make absolutely sure you're not in results
+    // SAFETY: Remove self if somehow still there
     potentialMatches = potentialMatches.filter(
       (u) => u._id.toString() !== currentUser._id.toString(),
     );
 
-    logger.info(
-      "📊 After self-removal check:",
-      potentialMatches.length,
-      "users",
-    );
+    logger.info("📊 After self-check:", potentialMatches.length, "users");
 
-    // Filter by location preference
-    logger.info("\n🔍 Applying location filter:", locationPref);
+    // Apply location filter IN JAVASCRIPT (not in DB query)
+    if (locationPref !== "Anywhere") {
+      logger.info("📍 Filtering by location:", locationPref);
 
-    if (locationPref === "Anywhere") {
-      logger.info("   ✅ ANYWHERE selected - keeping ALL users");
-    } else {
-      logger.info(`   📍 Filtering users by: ${locationPref}`);
-
-      const beforeFilterCount = potentialMatches.length;
       potentialMatches = potentialMatches.filter((user) => {
-        try {
-          // Same city
-          if (locationPref === "Same city") {
-            return currentUser.city.toLowerCase() === user.city.toLowerCase();
-          }
-          // Same state
-          if (locationPref === "Same state") {
-            return currentUser.state === user.state;
-          }
-          // Within X miles (simplified to same state for now)
-          if (locationPref && locationPref.includes("miles")) {
-            return currentUser.state === user.state;
-          }
-          return true;
-        } catch (err) {
-          logger.error(
-            `   ⚠️ Error checking location for user ${user._id}:`,
-            err.message,
+        if (!user.city || !user.state) return false;
+
+        if (locationPref === "Same city") {
+          return (
+            user.city.toLowerCase() === currentUser.city.toLowerCase() &&
+            user.state === currentUser.state
           );
-          return false;
         }
+
+        if (locationPref === "Same state") {
+          return user.state === currentUser.state;
+        }
+
+        // For "Within X miles", just use same state for now
+        if (locationPref.includes("miles")) {
+          return user.state === currentUser.state;
+        }
+
+        return true;
       });
 
       logger.info(
-        `   📊 Filtered ${beforeFilterCount} → ${potentialMatches.length} users`,
+        "📊 After location filter:",
+        potentialMatches.length,
+        "users",
       );
     }
 
-    logger.info(
-      "\n📍 After location filter:",
-      potentialMatches.length,
-      "users",
-    );
-
-    // Apply additional filters
-    logger.info("\n🔍 Applying additional filters...");
-
+    // Apply political filter
     if (filterPolitical && filterPolitical.length > 0) {
-      const beforeCount = potentialMatches.length;
       potentialMatches = potentialMatches.filter((user) => {
-        const hasMatch = user.politicalBeliefs?.some((belief) =>
+        if (!user.politicalBeliefs || user.politicalBeliefs.length === 0)
+          return false;
+        return user.politicalBeliefs.some((belief) =>
           filterPolitical.includes(belief),
         );
-        return hasMatch;
       });
       logger.info(
-        `   🏛️ Political filter: ${beforeCount} → ${potentialMatches.length} users`,
+        "📊 After political filter:",
+        potentialMatches.length,
+        "users",
       );
     }
 
+    // Apply religion filter
     if (filterReligions && filterReligions.length > 0) {
-      const beforeCount = potentialMatches.length;
       potentialMatches = potentialMatches.filter((user) => {
-        return filterReligions.includes(user.religion);
+        return user.religion && filterReligions.includes(user.religion);
       });
       logger.info(
-        `   ⛪ Religion filter: ${beforeCount} → ${potentialMatches.length} users`,
+        "📊 After religion filter:",
+        potentialMatches.length,
+        "users",
       );
     }
 
+    // Apply life stage filter
     if (filterLifeStages && filterLifeStages.length > 0) {
-      const beforeCount = potentialMatches.length;
       potentialMatches = potentialMatches.filter((user) => {
-        const hasMatch = user.lifeStage?.some((stage) =>
-          filterLifeStages.includes(stage),
-        );
-        return hasMatch;
+        if (!user.lifeStage || user.lifeStage.length === 0) return false;
+        return user.lifeStage.some((stage) => filterLifeStages.includes(stage));
       });
       logger.info(
-        `   👤 Life stage filter: ${beforeCount} → ${potentialMatches.length} users`,
+        "📊 After life stage filter:",
+        potentialMatches.length,
+        "users",
       );
     }
 
-    logger.info("\n✅ After all filters:", potentialMatches.length, "users");
-    logger.info("====================================\n");
+    logger.info("✅ Final result:", potentialMatches.length, "users");
+    logger.info("========== DISCOVER REQUEST END ==========\n");
 
     res.json({
       users: potentialMatches,

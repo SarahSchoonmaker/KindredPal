@@ -41,7 +41,9 @@ export const AuthProvider = ({ children }) => {
 
   // ✅ Load initial unread count when user logs in
   useEffect(() => {
-    if (!user?.id) return; // CHANGED: _id → id
+    // Use user.id OR user._id (backend might return either)
+    const userId = user?.id || user?._id;
+    if (!userId) return;
 
     const loadInitialUnreadCount = async () => {
       try {
@@ -55,11 +57,13 @@ export const AuthProvider = ({ children }) => {
     };
 
     loadInitialUnreadCount();
-  }, [user?.id]); // CHANGED: _id → id
+  }, [user?.id, user?._id]); // Watch both
 
   // ✅ Connect socket when user is available
   useEffect(() => {
-    if (!user?.id) return; // CHANGED: _id → id
+    // Use user.id OR user._id (backend might return either)
+    const userId = user?.id || user?._id;
+    if (!userId) return;
 
     if (socketRef.current) {
       socketRef.current.disconnect();
@@ -75,7 +79,7 @@ export const AuthProvider = ({ children }) => {
 
     s.on("connect", () => {
       console.log("✅ Socket connected!");
-      s.emit("user-online", user.id); // CHANGED: _id → id
+      s.emit("user-online", userId); // Use the userId variable
     });
 
     s.on("new-message", () => {
@@ -100,11 +104,14 @@ export const AuthProvider = ({ children }) => {
       s.disconnect();
       socketRef.current = null;
     };
-  }, [user?.id]); // CHANGED: _id → id
+  }, [user?.id, user?._id]); // Watch both
 
   const fetchUser = async () => {
     try {
       const response = await api.get("/auth/profile");
+      console.log("👤 Fetched user:", response.data);
+      console.log("   User has id?", !!response.data.id);
+      console.log("   User has _id?", !!response.data._id);
       setUser(response.data);
     } catch (error) {
       console.error("Error fetching user:", error);

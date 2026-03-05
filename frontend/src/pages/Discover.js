@@ -147,7 +147,7 @@ function Discover() {
 
     // DON'T refetch currentUser - we already have the updated data!
     // Just refetch discover results with new filters
-    await fetchUsers();
+    await fetchUsers(updatedPreferences);
   };
 
   if (loading) {
