@@ -402,7 +402,9 @@ userSchema.methods.meetsLocationPreference = function (otherUser) {
   if (pref === "Anywhere") return true;
   if (pref === "Same city")
     return this.city.toLowerCase() === otherUser.city.toLowerCase();
-  if (pref === "Same state") return this.state === otherUser.state;
+  if (pref === "Same state" || pref === "Home state")
+    // ← Handle both
+    return this.state === otherUser.state;
 
   // For mile-based preferences, would need geocoding (future feature)
   if (pref.includes("miles")) return this.state === otherUser.state;

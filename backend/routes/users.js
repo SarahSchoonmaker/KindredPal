@@ -11,9 +11,6 @@ const Message = require("../models/Message");
 // @route   GET /api/users/discover
 // @desc    Get potential matches for discovery
 // @access  Private
-// @route   GET /api/users/discover
-// @desc    Get potential matches for discovery
-// @access  Private
 router.get("/discover", auth, async (req, res) => {
   try {
     const currentUser = await User.findById(req.userId);
@@ -42,7 +39,6 @@ router.get("/discover", auth, async (req, res) => {
       ...blockedMeIds,
     ];
 
-    // ✅ ADD DETAILED LOGGING HERE
     logger.info("🚫 Excluding", excludedIds.length, "users");
     logger.info("   Liked:", (currentUser.likes || []).length);
     logger.info(
@@ -78,52 +74,41 @@ router.get("/discover", auth, async (req, res) => {
     const locationPref = currentUser.locationPreference || "Same state";
     logger.info("🔍 Applying location filter:", locationPref);
 
-    potentialMatches = potentialMatches.filter((user) => {
-      try {
-        const meets = currentUser.meetsLocationPreference(user);
-        return meets;
-      } catch (err) {
-        logger.error(
-          `   ⚠️ Error checking location for user ${user._id}:`,
-          err.message,
-        );
-        return false;
-      }
-    });
+    // Skip filtering entirely if preference is "Anywhere"
+    if (locationPref !== "Anywhere") {
+      potentialMatches = potentialMatches.filter((user) => {
+        try {
+          const meets = currentUser.meetsLocationPreference(user);
+          if (!meets) {
+            logger.info(
+              `   ❌ ${user.name} doesn't meet location: ${locationPref}`,
+            );
+          }
+          return meets;
+        } catch (err) {
+          logger.error(
+            `   ⚠️ Error checking location for user ${user._id}:`,
+            err.message,
+          );
+          return false;
+        }
+      });
+    } else {
+      logger.info("   ✅ Anywhere selected - keeping all users");
+    }
 
     logger.info("📍 After location filter:", potentialMatches.length, "users");
 
-    // Calculate match scores
-    const matchesWithScores = potentialMatches
-      .map((user) => {
-        try {
-          const score = currentUser.calculateMatchScore(user);
-          return {
-            ...user,
-            matchScore: score,
-          };
-        } catch (err) {
-          logger.error(
-            `   ⚠️ Error calculating score for user ${user._id}:`,
-            err.message,
-          );
-          return null;
-        }
-      })
-      .filter((user) => user !== null);
-
-    // Sort by match score (highest first)
-    matchesWithScores.sort((a, b) => b.matchScore - a.matchScore);
-
+    // ✅ REMOVED: Match score calculation - just return users as-is
     logger.info(
       "✅ Discover successful, returning",
-      matchesWithScores.length,
+      potentialMatches.length,
       "users",
     );
     logger.info("====================================\n");
 
     res.json({
-      users: matchesWithScores,
+      users: potentialMatches,
     });
   } catch (error) {
     logger.error("❌ Discover error:", error);
@@ -320,6 +305,7 @@ router.get("/likes-you", auth, async (req, res) => {
 
     // Build exclusion list with safety checks
     const excludedIds = [
+      req.userId, // ← ADD THIS: Exclude yourself!
       ...(currentUser.matches || []),
       ...(currentUser.blockedUsers || []),
     ];

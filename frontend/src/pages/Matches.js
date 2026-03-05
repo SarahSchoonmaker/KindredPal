@@ -31,15 +31,34 @@ const Matches = () => {
   const loadMatches = async () => {
     try {
       const response = await userAPI.getMatches();
+      const backendMatches = response.data;
+      const backendMatchIds = new Set(backendMatches.map((m) => m._id));
 
-      // Filter out any users that were manually removed
-      const filteredMatches = response.data.filter(
-        (match) => !removedUserIds.has(match._id),
+      console.log("🔍 Backend matches:", backendMatches.length);
+      console.log("   Backend IDs:", [...backendMatchIds]);
+      console.log("🚫 localStorage removed IDs:", [...removedUserIds]);
+
+      // CRITICAL FIX: Only keep removed IDs that are STILL in backend
+      // If a user is not in backend, they're already gone - don't filter them
+      const validRemovedIds = new Set(
+        [...removedUserIds].filter((id) => backendMatchIds.has(id)),
       );
 
-      console.log(
-        `📊 Loaded ${response.data.length} matches, showing ${filteredMatches.length} after filtering`,
+      // Clean up localStorage if needed
+      if (validRemovedIds.size !== removedUserIds.size) {
+        console.log("🧹 Cleaning stale localStorage");
+        console.log(
+          `   Removed ${removedUserIds.size - validRemovedIds.size} stale entries`,
+        );
+        setRemovedUserIds(validRemovedIds);
+      }
+
+      // Show only backend matches that aren't in removedUserIds
+      const filteredMatches = backendMatches.filter(
+        (match) => !validRemovedIds.has(match._id),
       );
+
+      console.log(`📊 Showing ${filteredMatches.length} matches`);
       setMatches(filteredMatches);
     } catch (error) {
       console.error("Error loading matches:", error);

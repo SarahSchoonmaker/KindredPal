@@ -25,18 +25,32 @@ const Messages = () => {
     }
   }, [userId]);
 
+  // In Messages.js, when loading conversations:
   const loadConversations = async () => {
     try {
-      const matchesResponse = await userAPI.getMatches();
-      setConversations(matchesResponse.data);
+      const [convResponse, matchesResponse] = await Promise.all([
+        messageAPI.getConversations(),
+        userAPI.getMatches(),
+      ]);
 
-      // Load unread counts for each conversation
-      await loadUnreadCounts(matchesResponse.data);
+      const matchIds = new Set(matchesResponse.data.map((m) => m._id));
 
-      setLoading(false);
+      // Only show conversations with people you're actually matched with
+      const validConversations = convResponse.data.filter((conv) =>
+        matchIds.has(conv._id),
+      );
+
+      console.log(
+        `📬 ${convResponse.data.length} conversations, ${validConversations.length} valid`,
+      );
+      setConversations(validConversations);
+
+      // Load unread counts for valid conversations
+      loadUnreadCounts(validConversations);
     } catch (error) {
-      console.error("Error loading conversations:", error);
-      setLoading(false);
+      console.error("Error loading:", error);
+    } finally {
+      setLoading(false); // ← ADD THIS!
     }
   };
 

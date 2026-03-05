@@ -12,7 +12,7 @@ const DiscoverFilters = ({ currentPreference, onUpdate }) => {
 
   const locationOptions = [
     "Same city",
-    "Home state",
+    "Same state",
     "Within 50 miles",
     "Within 100 miles",
     "Within 200 miles",
