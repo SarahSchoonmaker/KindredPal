@@ -34,12 +34,20 @@ const Matches = () => {
     navigate(`/messages/${matchId}`);
   };
 
-  const handleUserActionComplete = async () => {
-    console.log("🔄 Refreshing matches list...");
-    setLoading(true);
-    await loadMatches();
-    setLoading(false);
-    console.log("✅ Matches refreshed");
+  const handleUserActionComplete = async (unmatchedUserId) => {
+    console.log("🔄 User action complete, userId:", unmatchedUserId);
+
+    if (unmatchedUserId) {
+      // Optimistic update - remove immediately
+      console.log("➖ Removing user from matches immediately");
+      setMatches((prev) => prev.filter((m) => m._id !== unmatchedUserId));
+    }
+
+    // Then fetch fresh data after a delay
+    setTimeout(async () => {
+      console.log("🔄 Fetching fresh matches...");
+      await loadMatches();
+    }, 500);
   };
 
   if (loading) {

@@ -107,7 +107,7 @@ const UserActionsMenu = ({
 
       console.log("🔄 Calling onComplete callback...");
       if (onComplete) {
-        onComplete();
+        onComplete(userId); // ← Pass userId to parent
         console.log("✅ onComplete called - should refresh matches list");
       } else {
         console.warn("⚠️ No onComplete callback provided!");

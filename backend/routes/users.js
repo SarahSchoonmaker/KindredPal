@@ -266,16 +266,36 @@ router.post("/pass/:userId", auth, async (req, res) => {
 // @access  Private
 router.get("/matches", auth, async (req, res) => {
   try {
-    const user = await User.findById(req.userId)
-      .populate(
-        "matches",
-        "name age city state profilePhoto bio causes lifeStage",
-      )
-      .lean(); // ← Added .lean()
+    logger.info(`📬 Get matches request for user: ${req.userId}`);
 
-    res.json(user.matches || []);
+    // First, get the raw user to see what's in matches array
+    const rawUser = await User.findById(req.userId);
+    logger.info(`   Raw matches array length: ${rawUser.matches.length}`);
+    logger.info(
+      `   Raw matches IDs: ${rawUser.matches.map((id) => id.toString()).join(", ")}`,
+    );
+
+    // Now populate
+    const user = await User.findById(req.userId).populate(
+      "matches",
+      "name age city state profilePhoto bio causes lifeStage",
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    logger.info(`   Populated matches length: ${user.matches.length}`);
+    logger.info(
+      `   Populated matches: ${user.matches.map((m) => `${m.name} (${m._id})`).join(", ")}`,
+    );
+
+    const matches = user.matches.map((match) => match.toObject());
+
+    res.json(matches);
   } catch (error) {
-    logger.error("Get matches error:", error);
+    logger.error("❌ Get matches error:", error);
+    logger.error("❌ Error stack:", error.stack);
     res.status(500).json({ message: "Error fetching matches" });
   }
 });
