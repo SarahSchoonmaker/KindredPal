@@ -15,6 +15,9 @@ const mongoose = require("mongoose");
 // In /backend/routes/users.js
 // Replace the discover route with this:
 
+// In /backend/routes/users.js
+// This version works with all Mongoose versions
+
 router.get("/discover", auth, async (req, res) => {
   try {
     const currentUser = await User.findById(req.userId);
@@ -51,12 +54,9 @@ router.get("/discover", auth, async (req, res) => {
     }).select("_id");
     const blockedMeIds = usersWhoBlockedMe.map((u) => u._id);
 
-    // ✅ CRITICAL FIX: Convert req.userId to ObjectId to ensure proper exclusion
-    const currentUserObjectId = mongoose.Types.ObjectId(req.userId);
-
-    // Build exclusion list
+    // ✅ SIMPLER FIX: Just use currentUser._id (already an ObjectId)
     const excludedIds = [
-      currentUserObjectId, // ← Use ObjectId version
+      currentUser._id, // ← Already an ObjectId from database!
       ...(currentUser.matches || []),
       ...(currentUser.likes || []),
       ...(currentUser.passed || []),
@@ -65,7 +65,7 @@ router.get("/discover", auth, async (req, res) => {
     ];
 
     logger.info("🚫 Excluding", excludedIds.length, "users");
-    logger.info("   Self (as ObjectId):", currentUserObjectId.toString());
+    logger.info("   Self:", currentUser._id.toString());
     logger.info("   Matches:", (currentUser.matches || []).length);
     logger.info("   Liked:", (currentUser.likes || []).length);
     logger.info("   Passed:", (currentUser.passed || []).length);
@@ -85,20 +85,16 @@ router.get("/discover", auth, async (req, res) => {
 
     logger.info("📊 After exclusion filter:", potentialMatches.length, "users");
 
-    // ✅ SAFETY CHECK: Double-check you're not in results
-    const foundSelf = potentialMatches.find(
-      (u) => u._id.toString() === currentUserObjectId.toString(),
+    // ✅ SAFETY CHECK: Make absolutely sure you're not in results
+    potentialMatches = potentialMatches.filter(
+      (u) => u._id.toString() !== currentUser._id.toString(),
     );
 
-    if (foundSelf) {
-      logger.error(
-        "⚠️ WARNING: Current user still in results! Filtering manually...",
-      );
-      potentialMatches = potentialMatches.filter(
-        (u) => u._id.toString() !== currentUserObjectId.toString(),
-      );
-      logger.info("   ✅ Removed self. New count:", potentialMatches.length);
-    }
+    logger.info(
+      "📊 After self-removal check:",
+      potentialMatches.length,
+      "users",
+    );
 
     // Filter by location preference
     logger.info("\n🔍 Applying location filter:", locationPref);
@@ -111,12 +107,19 @@ router.get("/discover", auth, async (req, res) => {
       const beforeFilterCount = potentialMatches.length;
       potentialMatches = potentialMatches.filter((user) => {
         try {
-          const meets = meetsLocationPreference(
-            currentUser,
-            user,
-            locationPref,
-          );
-          return meets;
+          // Same city
+          if (locationPref === "Same city") {
+            return currentUser.city.toLowerCase() === user.city.toLowerCase();
+          }
+          // Same state
+          if (locationPref === "Same state") {
+            return currentUser.state === user.state;
+          }
+          // Within X miles (simplified to same state for now)
+          if (locationPref && locationPref.includes("miles")) {
+            return currentUser.state === user.state;
+          }
+          return true;
         } catch (err) {
           logger.error(
             `   ⚠️ Error checking location for user ${user._id}:`,
@@ -188,18 +191,6 @@ router.get("/discover", auth, async (req, res) => {
     res.status(500).json({ message: "Error fetching discover users" });
   }
 });
-
-// Helper function for location checking
-function meetsLocationPreference(currentUser, otherUser, locationPref) {
-  if (locationPref === "Anywhere") return true;
-  if (locationPref === "Same city")
-    return currentUser.city.toLowerCase() === otherUser.city.toLowerCase();
-  if (locationPref === "Same state")
-    return currentUser.state === otherUser.state;
-  if (locationPref && locationPref.includes("miles"))
-    return currentUser.state === otherUser.state;
-  return true;
-}
 
 // ===== LIKE USER =====
 
