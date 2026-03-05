@@ -43,11 +43,30 @@ function Discover() {
     }
   };
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (preferences = null) => {
     setLoading(true);
     try {
       console.log("🔍 Fetching discover users...");
-      const response = await api.get("/users/discover");
+
+      // If preferences provided, pass them as query params
+      let url = "/users/discover";
+      if (preferences) {
+        const params = new URLSearchParams({
+          locationPreference: preferences.locationPreference,
+          filterPoliticalBeliefs: JSON.stringify(
+            preferences.filterPoliticalBeliefs || [],
+          ),
+          filterReligions: JSON.stringify(preferences.filterReligions || []),
+          filterLifeStages: JSON.stringify(preferences.filterLifeStages || []),
+        });
+        url = `/users/discover?${params}`;
+        console.log(
+          "   📍 Using preferences from query:",
+          preferences.locationPreference,
+        );
+      }
+
+      const response = await api.get(url);
       console.log("📥 Received users:", response.data.users?.length || 0);
       setUsers(response.data.users || []);
     } catch (error) {
@@ -61,7 +80,6 @@ function Discover() {
   const handleLike = async (userId, e) => {
     e.stopPropagation();
     console.log("🎯 Liking user:", userId);
-    console.log("👤 Current user ID:", currentUser._id);
 
     // Prevent double-clicking
     if (actionLoading[userId] || likedUsers.has(userId)) return;
@@ -126,12 +144,12 @@ function Discover() {
       updatedPreferences,
     );
 
-    // Clear liked users from localStorage so they can appear again with new filters
+    // Clear liked users from localStorage
     localStorage.removeItem("likedUserIds");
     setLikedUsers(new Set());
 
-    // ONLY refetch discover results (don't refetch currentUser - we already have the updated data!)
-    await fetchUsers();
+    // Fetch with the NEW preferences immediately via query params (no waiting!)
+    await fetchUsers(updatedPreferences);
   };
 
   if (loading) {

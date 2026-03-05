@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Send, ArrowLeft, User as UserIcon } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { messageAPI, userAPI } from "../services/api";
+import { messageAPI } from "../services/api";
 import "./Messages.css";
 import UserActionsMenu from "../components/UserActionsMenu";
 
@@ -18,43 +18,8 @@ const Messages = () => {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
 
-  useEffect(() => {
-    loadConversations();
-    if (userId) {
-      loadConversation(userId);
-    }
-  }, [userId]);
-
-  // In Messages.js, when loading conversations:
-  const loadConversations = async () => {
-    try {
-      const [convResponse, matchesResponse] = await Promise.all([
-        messageAPI.getConversations(),
-        userAPI.getMatches(),
-      ]);
-
-      const matchIds = new Set(matchesResponse.data.map((m) => m._id));
-
-      // Only show conversations with people you're actually matched with
-      const validConversations = convResponse.data.filter((conv) =>
-        matchIds.has(conv._id),
-      );
-
-      console.log(
-        `📬 ${convResponse.data.length} conversations, ${validConversations.length} valid`,
-      );
-      setConversations(validConversations);
-
-      // Load unread counts for valid conversations
-      loadUnreadCounts(validConversations);
-    } catch (error) {
-      console.error("Error loading:", error);
-    } finally {
-      setLoading(false); // ← ADD THIS!
-    }
-  };
-
-  const loadUnreadCounts = async (matches) => {
+  // Wrap functions in useCallback to avoid dependency warnings
+  const loadUnreadCounts = useCallback(async (matches) => {
     try {
       const counts = {};
 
@@ -73,30 +38,56 @@ const Messages = () => {
     } catch (error) {
       console.error("Error loading unread counts:", error);
     }
-  };
+  }, []);
 
-  const loadConversation = async (otherUserId) => {
+  const loadConversations = useCallback(async () => {
     try {
-      const userMatch = conversations.find((u) => u._id === otherUserId);
-      setSelectedUser(userMatch);
+      const convResponse = await messageAPI.getConversations();
 
-      // Load messages
-      const response = await messageAPI.getMessages(otherUserId);
-      setMessages(response.data);
+      console.log(`📬 Loaded ${convResponse.data.length} conversations`);
+      setConversations(convResponse.data || []);
 
-      // Clear unread count for this specific user
-      setUnreadCounts((prev) => ({
-        ...prev,
-        [otherUserId]: 0,
-      }));
-
-      // Clear global unread badge
-      console.log("📖 Viewing conversation - clearing badges");
-      clearUnread();
+      // Load unread counts
+      loadUnreadCounts(convResponse.data || []);
     } catch (error) {
-      console.error("Error loading conversation:", error);
+      console.error("Error loading conversations:", error);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [loadUnreadCounts]);
+
+  const loadConversation = useCallback(
+    async (otherUserId) => {
+      try {
+        const userMatch = conversations.find((u) => u._id === otherUserId);
+        setSelectedUser(userMatch);
+
+        // Load messages
+        const response = await messageAPI.getMessages(otherUserId);
+        setMessages(response.data);
+
+        // Clear unread count for this specific user
+        setUnreadCounts((prev) => ({
+          ...prev,
+          [otherUserId]: 0,
+        }));
+
+        // Clear global unread badge
+        console.log("📖 Viewing conversation - clearing badges");
+        clearUnread();
+      } catch (error) {
+        console.error("Error loading conversation:", error);
+      }
+    },
+    [conversations, clearUnread],
+  );
+
+  useEffect(() => {
+    loadConversations();
+    if (userId) {
+      loadConversation(userId);
+    }
+  }, [userId, loadConversations, loadConversation]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -201,7 +192,7 @@ const Messages = () => {
         <div className={`chat-area ${!selectedUser ? "mobile-hidden" : ""}`}>
           {selectedUser ? (
             <>
-              {/* Chat Header - UPDATED */}
+              {/* Chat Header */}
               <div className="chat-header">
                 <button
                   className="back-button mobile-only"
@@ -230,7 +221,6 @@ const Messages = () => {
                   >
                     View Profile
                   </button>
-                  {/* ADD THIS - User Actions Menu */}
                   <UserActionsMenu
                     userId={selectedUser._id}
                     userName={selectedUser.name}

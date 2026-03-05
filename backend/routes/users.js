@@ -11,6 +11,9 @@ const Message = require("../models/Message");
 // @route   GET /api/users/discover
 // @desc    Get potential matches for discovery
 // @access  Private
+// In /backend/routes/users.js
+// Replace the discover route with this:
+
 router.get("/discover", auth, async (req, res) => {
   try {
     const currentUser = await User.findById(req.userId);
@@ -20,16 +23,38 @@ router.get("/discover", auth, async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // ✅ NEW: Use query params if provided, otherwise use user's saved preferences
+    const locationPref =
+      req.query.locationPreference ||
+      currentUser.locationPreference ||
+      "Same state";
+    const filterPolitical = req.query.filterPoliticalBeliefs
+      ? JSON.parse(req.query.filterPoliticalBeliefs)
+      : currentUser.filterPoliticalBeliefs || [];
+    const filterReligions = req.query.filterReligions
+      ? JSON.parse(req.query.filterReligions)
+      : currentUser.filterReligions || [];
+    const filterLifeStages = req.query.filterLifeStages
+      ? JSON.parse(req.query.filterLifeStages)
+      : currentUser.filterLifeStages || [];
+
     logger.info("\n========== DISCOVER REQUEST ==========");
     logger.info("👤 User:", currentUser.email);
     logger.info("📍 User Location:", currentUser.city, currentUser.state);
-    logger.info("🔍 Location Preference:", currentUser.locationPreference);
     logger.info(
-      "🏛️ Political Filters:",
-      currentUser.filterPoliticalBeliefs || [],
+      "🔍 Location Preference:",
+      locationPref,
+      req.query.locationPreference ? "(from query)" : "(from DB)",
     );
-    logger.info("⛪ Religion Filters:", currentUser.filterReligions || []);
-    logger.info("👤 Life Stage Filters:", currentUser.filterLifeStages || []);
+    logger.info("🏛️ Political Filters:", filterPolitical);
+    logger.info("⛪ Religion Filters:", filterReligions);
+    logger.info("👤 Life Stage Filters:", filterLifeStages);
+
+    // ... rest of the discover logic stays the same, but use the variables above:
+    // Use `locationPref` instead of `currentUser.locationPreference`
+    // Use `filterPolitical` instead of `currentUser.filterPoliticalBeliefs`
+    // Use `filterReligions` instead of `currentUser.filterReligions`
+    // Use `filterLifeStages` instead of `currentUser.filterLifeStages`
 
     // Get all users who have blocked the current user
     const usersWhoBlockedMe = await User.find({
@@ -47,10 +72,6 @@ router.get("/discover", auth, async (req, res) => {
     ];
 
     logger.info("🚫 Excluding", excludedIds.length, "users");
-    logger.info("   Liked:", (currentUser.likes || []).length);
-    logger.info("   Passed:", (currentUser.passed || []).length);
-    logger.info("   Blocked:", (currentUser.blockedUsers || []).length);
-    logger.info("   Blocked me:", blockedMeIds.length);
 
     // Find potential matches
     let potentialMatches = await User.find({
@@ -65,31 +86,24 @@ router.get("/discover", auth, async (req, res) => {
 
     logger.info("📊 After exclusion filter:", potentialMatches.length, "users");
 
-    // Log all available users with their locations
-    if (potentialMatches.length > 0) {
-      logger.info("   Available users:");
-      potentialMatches.forEach((u) => {
-        logger.info(`      - ${u.name}: ${u.city}, ${u.state}`);
-      });
-    }
-
-    // Filter by location preference
-    const locationPref = currentUser.locationPreference || "Same state";
+    // Filter by location preference - USE THE VARIABLE
     logger.info("\n🔍 Applying location filter:", locationPref);
 
-    // Skip filtering entirely if preference is "Anywhere"
     if (locationPref === "Anywhere") {
       logger.info("   ✅ ANYWHERE selected - keeping ALL users");
-      logger.info("   📍 No location filtering applied");
     } else {
       logger.info(`   📍 Filtering users by: ${locationPref}`);
-
       const beforeFilterCount = potentialMatches.length;
       potentialMatches = potentialMatches.filter((user) => {
         try {
-          const meets = currentUser.meetsLocationPreference(user);
+          // Pass locationPref to the method
+          const meets = meetsLocationPreference(
+            currentUser,
+            user,
+            locationPref,
+          );
           logger.info(
-            `      ${meets ? "✅" : "❌"} ${user.name} (${user.city}, ${user.state}) - ${meets ? "PASS" : "FAIL"}`,
+            `      ${meets ? "✅" : "❌"} ${user.name} (${user.city}, ${user.state})`,
           );
           return meets;
         } catch (err) {
@@ -100,90 +114,51 @@ router.get("/discover", auth, async (req, res) => {
           return false;
         }
       });
-
       logger.info(
         `   📊 Filtered ${beforeFilterCount} → ${potentialMatches.length} users`,
       );
     }
 
-    logger.info(
-      "\n📍 After location filter:",
-      potentialMatches.length,
-      "users",
-    );
-
-    if (potentialMatches.length === 0) {
-      logger.warn("⚠️ WARNING: No users after location filter!");
-      logger.warn("   This might indicate a filtering issue");
-    }
-
-    // Apply additional filters (political beliefs, religion, life stage)
+    // Apply additional filters - USE THE VARIABLES
     logger.info("\n🔍 Applying additional filters...");
 
-    // Filter by political beliefs (if any selected)
-    if (
-      currentUser.filterPoliticalBeliefs &&
-      currentUser.filterPoliticalBeliefs.length > 0
-    ) {
+    if (filterPolitical && filterPolitical.length > 0) {
       const beforeCount = potentialMatches.length;
       potentialMatches = potentialMatches.filter((user) => {
-        // User must have at least one matching political belief
         const hasMatch = user.politicalBeliefs?.some((belief) =>
-          currentUser.filterPoliticalBeliefs.includes(belief),
+          filterPolitical.includes(belief),
         );
         return hasMatch;
       });
       logger.info(
         `   🏛️ Political filter: ${beforeCount} → ${potentialMatches.length} users`,
       );
-      logger.info(
-        `      Looking for: ${currentUser.filterPoliticalBeliefs.join(", ")}`,
-      );
     }
 
-    // Filter by religion (if any selected)
-    if (currentUser.filterReligions && currentUser.filterReligions.length > 0) {
+    if (filterReligions && filterReligions.length > 0) {
       const beforeCount = potentialMatches.length;
       potentialMatches = potentialMatches.filter((user) => {
-        // User's religion must match one of the selected religions
-        return currentUser.filterReligions.includes(user.religion);
+        return filterReligions.includes(user.religion);
       });
       logger.info(
         `   ⛪ Religion filter: ${beforeCount} → ${potentialMatches.length} users`,
       );
-      logger.info(
-        `      Looking for: ${currentUser.filterReligions.join(", ")}`,
-      );
     }
 
-    // Filter by life stage (if any selected)
-    if (
-      currentUser.filterLifeStages &&
-      currentUser.filterLifeStages.length > 0
-    ) {
+    if (filterLifeStages && filterLifeStages.length > 0) {
       const beforeCount = potentialMatches.length;
       potentialMatches = potentialMatches.filter((user) => {
-        // User must have at least one matching life stage
         const hasMatch = user.lifeStage?.some((stage) =>
-          currentUser.filterLifeStages.includes(stage),
+          filterLifeStages.includes(stage),
         );
         return hasMatch;
       });
       logger.info(
         `   👤 Life stage filter: ${beforeCount} → ${potentialMatches.length} users`,
       );
-      logger.info(
-        `      Looking for: ${currentUser.filterLifeStages.join(", ")}`,
-      );
     }
 
     logger.info("\n✅ After all filters:", potentialMatches.length, "users");
-
-    logger.info(
-      "✅ Discover successful, returning",
-      potentialMatches.length,
-      "users",
-    );
     logger.info("====================================\n");
 
     res.json({
@@ -195,6 +170,18 @@ router.get("/discover", auth, async (req, res) => {
     res.status(500).json({ message: "Error fetching discover users" });
   }
 });
+
+// Helper function for location checking (add this above the route)
+function meetsLocationPreference(currentUser, otherUser, locationPref) {
+  if (locationPref === "Anywhere") return true;
+  if (locationPref === "Same city")
+    return currentUser.city.toLowerCase() === otherUser.city.toLowerCase();
+  if (locationPref === "Same state")
+    return currentUser.state === otherUser.state;
+  if (locationPref && locationPref.includes("miles"))
+    return currentUser.state === otherUser.state;
+  return true;
+}
 
 // ===== LIKE USER =====
 
