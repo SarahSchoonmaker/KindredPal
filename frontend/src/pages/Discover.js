@@ -50,7 +50,6 @@ function Discover() {
       const response = await api.get("/users/discover");
       console.log("📥 Received users:", response.data.users?.length || 0);
       setUsers(response.data.users || []);
-      // ← REMOVED: setLikedUsers(new Set());
     } catch (error) {
       console.error("Error fetching users:", error);
       console.error("Error details:", error.response?.data);
@@ -62,7 +61,7 @@ function Discover() {
   const handleLike = async (userId, e) => {
     e.stopPropagation();
     console.log("🎯 Liking user:", userId);
-    console.log("👤 Current user ID:", currentUser._id); // Check format
+    console.log("👤 Current user ID:", currentUser._id);
 
     // Prevent double-clicking
     if (actionLoading[userId] || likedUsers.has(userId)) return;
@@ -143,14 +142,14 @@ function Discover() {
                 <MapPin size={16} />
                 <span>
                   {currentUser.city}, {currentUser.state} •{" "}
-                  {currentUser.locationPreference || "Home state"}
+                  {currentUser.locationPreference || "Same state"}
                 </span>
               </p>
             )}
           </div>
           {currentUser && (
             <DiscoverFilters
-              currentPreference={currentUser.locationPreference}
+              currentUser={currentUser}
               onUpdate={handlePreferencesUpdate}
             />
           )}
@@ -190,7 +189,7 @@ function Discover() {
           <p>Check back later for new people to connect with!</p>
           {currentUser?.locationPreference === "Same city" && (
             <p className="tip">
-              💡 Try expanding your search to "Home state" or "Anywhere" to see
+              💡 Try expanding your search to "Same state" or "Anywhere" to see
               more people
             </p>
           )}
@@ -212,7 +211,6 @@ function Discover() {
               >
                 <div className="card-image-small">
                   <img src={user.profilePhoto} alt={user.name} />
-                  {/* REMOVED match-badge */}
                 </div>
 
                 <div className="card-info-small">

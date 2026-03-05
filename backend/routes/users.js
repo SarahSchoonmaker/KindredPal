@@ -22,7 +22,8 @@ router.get("/discover", auth, async (req, res) => {
 
     logger.info("\n========== DISCOVER REQUEST ==========");
     logger.info("👤 User:", currentUser.email);
-    logger.info("📍 Location:", currentUser.city, currentUser.state);
+    logger.info("📍 User Location:", currentUser.city, currentUser.state);
+    logger.info("🔍 Location Preference:", currentUser.locationPreference);
 
     // Get all users who have blocked the current user
     const usersWhoBlockedMe = await User.find({
@@ -41,17 +42,9 @@ router.get("/discover", auth, async (req, res) => {
 
     logger.info("🚫 Excluding", excludedIds.length, "users");
     logger.info("   Liked:", (currentUser.likes || []).length);
-    logger.info(
-      "   Liked IDs:",
-      currentUser.likes.map((id) => id.toString()).join(", "),
-    );
     logger.info("   Passed:", (currentUser.passed || []).length);
     logger.info("   Blocked:", (currentUser.blockedUsers || []).length);
     logger.info("   Blocked me:", blockedMeIds.length);
-    logger.info(
-      "   All excluded IDs:",
-      excludedIds.map((id) => id.toString()).join(", "),
-    );
 
     // Find potential matches
     let potentialMatches = await User.find({
@@ -65,25 +58,33 @@ router.get("/discover", auth, async (req, res) => {
       .lean();
 
     logger.info("📊 After exclusion filter:", potentialMatches.length, "users");
-    logger.info(
-      "   User IDs:",
-      potentialMatches.map((u) => `${u.name} (${u._id})`).join(", "),
-    );
+
+    // Log all available users with their locations
+    if (potentialMatches.length > 0) {
+      logger.info("   Available users:");
+      potentialMatches.forEach((u) => {
+        logger.info(`      - ${u.name}: ${u.city}, ${u.state}`);
+      });
+    }
 
     // Filter by location preference
     const locationPref = currentUser.locationPreference || "Same state";
-    logger.info("🔍 Applying location filter:", locationPref);
+    logger.info("\n🔍 Applying location filter:", locationPref);
 
     // Skip filtering entirely if preference is "Anywhere"
-    if (locationPref !== "Anywhere") {
+    if (locationPref === "Anywhere") {
+      logger.info("   ✅ ANYWHERE selected - keeping ALL users");
+      logger.info("   📍 No location filtering applied");
+    } else {
+      logger.info(`   📍 Filtering users by: ${locationPref}`);
+
+      const beforeFilterCount = potentialMatches.length;
       potentialMatches = potentialMatches.filter((user) => {
         try {
           const meets = currentUser.meetsLocationPreference(user);
-          if (!meets) {
-            logger.info(
-              `   ❌ ${user.name} doesn't meet location: ${locationPref}`,
-            );
-          }
+          logger.info(
+            `      ${meets ? "✅" : "❌"} ${user.name} (${user.city}, ${user.state}) - ${meets ? "PASS" : "FAIL"}`,
+          );
           return meets;
         } catch (err) {
           logger.error(
@@ -93,13 +94,85 @@ router.get("/discover", auth, async (req, res) => {
           return false;
         }
       });
-    } else {
-      logger.info("   ✅ Anywhere selected - keeping all users");
+
+      logger.info(
+        `   📊 Filtered ${beforeFilterCount} → ${potentialMatches.length} users`,
+      );
     }
 
-    logger.info("📍 After location filter:", potentialMatches.length, "users");
+    logger.info(
+      "\n📍 After location filter:",
+      potentialMatches.length,
+      "users",
+    );
 
-    // ✅ REMOVED: Match score calculation - just return users as-is
+    if (potentialMatches.length === 0) {
+      logger.warn("⚠️ WARNING: No users after location filter!");
+      logger.warn("   This might indicate a filtering issue");
+    }
+
+    // Apply additional filters (political beliefs, religion, life stage)
+    logger.info("\n🔍 Applying additional filters...");
+
+    // Filter by political beliefs (if any selected)
+    if (
+      currentUser.filterPoliticalBeliefs &&
+      currentUser.filterPoliticalBeliefs.length > 0
+    ) {
+      const beforeCount = potentialMatches.length;
+      potentialMatches = potentialMatches.filter((user) => {
+        // User must have at least one matching political belief
+        const hasMatch = user.politicalBeliefs?.some((belief) =>
+          currentUser.filterPoliticalBeliefs.includes(belief),
+        );
+        return hasMatch;
+      });
+      logger.info(
+        `   🏛️ Political filter: ${beforeCount} → ${potentialMatches.length} users`,
+      );
+      logger.info(
+        `      Looking for: ${currentUser.filterPoliticalBeliefs.join(", ")}`,
+      );
+    }
+
+    // Filter by religion (if any selected)
+    if (currentUser.filterReligions && currentUser.filterReligions.length > 0) {
+      const beforeCount = potentialMatches.length;
+      potentialMatches = potentialMatches.filter((user) => {
+        // User's religion must match one of the selected religions
+        return currentUser.filterReligions.includes(user.religion);
+      });
+      logger.info(
+        `   ⛪ Religion filter: ${beforeCount} → ${potentialMatches.length} users`,
+      );
+      logger.info(
+        `      Looking for: ${currentUser.filterReligions.join(", ")}`,
+      );
+    }
+
+    // Filter by life stage (if any selected)
+    if (
+      currentUser.filterLifeStages &&
+      currentUser.filterLifeStages.length > 0
+    ) {
+      const beforeCount = potentialMatches.length;
+      potentialMatches = potentialMatches.filter((user) => {
+        // User must have at least one matching life stage
+        const hasMatch = user.lifeStage?.some((stage) =>
+          currentUser.filterLifeStages.includes(stage),
+        );
+        return hasMatch;
+      });
+      logger.info(
+        `   👤 Life stage filter: ${beforeCount} → ${potentialMatches.length} users`,
+      );
+      logger.info(
+        `      Looking for: ${currentUser.filterLifeStages.join(", ")}`,
+      );
+    }
+
+    logger.info("\n✅ After all filters:", potentialMatches.length, "users");
+
     logger.info(
       "✅ Discover successful, returning",
       potentialMatches.length,
@@ -122,7 +195,6 @@ router.get("/discover", auth, async (req, res) => {
 // @route   POST /api/users/like/:userId
 // @desc    Like a user
 // @access  Private
-
 router.post("/like/:userId", auth, async (req, res) => {
   try {
     logger.info(`📥 Like request: ${req.userId} → ${req.params.userId}`);
@@ -194,7 +266,7 @@ router.post("/like/:userId", auth, async (req, res) => {
       }
     }
 
-    // ✅ CRITICAL: Save current user
+    // Save current user
     logger.info(
       `💾 Saving currentUser with ${currentUser.likes.length} likes...`,
     );
@@ -305,7 +377,7 @@ router.get("/likes-you", auth, async (req, res) => {
 
     // Build exclusion list with safety checks
     const excludedIds = [
-      req.userId, // ← ADD THIS: Exclude yourself!
+      req.userId, // Exclude yourself
       ...(currentUser.matches || []),
       ...(currentUser.blockedUsers || []),
     ];
@@ -366,6 +438,9 @@ router.put("/profile", auth, async (req, res) => {
       "lifeStage",
       "lookingFor",
       "locationPreference",
+      "filterPoliticalBeliefs",
+      "filterReligions",
+      "filterLifeStages",
     ];
 
     allowedUpdates.forEach((field) => {
@@ -395,7 +470,7 @@ router.get("/profile/:userId", auth, async (req, res) => {
   try {
     const user = await User.findById(req.params.userId)
       .select("-password")
-      .lean(); // ← Added .lean()
+      .lean();
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -462,7 +537,7 @@ router.post("/unmatch/:userId", auth, async (req, res) => {
     logger.info(`Before - Current user matches: ${currentUser.matches.length}`);
     logger.info(`Before - Target user matches: ${targetUser.matches.length}`);
 
-    // Remove from both users' matches - USE .toString()
+    // Remove from both users' matches
     currentUser.matches = currentUser.matches.filter(
       (id) => id.toString() !== targetUser._id.toString(),
     );
@@ -540,7 +615,7 @@ router.post("/:userId/report", auth, async (req, res) => {
       return res.status(400).json({ message: "Report reason is required" });
     }
 
-    const reportedUser = await User.findById(userId).lean(); // ← Added .lean()
+    const reportedUser = await User.findById(userId).lean();
     if (!reportedUser) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -567,7 +642,6 @@ router.post("/:userId/report", auth, async (req, res) => {
 // @route   POST /api/users/:userId/block
 // @desc    Block a user
 // @access  Private
-// ===== BLOCK USER =====
 router.post("/:userId/block", auth, async (req, res) => {
   try {
     logger.info(
@@ -617,6 +691,10 @@ router.post("/:userId/block", auth, async (req, res) => {
 });
 
 // ===== UNBLOCK USER =====
+
+// @route   DELETE /api/users/:userId/block
+// @desc    Unblock a user
+// @access  Private
 router.delete("/:userId/block", auth, async (req, res) => {
   try {
     logger.info(
@@ -649,6 +727,10 @@ router.delete("/:userId/block", auth, async (req, res) => {
 });
 
 // ===== GET BLOCKED USERS =====
+
+// @route   GET /api/users/blocked
+// @desc    Get blocked users
+// @access  Private
 router.get("/blocked", auth, async (req, res) => {
   try {
     const user = await User.findById(req.userId)
