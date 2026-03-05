@@ -5,6 +5,7 @@ const auth = require("../middleware/auth");
 const { sendPushNotification } = require("../utils/pushNotifications");
 const logger = require("../utils/logger");
 const Message = require("../models/Message");
+const mongoose = require("mongoose");
 
 // ===== DISCOVER ROUTE =====
 
@@ -23,7 +24,7 @@ router.get("/discover", auth, async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // ✅ NEW: Use query params if provided, otherwise use user's saved preferences
+    // Use query params if provided, otherwise use user's saved preferences
     const locationPref =
       req.query.locationPreference ||
       currentUser.locationPreference ||
@@ -40,21 +41,9 @@ router.get("/discover", auth, async (req, res) => {
 
     logger.info("\n========== DISCOVER REQUEST ==========");
     logger.info("👤 User:", currentUser.email);
+    logger.info("🆔 User ID:", currentUser._id.toString());
     logger.info("📍 User Location:", currentUser.city, currentUser.state);
-    logger.info(
-      "🔍 Location Preference:",
-      locationPref,
-      req.query.locationPreference ? "(from query)" : "(from DB)",
-    );
-    logger.info("🏛️ Political Filters:", filterPolitical);
-    logger.info("⛪ Religion Filters:", filterReligions);
-    logger.info("👤 Life Stage Filters:", filterLifeStages);
-
-    // ... rest of the discover logic stays the same, but use the variables above:
-    // Use `locationPref` instead of `currentUser.locationPreference`
-    // Use `filterPolitical` instead of `currentUser.filterPoliticalBeliefs`
-    // Use `filterReligions` instead of `currentUser.filterReligions`
-    // Use `filterLifeStages` instead of `currentUser.filterLifeStages`
+    logger.info("🔍 Location Preference:", locationPref);
 
     // Get all users who have blocked the current user
     const usersWhoBlockedMe = await User.find({
@@ -62,9 +51,13 @@ router.get("/discover", auth, async (req, res) => {
     }).select("_id");
     const blockedMeIds = usersWhoBlockedMe.map((u) => u._id);
 
-    // Get all users except current user, liked, passed, blocked, and who blocked me
+    // ✅ CRITICAL FIX: Convert req.userId to ObjectId to ensure proper exclusion
+    const currentUserObjectId = mongoose.Types.ObjectId(req.userId);
+
+    // Build exclusion list
     const excludedIds = [
-      req.userId,
+      currentUserObjectId, // ← Use ObjectId version
+      ...(currentUser.matches || []),
       ...(currentUser.likes || []),
       ...(currentUser.passed || []),
       ...(currentUser.blockedUsers || []),
@@ -72,6 +65,12 @@ router.get("/discover", auth, async (req, res) => {
     ];
 
     logger.info("🚫 Excluding", excludedIds.length, "users");
+    logger.info("   Self (as ObjectId):", currentUserObjectId.toString());
+    logger.info("   Matches:", (currentUser.matches || []).length);
+    logger.info("   Liked:", (currentUser.likes || []).length);
+    logger.info("   Passed:", (currentUser.passed || []).length);
+    logger.info("   Blocked:", (currentUser.blockedUsers || []).length);
+    logger.info("   Blocked me:", blockedMeIds.length);
 
     // Find potential matches
     let potentialMatches = await User.find({
@@ -86,24 +85,36 @@ router.get("/discover", auth, async (req, res) => {
 
     logger.info("📊 After exclusion filter:", potentialMatches.length, "users");
 
-    // Filter by location preference - USE THE VARIABLE
+    // ✅ SAFETY CHECK: Double-check you're not in results
+    const foundSelf = potentialMatches.find(
+      (u) => u._id.toString() === currentUserObjectId.toString(),
+    );
+
+    if (foundSelf) {
+      logger.error(
+        "⚠️ WARNING: Current user still in results! Filtering manually...",
+      );
+      potentialMatches = potentialMatches.filter(
+        (u) => u._id.toString() !== currentUserObjectId.toString(),
+      );
+      logger.info("   ✅ Removed self. New count:", potentialMatches.length);
+    }
+
+    // Filter by location preference
     logger.info("\n🔍 Applying location filter:", locationPref);
 
     if (locationPref === "Anywhere") {
       logger.info("   ✅ ANYWHERE selected - keeping ALL users");
     } else {
       logger.info(`   📍 Filtering users by: ${locationPref}`);
+
       const beforeFilterCount = potentialMatches.length;
       potentialMatches = potentialMatches.filter((user) => {
         try {
-          // Pass locationPref to the method
           const meets = meetsLocationPreference(
             currentUser,
             user,
             locationPref,
-          );
-          logger.info(
-            `      ${meets ? "✅" : "❌"} ${user.name} (${user.city}, ${user.state})`,
           );
           return meets;
         } catch (err) {
@@ -114,12 +125,19 @@ router.get("/discover", auth, async (req, res) => {
           return false;
         }
       });
+
       logger.info(
         `   📊 Filtered ${beforeFilterCount} → ${potentialMatches.length} users`,
       );
     }
 
-    // Apply additional filters - USE THE VARIABLES
+    logger.info(
+      "\n📍 After location filter:",
+      potentialMatches.length,
+      "users",
+    );
+
+    // Apply additional filters
     logger.info("\n🔍 Applying additional filters...");
 
     if (filterPolitical && filterPolitical.length > 0) {
@@ -171,7 +189,7 @@ router.get("/discover", auth, async (req, res) => {
   }
 });
 
-// Helper function for location checking (add this above the route)
+// Helper function for location checking
 function meetsLocationPreference(currentUser, otherUser, locationPref) {
   if (locationPref === "Anywhere") return true;
   if (locationPref === "Same city")
@@ -182,134 +200,6 @@ function meetsLocationPreference(currentUser, otherUser, locationPref) {
     return currentUser.state === otherUser.state;
   return true;
 }
-
-router.get("/discover/debug", auth, async (req, res) => {
-  try {
-    const currentUser = await User.findById(req.userId);
-
-    if (!currentUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    // Get all users who have blocked you
-    const usersWhoBlockedMe = await User.find({
-      blockedUsers: currentUser._id,
-    }).select("_id email name");
-
-    // Get total user count
-    const totalUsers = await User.countDocuments({
-      isDeleted: { $ne: true },
-      isActive: { $ne: false },
-    });
-
-    // Get users in each category
-    const likedUsers = await User.find({
-      _id: { $in: currentUser.likes },
-    }).select("_id email name");
-
-    const passedUsers = await User.find({
-      _id: { $in: currentUser.passed },
-    }).select("_id email name");
-
-    const matchedUsers = await User.find({
-      _id: { $in: currentUser.matches },
-    }).select("_id email name");
-
-    const blockedUsers = await User.find({
-      _id: { $in: currentUser.blockedUsers },
-    }).select("_id email name");
-
-    // Get users in your state
-    const sameStateUsers = await User.countDocuments({
-      _id: { $ne: req.userId },
-      state: currentUser.state,
-      isDeleted: { $ne: true },
-      isActive: { $ne: false },
-    });
-
-    // Get users available to discover (after exclusions)
-    const excludedIds = [
-      req.userId,
-      ...(currentUser.likes || []),
-      ...(currentUser.passed || []),
-      ...(currentUser.matches || []),
-      ...(currentUser.blockedUsers || []),
-      ...usersWhoBlockedMe.map((u) => u._id),
-    ];
-
-    const availableUsers = await User.find({
-      _id: { $nin: excludedIds },
-      isDeleted: { $ne: true },
-      isActive: { $ne: false },
-    }).select("_id email name city state");
-
-    res.json({
-      summary: {
-        totalActiveUsers: totalUsers,
-        sameStateUsers: sameStateUsers,
-        availableToDiscover: availableUsers.length,
-        excluded: excludedIds.length,
-      },
-      yourInfo: {
-        email: currentUser.email,
-        city: currentUser.city,
-        state: currentUser.state,
-        locationPreference: currentUser.locationPreference,
-      },
-      excluded: {
-        liked: {
-          count: likedUsers.length,
-          users: likedUsers.map((u) => ({
-            id: u._id,
-            name: u.name,
-            email: u.email,
-          })),
-        },
-        passed: {
-          count: passedUsers.length,
-          users: passedUsers.map((u) => ({
-            id: u._id,
-            name: u.name,
-            email: u.email,
-          })),
-        },
-        matches: {
-          count: matchedUsers.length,
-          users: matchedUsers.map((u) => ({
-            id: u._id,
-            name: u.name,
-            email: u.email,
-          })),
-        },
-        blocked: {
-          count: blockedUsers.length,
-          users: blockedUsers.map((u) => ({
-            id: u._id,
-            name: u.name,
-            email: u.email,
-          })),
-        },
-        blockedYou: {
-          count: usersWhoBlockedMe.length,
-          users: usersWhoBlockedMe.map((u) => ({
-            id: u._id,
-            name: u.name,
-            email: u.email,
-          })),
-        },
-      },
-      availableUsers: availableUsers.map((u) => ({
-        id: u._id,
-        name: u.name,
-        email: u.email,
-        location: `${u.city}, ${u.state}`,
-      })),
-    });
-  } catch (error) {
-    console.error("Debug endpoint error:", error);
-    res.status(500).json({ message: "Error", error: error.message });
-  }
-});
 
 // ===== LIKE USER =====
 

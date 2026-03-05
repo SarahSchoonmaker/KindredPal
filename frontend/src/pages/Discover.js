@@ -139,17 +139,15 @@ function Discover() {
       ...prev,
       ...updatedPreferences,
     }));
-    console.log(
-      "✅ Current user updated optimistically with:",
-      updatedPreferences,
-    );
+    console.log("✅ Current user updated optimistically");
 
     // Clear liked users from localStorage
     localStorage.removeItem("likedUserIds");
     setLikedUsers(new Set());
 
-    // Fetch with the NEW preferences immediately via query params (no waiting!)
-    await fetchUsers(updatedPreferences);
+    // DON'T refetch currentUser - we already have the updated data!
+    // Just refetch discover results with new filters
+    await fetchUsers();
   };
 
   if (loading) {

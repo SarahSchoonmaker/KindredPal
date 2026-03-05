@@ -18,8 +18,12 @@ const Messages = () => {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
 
-  // Wrap functions in useCallback to avoid dependency warnings
   const loadUnreadCounts = useCallback(async (matches) => {
+    if (!matches || matches.length === 0) {
+      console.log("📊 No matches to load unread counts for");
+      return;
+    }
+
     try {
       const counts = {};
 
@@ -42,15 +46,27 @@ const Messages = () => {
 
   const loadConversations = useCallback(async () => {
     try {
+      console.log("📬 Loading conversations...");
       const convResponse = await messageAPI.getConversations();
 
-      console.log(`📬 Loaded ${convResponse.data.length} conversations`);
-      setConversations(convResponse.data || []);
+      console.log("📥 Received conversations:", convResponse.data?.length || 0);
+
+      if (!convResponse.data) {
+        console.error("❌ No data in conversations response");
+        setConversations([]);
+        return;
+      }
+
+      setConversations(convResponse.data);
 
       // Load unread counts
-      loadUnreadCounts(convResponse.data || []);
+      if (convResponse.data.length > 0) {
+        loadUnreadCounts(convResponse.data);
+      }
     } catch (error) {
-      console.error("Error loading conversations:", error);
+      console.error("❌ Error loading conversations:", error);
+      console.error("   Error details:", error.response?.data);
+      setConversations([]);
     } finally {
       setLoading(false);
     }
@@ -59,12 +75,21 @@ const Messages = () => {
   const loadConversation = useCallback(
     async (otherUserId) => {
       try {
+        console.log("💬 Loading conversation with:", otherUserId);
+
         const userMatch = conversations.find((u) => u._id === otherUserId);
+
+        if (!userMatch) {
+          console.error("❌ User not found in conversations:", otherUserId);
+          return;
+        }
+
         setSelectedUser(userMatch);
 
         // Load messages
         const response = await messageAPI.getMessages(otherUserId);
-        setMessages(response.data);
+        console.log("📨 Loaded messages:", response.data?.length || 0);
+        setMessages(response.data || []);
 
         // Clear unread count for this specific user
         setUnreadCounts((prev) => ({
@@ -76,18 +101,24 @@ const Messages = () => {
         console.log("📖 Viewing conversation - clearing badges");
         clearUnread();
       } catch (error) {
-        console.error("Error loading conversation:", error);
+        console.error("❌ Error loading conversation:", error);
+        console.error("   Error details:", error.response?.data);
       }
     },
     [conversations, clearUnread],
   );
 
   useEffect(() => {
+    console.log("🔄 Messages useEffect triggered");
     loadConversations();
-    if (userId) {
+  }, []); // Only load conversations once on mount
+
+  useEffect(() => {
+    console.log("🔄 userId changed:", userId);
+    if (userId && conversations.length > 0) {
       loadConversation(userId);
     }
-  }, [userId, loadConversations, loadConversation]);
+  }, [userId, conversations]); // Load conversation when userId or conversations change
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -99,7 +130,7 @@ const Messages = () => {
       setNewMessage("");
 
       const response = await messageAPI.getMessages(selectedUser._id);
-      setMessages(response.data);
+      setMessages(response.data || []);
     } catch (error) {
       console.error("Error sending message:", error);
     } finally {
@@ -108,9 +139,8 @@ const Messages = () => {
   };
 
   const handleSelectConversation = (matchUser) => {
+    console.log("👆 Selected conversation:", matchUser.name);
     navigate(`/messages/${matchUser._id}`);
-    setSelectedUser(matchUser);
-    loadConversation(matchUser._id);
   };
 
   const viewProfile = (matchUser) => {
@@ -119,9 +149,10 @@ const Messages = () => {
 
   // Handle when user is reported/blocked - redirect to messages list
   const handleUserActionComplete = () => {
+    console.log("🔄 User action complete - reloading");
     setSelectedUser(null);
     navigate("/messages");
-    loadConversations(); // Reload to remove blocked user
+    loadConversations();
   };
 
   if (loading) {
@@ -141,7 +172,7 @@ const Messages = () => {
         >
           <div className="sidebar-header">
             <h2>Messages</h2>
-            <p className="subtitle">{conversations.length} matches</p>
+            <p className="subtitle">{conversations.length} conversations</p>
           </div>
 
           {conversations.length === 0 ? (
