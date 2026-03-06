@@ -7,110 +7,6 @@ const logger = require("../utils/logger");
 const Message = require("../models/Message");
 const mongoose = require("mongoose");
 
-// Add this endpoint to /backend/routes/users.js
-// This will show ALL databases and collections
-
-// Add this to /backend/routes/users.js
-// This shows WHY each user is or isn't appearing in discover
-
-router.get("/discover/debug", auth, async (req, res) => {
-  try {
-    const currentUser = await User.findById(req.userId);
-
-    // Get ALL users
-    const allUsers = await User.find({
-      isDeleted: { $ne: true },
-    })
-      .select("name email city state")
-      .lean();
-
-    // Categorize each user
-    const categorized = allUsers.map((user) => {
-      const userId = user._id.toString();
-      const currentUserId = currentUser._id.toString();
-
-      // Check exclusions
-      const isYou = userId === currentUserId;
-      const isMatched = (currentUser.matches || []).some(
-        (id) => id.toString() === userId,
-      );
-      const isLiked = (currentUser.likes || []).some(
-        (id) => id.toString() === userId,
-      );
-      const isPassed = (currentUser.passed || []).some(
-        (id) => id.toString() === userId,
-      );
-      const isBlocked = (currentUser.blockedUsers || []).some(
-        (id) => id.toString() === userId,
-      );
-
-      // Check location match
-      const sameCity =
-        user.city?.toLowerCase() === currentUser.city?.toLowerCase() &&
-        user.state === currentUser.state;
-      const sameState = user.state === currentUser.state;
-
-      let status = "AVAILABLE";
-      let reason = "Should appear in discover";
-
-      if (isYou) {
-        status = "EXCLUDED";
-        reason = "This is you";
-      } else if (isMatched) {
-        status = "EXCLUDED";
-        reason = "Already matched";
-      } else if (isLiked) {
-        status = "EXCLUDED";
-        reason = "Already liked";
-      } else if (isPassed) {
-        status = "EXCLUDED";
-        reason = "Already passed";
-      } else if (isBlocked) {
-        status = "EXCLUDED";
-        reason = "Blocked";
-      }
-
-      return {
-        name: user.name,
-        email: user.email,
-        location: `${user.city}, ${user.state}`,
-        status,
-        reason,
-        locationMatch: {
-          sameCity,
-          sameState,
-        },
-      };
-    });
-
-    const available = categorized.filter((u) => u.status === "AVAILABLE");
-    const excluded = categorized.filter((u) => u.status === "EXCLUDED");
-
-    res.json({
-      yourInfo: {
-        email: currentUser.email,
-        location: `${currentUser.city}, ${currentUser.state}`,
-        locationPreference: currentUser.locationPreference || "Same state",
-      },
-      summary: {
-        totalUsers: allUsers.length,
-        availableToDiscover: available.length,
-        excluded: excluded.length,
-        breakdown: {
-          matches: (currentUser.matches || []).length,
-          likes: (currentUser.likes || []).length,
-          passed: (currentUser.passed || []).length,
-          blocked: (currentUser.blockedUsers || []).length,
-        },
-      },
-      availableUsers: available,
-      excludedUsers: excluded,
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // ===== DISCOVER ROUTE =====
 
 // @route   GET /api/users/discover
@@ -128,40 +24,80 @@ router.get("/discover/debug", auth, async (req, res) => {
 // ULTRA-SAFE DISCOVER ROUTE
 // This version has built-in timeouts and minimal DB queries
 
+// FINAL OPTIMIZED DISCOVER ROUTE
+// Replace the entire /discover route in /backend/routes/users.js
+
 router.get("/discover", auth, async (req, res) => {
   try {
     logger.info("🔍 DISCOVER START");
 
     const currentUser = await User.findById(req.userId).lean();
-    logger.info("✅ Got user:", currentUser?.email);
-
     if (!currentUser) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Simple exclusion - just yourself
-    const excludedIds = [currentUser._id];
+    // Get preferences from query params OR user profile
+    const locationPref =
+      req.query.locationPreference ||
+      currentUser.locationPreference ||
+      "Same state";
+
+    logger.info("✅ User:", currentUser.email);
+    logger.info("📍 Location filter:", locationPref);
+
+    // Build exclusion list
+    const excludedIds = [
+      currentUser._id,
+      ...(currentUser.matches || []),
+      ...(currentUser.likes || []),
+      ...(currentUser.passed || []),
+      ...(currentUser.blockedUsers || []),
+    ];
+
     logger.info("📊 Excluding:", excludedIds.length, "users");
 
-    // Ultra-simple query
-    const users = await User.find({
+    // Fetch users (no limit - get all available)
+    let users = await User.find({
       _id: { $nin: excludedIds },
+      isDeleted: { $ne: true },
     })
-      .select("name age city state profilePhoto")
-      .limit(5)
+      .select("name age city state profilePhoto bio causes")
       .lean();
 
-    logger.info("✅ Found:", users.length, "users");
-    logger.info("🎯 DISCOVER DONE");
+    logger.info("✅ After exclusion:", users.length, "users");
+
+    // Apply location filter
+    if (locationPref !== "Anywhere") {
+      users = users.filter((user) => {
+        if (!user.city || !user.state) return false;
+
+        if (locationPref === "Same city") {
+          return (
+            user.city.toLowerCase() === currentUser.city.toLowerCase() &&
+            user.state === currentUser.state
+          );
+        }
+
+        if (locationPref === "Same state") {
+          return user.state === currentUser.state;
+        }
+
+        return true;
+      });
+
+      logger.info("📍 After location filter:", users.length, "users");
+    } else {
+      logger.info("🌍 Anywhere - showing all", users.length, "users");
+    }
+
+    logger.info("🎯 DONE - returning", users.length, "users");
 
     res.json({ users });
   } catch (error) {
-    logger.error("❌ DISCOVER ERROR:", error.message);
+    logger.error("❌ ERROR:", error.message);
     res.status(500).json({ message: error.message });
   }
 });
-
-// Add this DEBUG endpoint to /backend/routes/users.js
 
 // ===== LIKE USER =====
 
