@@ -8,7 +8,7 @@
     "backend": "cd backend && npm run dev",
     "frontend": "cd frontend && npm start",
     "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
-    "start": "npm run dev",
+    "start": "cd frontend && npm start",
     "mobile": "cd mobile && npx expo start"
   },
   "devDependencies": {
