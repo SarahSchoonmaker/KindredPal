@@ -7,6 +7,70 @@ const logger = require("../utils/logger");
 const Message = require("../models/Message");
 const mongoose = require("mongoose");
 
+// ===== TEST ENDPOINTS =====
+router.get("/test/db", async (req, res) => {
+  try {
+    const dbState = mongoose.connection.readyState;
+    const stateMap = {
+      0: "disconnected",
+      1: "connected",
+      2: "connecting",
+      3: "disconnecting",
+    };
+
+    const userCount = await User.countDocuments();
+    const oneUser = await User.findOne().select("name email").lean();
+
+    res.json({
+      mongooseState: stateMap[dbState],
+      database: mongoose.connection.name,
+      host: mongoose.connection.host,
+      totalUsers: userCount,
+      sampleUser: oneUser,
+      success: true,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+router.get("/test/databases", async (req, res) => {
+  try {
+    const admin = mongoose.connection.db.admin();
+    const { databases } = await admin.listDatabases();
+    const currentDB = mongoose.connection.db.databaseName;
+    const collections = await mongoose.connection.db
+      .listCollections()
+      .toArray();
+    const userCount = await User.countDocuments();
+    const allUsers = await User.find().select("name email city state").lean();
+
+    res.json({
+      currentConnection: {
+        database: currentDB,
+        host: mongoose.connection.host,
+      },
+      allDatabases: databases,
+      collectionsInCurrentDB: collections.map((c) => c.name),
+      usersInCurrentDB: {
+        count: userCount,
+        users: allUsers.map((u) => ({
+          name: u.name,
+          email: u.email,
+          location: `${u.city}, ${u.state}`,
+        })),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: error.message,
+    });
+  }
+});
+
 // ===== DISCOVER ROUTE =====
 
 // @route   GET /api/users/discover
@@ -14,18 +78,6 @@ const mongoose = require("mongoose");
 // @access  Private
 // In /backend/routes/users.js
 // Replace the discover route with this:
-
-// In /backend/routes/users.js
-// This version works with all Mongoose versions
-
-// SIMPLIFIED DISCOVER ROUTE - Won't timeout
-// Replace the entire discover route in /backend/routes/users.js
-
-// ULTRA-SAFE DISCOVER ROUTE
-// This version has built-in timeouts and minimal DB queries
-
-// SIMPLEST POSSIBLE DISCOVER ROUTE
-// Replace in /backend/routes/users.js
 
 router.get("/discover", auth, async (req, res) => {
   try {
