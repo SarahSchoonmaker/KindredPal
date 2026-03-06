@@ -21,70 +21,44 @@ const mongoose = require("mongoose");
 // SIMPLIFIED DISCOVER ROUTE - Won't timeout
 // Replace the entire discover route in /backend/routes/users.js
 
-router.get("/discover", auth, async (req, res) => {
-  try {
-    logger.info("\n========== DISCOVER REQUEST START ==========");
+// ULTRA-SAFE DISCOVER ROUTE
+// This version has built-in timeouts and minimal DB queries
 
+router.get("/discover", auth, async (req, res) => {
+  // Set a hard timeout of 25 seconds
+  const timeout = setTimeout(() => {
+    logger.error("⏰ DISCOVER TIMEOUT - Request took too long!");
+    if (!res.headersSent) {
+      res.status(500).json({ message: "Request timeout" });
+    }
+  }, 25000);
+
+  try {
+    logger.info("\n========== DISCOVER REQUEST ==========");
+    const startTime = Date.now();
+
+    // Step 1: Get current user
+    logger.info("1️⃣ Fetching current user...");
     const currentUser = await User.findById(req.userId);
+    logger.info(
+      `   ✅ Found user: ${currentUser.email} (${Date.now() - startTime}ms)`,
+    );
 
     if (!currentUser) {
-      logger.error("❌ Current user not found:", req.userId);
+      clearTimeout(timeout);
       return res.status(404).json({ message: "User not found" });
     }
 
-    logger.info("👤 User:", currentUser.email);
-    logger.info("📍 Location:", currentUser.city, currentUser.state);
-
-    // Get preferences (from query params OR database)
+    // Step 2: Get preferences
+    logger.info("2️⃣ Getting preferences...");
     const locationPref =
       req.query.locationPreference ||
       currentUser.locationPreference ||
       "Same state";
+    logger.info(`   Location: ${locationPref}`);
 
-    let filterPolitical = [];
-    let filterReligions = [];
-    let filterLifeStages = [];
-
-    // SAFE parsing of query params
-    if (req.query.filterPoliticalBeliefs) {
-      try {
-        filterPolitical = JSON.parse(req.query.filterPoliticalBeliefs);
-      } catch (e) {
-        logger.error("Error parsing filterPoliticalBeliefs");
-        filterPolitical = currentUser.filterPoliticalBeliefs || [];
-      }
-    } else {
-      filterPolitical = currentUser.filterPoliticalBeliefs || [];
-    }
-
-    if (req.query.filterReligions) {
-      try {
-        filterReligions = JSON.parse(req.query.filterReligions);
-      } catch (e) {
-        logger.error("Error parsing filterReligions");
-        filterReligions = currentUser.filterReligions || [];
-      }
-    } else {
-      filterReligions = currentUser.filterReligions || [];
-    }
-
-    if (req.query.filterLifeStages) {
-      try {
-        filterLifeStages = JSON.parse(req.query.filterLifeStages);
-      } catch (e) {
-        logger.error("Error parsing filterLifeStages");
-        filterLifeStages = currentUser.filterLifeStages || [];
-      }
-    } else {
-      filterLifeStages = currentUser.filterLifeStages || [];
-    }
-
-    logger.info("🔍 Location Preference:", locationPref);
-    logger.info("🏛️ Political Filters:", filterPolitical);
-    logger.info("⛪ Religion Filters:", filterReligions);
-    logger.info("👤 Life Stage Filters:", filterLifeStages);
-
-    // Build exclusion list
+    // Step 3: Build exclusion list (SIMPLE - no extra queries)
+    logger.info("3️⃣ Building exclusion list...");
     const excludedIds = [
       currentUser._id,
       ...(currentUser.matches || []),
@@ -92,44 +66,41 @@ router.get("/discover", auth, async (req, res) => {
       ...(currentUser.passed || []),
       ...(currentUser.blockedUsers || []),
     ];
+    logger.info(
+      `   ✅ Excluding ${excludedIds.length} users (${Date.now() - startTime}ms)`,
+    );
 
-    // Get users who blocked me
-    const blockedBy = await User.find({
-      blockedUsers: currentUser._id,
-    })
-      .select("_id")
-      .lean();
-
-    blockedBy.forEach((u) => excludedIds.push(u._id));
-
-    logger.info("🚫 Excluding", excludedIds.length, "users");
-
-    // SIMPLIFIED QUERY - No initial location filter
-    logger.info("📊 Fetching all non-excluded users...");
+    // Step 4: SIMPLE query - just get active users
+    logger.info("4️⃣ Querying database...");
+    logger.info(`   Excluded IDs count: ${excludedIds.length}`);
 
     let potentialMatches = await User.find({
       _id: { $nin: excludedIds },
       isDeleted: { $ne: true },
-      isActive: { $ne: false },
     })
-      .select(
-        "name age city state profilePhoto bio causes lifeStage politicalBeliefs religion lookingFor",
-      )
-      .limit(100) // ← SAFETY: Limit to 100 users max
-      .lean();
+      .select("name age city state profilePhoto")
+      .limit(50) // ← Even smaller limit
+      .lean()
+      .maxTimeMS(10000); // ← DB query timeout: 10 seconds
 
-    logger.info("📊 Found", potentialMatches.length, "potential matches");
+    logger.info(
+      `   ✅ Found ${potentialMatches.length} users (${Date.now() - startTime}ms)`,
+    );
 
-    // SAFETY: Remove self if somehow still there
+    // Step 5: Filter self (safety check)
+    logger.info("5️⃣ Removing self...");
+    const beforeSelfCheck = potentialMatches.length;
     potentialMatches = potentialMatches.filter(
       (u) => u._id.toString() !== currentUser._id.toString(),
     );
+    logger.info(
+      `   ✅ ${beforeSelfCheck} → ${potentialMatches.length} users (${Date.now() - startTime}ms)`,
+    );
 
-    logger.info("📊 After self-check:", potentialMatches.length, "users");
-
-    // Apply location filter IN JAVASCRIPT (not in DB query)
+    // Step 6: Location filter (if not "Anywhere")
     if (locationPref !== "Anywhere") {
-      logger.info("📍 Filtering by location:", locationPref);
+      logger.info(`6️⃣ Filtering by location: ${locationPref}...`);
+      const beforeLocation = potentialMatches.length;
 
       potentialMatches = potentialMatches.filter((user) => {
         if (!user.city || !user.state) return false;
@@ -145,72 +116,36 @@ router.get("/discover", auth, async (req, res) => {
           return user.state === currentUser.state;
         }
 
-        // For "Within X miles", just use same state for now
-        if (locationPref.includes("miles")) {
-          return user.state === currentUser.state;
-        }
-
         return true;
       });
 
       logger.info(
-        "📊 After location filter:",
-        potentialMatches.length,
-        "users",
+        `   ✅ ${beforeLocation} → ${potentialMatches.length} users (${Date.now() - startTime}ms)`,
       );
+    } else {
+      logger.info("6️⃣ Location: Anywhere - keeping all users");
     }
 
-    // Apply political filter
-    if (filterPolitical && filterPolitical.length > 0) {
-      potentialMatches = potentialMatches.filter((user) => {
-        if (!user.politicalBeliefs || user.politicalBeliefs.length === 0)
-          return false;
-        return user.politicalBeliefs.some((belief) =>
-          filterPolitical.includes(belief),
-        );
-      });
-      logger.info(
-        "📊 After political filter:",
-        potentialMatches.length,
-        "users",
-      );
-    }
+    // Step 7: Done!
+    logger.info(
+      `✅ DONE in ${Date.now() - startTime}ms - returning ${potentialMatches.length} users`,
+    );
+    logger.info("====================================\n");
 
-    // Apply religion filter
-    if (filterReligions && filterReligions.length > 0) {
-      potentialMatches = potentialMatches.filter((user) => {
-        return user.religion && filterReligions.includes(user.religion);
-      });
-      logger.info(
-        "📊 After religion filter:",
-        potentialMatches.length,
-        "users",
-      );
-    }
-
-    // Apply life stage filter
-    if (filterLifeStages && filterLifeStages.length > 0) {
-      potentialMatches = potentialMatches.filter((user) => {
-        if (!user.lifeStage || user.lifeStage.length === 0) return false;
-        return user.lifeStage.some((stage) => filterLifeStages.includes(stage));
-      });
-      logger.info(
-        "📊 After life stage filter:",
-        potentialMatches.length,
-        "users",
-      );
-    }
-
-    logger.info("✅ Final result:", potentialMatches.length, "users");
-    logger.info("========== DISCOVER REQUEST END ==========\n");
-
-    res.json({
-      users: potentialMatches,
-    });
+    clearTimeout(timeout);
+    res.json({ users: potentialMatches });
   } catch (error) {
-    logger.error("❌ Discover error:", error);
-    logger.error("Stack:", error.stack);
-    res.status(500).json({ message: "Error fetching discover users" });
+    clearTimeout(timeout);
+    logger.error("❌ Discover error:", error.message);
+    logger.error("   Error name:", error.name);
+    logger.error("   Stack:", error.stack);
+
+    if (!res.headersSent) {
+      res.status(500).json({
+        message: "Error fetching discover users",
+        error: error.message,
+      });
+    }
   }
 });
 

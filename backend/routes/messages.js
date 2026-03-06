@@ -13,10 +13,17 @@ router.get("/conversations", auth, async (req, res) => {
 
     const currentUser = await User.findById(req.userId);
 
+    if (!currentUser) {
+      logger.error("❌ Current user not found:", req.userId);
+      return res.status(404).json({ message: "User not found" });
+    }
+
     // Get all matches (only matched users can message)
     const matchedUsers = await User.find({
       _id: { $in: currentUser.matches },
-    }).select("name profilePhoto city state");
+    })
+      .select("name profilePhoto city state")
+      .lean(); // ← Add .lean() for plain objects
 
     logger.info("✅ Found", matchedUsers.length, "matched users");
 
@@ -30,7 +37,8 @@ router.get("/conversations", auth, async (req, res) => {
           ],
         })
           .sort({ createdAt: -1 })
-          .limit(1);
+          .limit(1)
+          .lean(); // ← Add .lean()
 
         const unreadCount = await Message.countDocuments({
           senderId: user._id,
@@ -38,8 +46,13 @@ router.get("/conversations", auth, async (req, res) => {
           read: false,
         });
 
+        // ✅ CRITICAL FIX: Return flat object with _id at top level
         return {
-          otherUser: user.toObject(),
+          _id: user._id.toString(), // ← Frontend needs this!
+          name: user.name,
+          profilePhoto: user.profilePhoto,
+          city: user.city,
+          state: user.state,
           lastMessage: lastMessage || null,
           unreadCount,
         };
@@ -53,9 +66,16 @@ router.get("/conversations", auth, async (req, res) => {
       return bTime - aTime;
     });
 
+    logger.info(
+      "📤 Returning",
+      conversationsWithMessages.length,
+      "conversations",
+    );
+
     res.json(conversationsWithMessages);
   } catch (error) {
     logger.error("❌ Get conversations error:", error);
+    logger.error("Stack:", error.stack);
     res.status(500).json({ message: "Error fetching conversations" });
   }
 });

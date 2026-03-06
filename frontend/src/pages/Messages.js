@@ -11,58 +11,36 @@ const Messages = () => {
   const navigate = useNavigate();
   const { user, clearUnread } = useAuth();
   const [conversations, setConversations] = useState([]);
-  const [unreadCounts, setUnreadCounts] = useState({});
   const [selectedUser, setSelectedUser] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
 
-  const loadUnreadCounts = useCallback(async (matches) => {
-    if (!matches || matches.length === 0) {
-      console.log("📊 No matches to load unread counts for");
-      return;
-    }
-
-    try {
-      const counts = {};
-
-      for (const match of matches) {
-        try {
-          const response = await messageAPI.getUnreadCountForUser(match._id);
-          counts[match._id] = response.data.count;
-        } catch (error) {
-          console.error(`Error loading unread for ${match._id}:`, error);
-          counts[match._id] = 0;
-        }
-      }
-
-      setUnreadCounts(counts);
-      console.log("📊 Unread counts per user:", counts);
-    } catch (error) {
-      console.error("Error loading unread counts:", error);
-    }
-  }, []);
-
   const loadConversations = useCallback(async () => {
     try {
       console.log("📬 Loading conversations...");
       const convResponse = await messageAPI.getConversations();
 
-      console.log("📥 Received conversations:", convResponse.data?.length || 0);
+      console.log("📥 Raw response:", convResponse.data);
 
-      if (!convResponse.data) {
-        console.error("❌ No data in conversations response");
+      if (!convResponse.data || !Array.isArray(convResponse.data)) {
+        console.error("❌ Invalid conversations response");
         setConversations([]);
         return;
       }
 
-      setConversations(convResponse.data);
+      // Log each conversation to debug
+      convResponse.data.forEach((conv, index) => {
+        console.log(`Conv ${index}:`, {
+          _id: conv._id,
+          name: conv.name,
+          hasAllFields: !!(conv._id && conv.name && conv.profilePhoto),
+        });
+      });
 
-      // Load unread counts
-      if (convResponse.data.length > 0) {
-        loadUnreadCounts(convResponse.data);
-      }
+      setConversations(convResponse.data);
+      console.log(`✅ Loaded ${convResponse.data.length} conversations`);
     } catch (error) {
       console.error("❌ Error loading conversations:", error);
       console.error("   Error details:", error.response?.data);
@@ -70,32 +48,41 @@ const Messages = () => {
     } finally {
       setLoading(false);
     }
-  }, [loadUnreadCounts]);
+  }, []);
 
   const loadConversation = useCallback(
     async (otherUserId) => {
       try {
         console.log("💬 Loading conversation with:", otherUserId);
 
-        const userMatch = conversations.find((u) => u._id === otherUserId);
-
-        if (!userMatch) {
-          console.error("❌ User not found in conversations:", otherUserId);
+        if (!otherUserId) {
+          console.error("❌ No userId provided to loadConversation");
           return;
         }
 
+        const userMatch = conversations.find(
+          (conv) => conv._id === otherUserId,
+        );
+
+        if (!userMatch) {
+          console.error("❌ User not found in conversations:", otherUserId);
+          console.log(
+            "   Available conversations:",
+            conversations.map((c) => ({
+              _id: c._id,
+              name: c.name,
+            })),
+          );
+          return;
+        }
+
+        console.log("✅ Found conversation:", userMatch);
         setSelectedUser(userMatch);
 
         // Load messages
         const response = await messageAPI.getMessages(otherUserId);
         console.log("📨 Loaded messages:", response.data?.length || 0);
         setMessages(response.data || []);
-
-        // Clear unread count for this specific user
-        setUnreadCounts((prev) => ({
-          ...prev,
-          [otherUserId]: 0,
-        }));
 
         // Clear global unread badge
         console.log("📖 Viewing conversation - clearing badges");
@@ -109,16 +96,18 @@ const Messages = () => {
   );
 
   useEffect(() => {
-    console.log("🔄 Messages useEffect triggered");
+    console.log("🔄 Messages component mounted");
     loadConversations();
-  }, []); // Only load conversations once on mount
+  }, [loadConversations]);
 
   useEffect(() => {
     console.log("🔄 userId changed:", userId);
+    console.log("   Conversations loaded:", conversations.length);
+
     if (userId && conversations.length > 0) {
       loadConversation(userId);
     }
-  }, [userId, conversations]); // Load conversation when userId or conversations change
+  }, [userId, conversations, loadConversation]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -138,16 +127,29 @@ const Messages = () => {
     }
   };
 
-  const handleSelectConversation = (matchUser) => {
-    console.log("👆 Selected conversation:", matchUser.name);
-    navigate(`/messages/${matchUser._id}`);
+  const handleSelectConversation = (conversation) => {
+    console.log(
+      "👆 Selected conversation:",
+      conversation.name,
+      conversation._id,
+    );
+
+    if (!conversation._id) {
+      console.error("❌ Conversation missing _id:", conversation);
+      return;
+    }
+
+    navigate(`/messages/${conversation._id}`);
   };
 
-  const viewProfile = (matchUser) => {
-    navigate(`/profile/${matchUser._id}`);
+  const viewProfile = (conversation) => {
+    if (!conversation._id) {
+      console.error("❌ Cannot view profile - missing _id");
+      return;
+    }
+    navigate(`/profile/${conversation._id}`);
   };
 
-  // Handle when user is reported/blocked - redirect to messages list
   const handleUserActionComplete = () => {
     console.log("🔄 User action complete - reloading");
     setSelectedUser(null);
@@ -189,32 +191,51 @@ const Messages = () => {
             </div>
           ) : (
             <div className="conversations-list">
-              {conversations.map((match) => (
-                <div
-                  key={match._id}
-                  className={`conversation-item ${selectedUser?._id === match._id ? "active" : ""}`}
-                  onClick={() => handleSelectConversation(match)}
-                >
-                  <div className="conversation-avatar-wrapper">
-                    <img
-                      src={match.profilePhoto}
-                      alt={match.name}
-                      className="conversation-avatar"
-                    />
-                    {unreadCounts[match._id] > 0 && (
-                      <span className="conversation-unread-badge">
-                        {unreadCounts[match._id]}
-                      </span>
-                    )}
+              {conversations.map((conversation) => {
+                // Safety check
+                if (!conversation._id) {
+                  console.error(
+                    "⚠️ Skipping conversation without _id:",
+                    conversation,
+                  );
+                  return null;
+                }
+
+                return (
+                  <div
+                    key={conversation._id}
+                    className={`conversation-item ${selectedUser?._id === conversation._id ? "active" : ""}`}
+                    onClick={() => handleSelectConversation(conversation)}
+                  >
+                    <div className="conversation-avatar-wrapper">
+                      <img
+                        src={conversation.profilePhoto}
+                        alt={conversation.name}
+                        className="conversation-avatar"
+                      />
+                      {conversation.unreadCount > 0 && (
+                        <span className="conversation-unread-badge">
+                          {conversation.unreadCount}
+                        </span>
+                      )}
+                    </div>
+                    <div className="conversation-info">
+                      <h4>{conversation.name}</h4>
+                      <p>
+                        {conversation.city}, {conversation.state}
+                      </p>
+                      {conversation.lastMessage && (
+                        <p className="last-message-preview">
+                          {conversation.lastMessage.content.substring(0, 40)}
+                          {conversation.lastMessage.content.length > 40
+                            ? "..."
+                            : ""}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <div className="conversation-info">
-                    <h4>{match.name}</h4>
-                    <p>
-                      {match.city}, {match.state}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -223,7 +244,6 @@ const Messages = () => {
         <div className={`chat-area ${!selectedUser ? "mobile-hidden" : ""}`}>
           {selectedUser ? (
             <>
-              {/* Chat Header */}
               <div className="chat-header">
                 <button
                   className="back-button mobile-only"
@@ -260,7 +280,6 @@ const Messages = () => {
                 </div>
               </div>
 
-              {/* Messages */}
               <div className="messages-area">
                 {messages.length === 0 ? (
                   <div className="no-messages">
@@ -272,7 +291,7 @@ const Messages = () => {
                   messages.map((message) => (
                     <div
                       key={message._id}
-                      className={`message ${message.senderId === user.id ? "sent" : "received"}`}
+                      className={`message ${message.senderId === (user?.id || user?._id) ? "sent" : "received"}`}
                     >
                       <div className="message-bubble">
                         <p>{message.content}</p>
@@ -288,7 +307,6 @@ const Messages = () => {
                 )}
               </div>
 
-              {/* Message Input */}
               <form className="message-input-form" onSubmit={handleSendMessage}>
                 <input
                   type="text"
