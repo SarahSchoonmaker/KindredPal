@@ -10,50 +10,104 @@ const mongoose = require("mongoose");
 // Add this endpoint to /backend/routes/users.js
 // This will show ALL databases and collections
 
-router.get("/test/databases", async (req, res) => {
+// Add this to /backend/routes/users.js
+// This shows WHY each user is or isn't appearing in discover
+
+router.get("/discover/debug", auth, async (req, res) => {
   try {
-    const admin = mongoose.connection.db.admin();
+    const currentUser = await User.findById(req.userId);
 
-    // List all databases
-    const { databases } = await admin.listDatabases();
+    // Get ALL users
+    const allUsers = await User.find({
+      isDeleted: { $ne: true },
+    })
+      .select("name email city state")
+      .lean();
 
-    // Current connection info
-    const currentDB = mongoose.connection.db.databaseName;
-    const currentHost = mongoose.connection.host;
+    // Categorize each user
+    const categorized = allUsers.map((user) => {
+      const userId = user._id.toString();
+      const currentUserId = currentUser._id.toString();
 
-    // Get all collections in current database
-    const collections = await mongoose.connection.db
-      .listCollections()
-      .toArray();
+      // Check exclusions
+      const isYou = userId === currentUserId;
+      const isMatched = (currentUser.matches || []).some(
+        (id) => id.toString() === userId,
+      );
+      const isLiked = (currentUser.likes || []).some(
+        (id) => id.toString() === userId,
+      );
+      const isPassed = (currentUser.passed || []).some(
+        (id) => id.toString() === userId,
+      );
+      const isBlocked = (currentUser.blockedUsers || []).some(
+        (id) => id.toString() === userId,
+      );
 
-    // Count users in current database
-    const userCount = await User.countDocuments();
+      // Check location match
+      const sameCity =
+        user.city?.toLowerCase() === currentUser.city?.toLowerCase() &&
+        user.state === currentUser.state;
+      const sameState = user.state === currentUser.state;
 
-    // Get all users with their emails
-    const allUsers = await User.find().select("name email city state").lean();
+      let status = "AVAILABLE";
+      let reason = "Should appear in discover";
+
+      if (isYou) {
+        status = "EXCLUDED";
+        reason = "This is you";
+      } else if (isMatched) {
+        status = "EXCLUDED";
+        reason = "Already matched";
+      } else if (isLiked) {
+        status = "EXCLUDED";
+        reason = "Already liked";
+      } else if (isPassed) {
+        status = "EXCLUDED";
+        reason = "Already passed";
+      } else if (isBlocked) {
+        status = "EXCLUDED";
+        reason = "Blocked";
+      }
+
+      return {
+        name: user.name,
+        email: user.email,
+        location: `${user.city}, ${user.state}`,
+        status,
+        reason,
+        locationMatch: {
+          sameCity,
+          sameState,
+        },
+      };
+    });
+
+    const available = categorized.filter((u) => u.status === "AVAILABLE");
+    const excluded = categorized.filter((u) => u.status === "EXCLUDED");
 
     res.json({
-      currentConnection: {
-        database: currentDB,
-        host: currentHost,
-        connectionString: process.env.MONGODB_URI?.replace(/:[^:@]+@/, ":***@"), // Hide password
+      yourInfo: {
+        email: currentUser.email,
+        location: `${currentUser.city}, ${currentUser.state}`,
+        locationPreference: currentUser.locationPreference || "Same state",
       },
-      allDatabases: databases,
-      collectionsInCurrentDB: collections.map((c) => c.name),
-      usersInCurrentDB: {
-        count: userCount,
-        users: allUsers.map((u) => ({
-          name: u.name,
-          email: u.email,
-          location: `${u.city}, ${u.state}`,
-        })),
+      summary: {
+        totalUsers: allUsers.length,
+        availableToDiscover: available.length,
+        excluded: excluded.length,
+        breakdown: {
+          matches: (currentUser.matches || []).length,
+          likes: (currentUser.likes || []).length,
+          passed: (currentUser.passed || []).length,
+          blocked: (currentUser.blockedUsers || []).length,
+        },
       },
+      availableUsers: available,
+      excludedUsers: excluded,
     });
   } catch (error) {
-    res.status(500).json({
-      error: error.message,
-      stack: error.stack,
-    });
+    res.status(500).json({ error: error.message });
   }
 });
 
