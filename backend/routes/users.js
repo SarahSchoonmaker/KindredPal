@@ -82,9 +82,18 @@ router.get("/test/databases", async (req, res) => {
 // COMPLETE DISCOVER ROUTE WITH ALL FILTERS
 // Replace in /backend/routes/users.js
 
+// HIGH-PERFORMANCE DISCOVER ROUTE WITH PAGINATION
+// Replace in /backend/routes/users.js
+
 router.get("/discover", auth, async (req, res) => {
   try {
     logger.info("🔍 DISCOVER START");
+    const startTime = Date.now();
+
+    // Pagination parameters
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20; // Load 20 at a time
+    const skip = (page - 1) * limit;
 
     const currentUser = await User.findById(req.userId)
       .select(
@@ -95,8 +104,6 @@ router.get("/discover", auth, async (req, res) => {
     if (!currentUser) {
       return res.status(404).json({ message: "User not found" });
     }
-
-    logger.info("✅ User:", currentUser.email);
 
     // Get preferences from query params OR user profile
     const locationPref =
@@ -113,13 +120,6 @@ router.get("/discover", auth, async (req, res) => {
       ? JSON.parse(req.query.filterLifeStages)
       : currentUser.filterLifeStages || [];
 
-    logger.info("📍 Filters:", {
-      locationPref,
-      filterPolitical,
-      filterReligions,
-      filterLifeStages,
-    });
-
     // Build exclusion list
     const excludedIds = [
       currentUser._id,
@@ -129,51 +129,63 @@ router.get("/discover", auth, async (req, res) => {
       ...(currentUser.blockedUsers || []),
     ];
 
-    // Build MongoDB query
+    // Build MongoDB query with indexes
     let query = {
       _id: { $nin: excludedIds },
       isDeleted: { $ne: true },
     };
 
-    // LOCATION FILTER (in database query for performance)
+    // LOCATION FILTER (uses index on state/city)
     if (locationPref === "Same city") {
       query.city = currentUser.city;
       query.state = currentUser.state;
     } else if (locationPref === "Same state") {
       query.state = currentUser.state;
     }
-    // Note: "Within X miles" requires geolocation - implement later
-    // "Anywhere" = no location filter
 
-    // POLITICAL BELIEFS FILTER
+    // POLITICAL BELIEFS FILTER (uses index)
     if (filterPolitical && filterPolitical.length > 0) {
       query.politicalBeliefs = { $in: filterPolitical };
     }
 
-    // RELIGION FILTER
+    // RELIGION FILTER (uses index)
     if (filterReligions && filterReligions.length > 0) {
       query.religion = { $in: filterReligions };
     }
 
-    // LIFE STAGE FILTER
+    // LIFE STAGE FILTER (uses index)
     if (filterLifeStages && filterLifeStages.length > 0) {
       query.lifeStage = { $in: filterLifeStages };
     }
 
-    logger.info("🔍 Querying with:", query);
+    // Count total matching users (for pagination)
+    const totalCount = await User.countDocuments(query).maxTimeMS(5000);
 
-    // Execute query with selected fields only (performance)
+    // Execute paginated query
     const users = await User.find(query)
       .select(
         "name age city state profilePhoto bio causes politicalBeliefs religion lifeStage lookingFor",
       )
+      .skip(skip)
+      .limit(limit)
       .lean()
-      .maxTimeMS(10000); // 10 second timeout
+      .maxTimeMS(5000);
 
-    logger.info(`✅ Found ${users.length} users`);
-    logger.info("🎯 DONE");
+    const queryTime = Date.now() - startTime;
+    logger.info(
+      `✅ Found ${users.length}/${totalCount} users in ${queryTime}ms`,
+    );
 
-    res.json({ users });
+    res.json({
+      users,
+      pagination: {
+        page,
+        limit,
+        totalUsers: totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        hasMore: page * limit < totalCount,
+      },
+    });
   } catch (error) {
     logger.error("❌ ERROR:", error.message);
     res.status(500).json({ message: error.message });

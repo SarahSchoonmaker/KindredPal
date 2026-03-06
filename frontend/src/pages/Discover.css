@@ -445,7 +445,60 @@
   border-color: #cbd5e0;
 }
 
+/* Add to Discover.css */
 
+.loading-more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem;
+  gap: 1rem;
+}
+
+.loading-more .spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #2b6cb0;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.btn-load-more {
+  margin: 2rem auto;
+  padding: 1rem 2rem;
+  background: #2b6cb0;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.btn-load-more:hover {
+  background: #1e4d7b;
+}
+
+.end-of-results {
+  text-align: center;
+  padding: 3rem;
+  color: #666;
+}
+
+.end-of-results p {
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
 
 /* Responsive */
 @media (max-width: 1024px) {

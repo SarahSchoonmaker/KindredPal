@@ -6,7 +6,6 @@ const userSchema = new mongoose.Schema(
     email: {
       type: String,
       required: true,
-      unique: true,
       lowercase: true,
       trim: true,
     },
@@ -597,11 +596,44 @@ userSchema.methods.toJSON = function () {
   return user;
 };
 
-// Indexes for performance
-userSchema.index({ state: 1, city: 1, isDeleted: 1 });
-userSchema.index({ politicalBeliefs: 1 });
-userSchema.index({ religion: 1 });
-userSchema.index({ lifeStage: 1 });
+// ===== PERFORMANCE INDEXES =====
+
+// Basic indexes
 userSchema.index({ email: 1 }, { unique: true });
+userSchema.index({ isDeleted: 1 });
+
+// Location-based compound indexes
+userSchema.index({ state: 1, isDeleted: 1 }); // Same state queries
+userSchema.index({ state: 1, city: 1, isDeleted: 1 }); // Same city queries
+
+// Filter-based indexes
+userSchema.index({ politicalBeliefs: 1, isDeleted: 1 });
+userSchema.index({ religion: 1, isDeleted: 1 });
+userSchema.index({ lifeStage: 1, isDeleted: 1 });
+
+// Compound indexes for common filter combinations
+userSchema.index({
+  state: 1,
+  politicalBeliefs: 1,
+  isDeleted: 1,
+}); // Location + politics
+
+userSchema.index({
+  state: 1,
+  religion: 1,
+  isDeleted: 1,
+}); // Location + religion
+
+userSchema.index({
+  state: 1,
+  lifeStage: 1,
+  isDeleted: 1,
+}); // Location + life stage
+
+// Text search index for future name/bio search
+userSchema.index({
+  name: "text",
+  bio: "text",
+});
 
 module.exports = mongoose.model("User", userSchema);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { MapPin, UserCheck, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { authAPI } from "../services/api";
@@ -10,6 +10,10 @@ function Discover() {
   const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalUsers, setTotalUsers] = useState(0);
   const [showMatchModal, setShowMatchModal] = useState(false);
   const [matchedUser, setMatchedUser] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
@@ -18,15 +22,6 @@ function Discover() {
     return stored ? new Set(JSON.parse(stored)) : new Set();
   });
   const [actionLoading, setActionLoading] = useState({});
-
-  useEffect(() => {
-    fetchCurrentUser();
-    fetchUsers();
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem("likedUserIds", JSON.stringify([...likedUsers]));
-  }, [likedUsers]);
 
   const fetchCurrentUser = async () => {
     try {
@@ -43,39 +38,105 @@ function Discover() {
     }
   };
 
-  const fetchUsers = async (preferences = null) => {
-    setLoading(true);
-    try {
-      console.log("🔍 Fetching discover users...");
-
-      // If preferences provided, pass them as query params
-      let url = "/users/discover";
-      if (preferences) {
-        const params = new URLSearchParams({
-          locationPreference: preferences.locationPreference,
-          filterPoliticalBeliefs: JSON.stringify(
-            preferences.filterPoliticalBeliefs || [],
-          ),
-          filterReligions: JSON.stringify(preferences.filterReligions || []),
-          filterLifeStages: JSON.stringify(preferences.filterLifeStages || []),
-        });
-        url = `/users/discover?${params}`;
-        console.log(
-          "   📍 Using preferences from query:",
-          preferences.locationPreference,
-        );
+  const fetchUsers = useCallback(
+    async (preferences = null, pageNum = 1, append = false) => {
+      if (pageNum === 1) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
       }
 
-      const response = await api.get(url);
-      console.log("📥 Received users:", response.data.users?.length || 0);
-      setUsers(response.data.users || []);
-    } catch (error) {
-      console.error("Error fetching users:", error);
-      console.error("Error details:", error.response?.data);
-    } finally {
-      setLoading(false);
+      try {
+        console.log(`🔍 Fetching page ${pageNum}...`);
+
+        // Build URL with pagination
+        const params = new URLSearchParams({
+          page: pageNum.toString(),
+          limit: "20", // Load 20 users at a time
+        });
+
+        if (preferences) {
+          params.append("locationPreference", preferences.locationPreference);
+          params.append(
+            "filterPoliticalBeliefs",
+            JSON.stringify(preferences.filterPoliticalBeliefs || []),
+          );
+          params.append(
+            "filterReligions",
+            JSON.stringify(preferences.filterReligions || []),
+          );
+          params.append(
+            "filterLifeStages",
+            JSON.stringify(preferences.filterLifeStages || []),
+          );
+        }
+
+        const response = await api.get(`/users/discover?${params}`);
+
+        const newUsers = response.data.users || [];
+        const pagination = response.data.pagination;
+
+        if (append) {
+          // Append to existing users (infinite scroll)
+          setUsers((prev) => [...prev, ...newUsers]);
+        } else {
+          // Replace users (new search)
+          setUsers(newUsers);
+        }
+
+        setHasMore(pagination?.hasMore || false);
+        setTotalUsers(pagination?.totalUsers || newUsers.length);
+        setPage(pageNum);
+
+        console.log(
+          `📥 Loaded ${newUsers.length} users (${pagination?.totalUsers} total)`,
+        );
+      } catch (error) {
+        console.error("Error fetching users:", error);
+        console.error("Error details:", error.response?.data);
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [],
+  ); // Empty deps - function doesn't depend on external state
+
+  // Load more users when scrolling
+  const handleLoadMore = useCallback(() => {
+    if (!loadingMore && hasMore) {
+      fetchUsers(null, page + 1, true);
     }
-  };
+  }, [loadingMore, hasMore, page, fetchUsers]);
+
+  useEffect(() => {
+    fetchCurrentUser();
+    fetchUsers();
+  }, [fetchUsers]);
+
+  useEffect(() => {
+    localStorage.setItem("likedUserIds", JSON.stringify([...likedUsers]));
+  }, [likedUsers]);
+
+  // Infinite scroll detection
+  useEffect(() => {
+    const handleScroll = () => {
+      if (loading || loadingMore || !hasMore) return;
+
+      const scrollTop =
+        window.pageYOffset || document.documentElement.scrollTop;
+      const scrollHeight = document.documentElement.scrollHeight;
+      const clientHeight = document.documentElement.clientHeight;
+
+      // Load more when 80% scrolled
+      if (scrollTop + clientHeight >= scrollHeight * 0.8) {
+        handleLoadMore();
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [loading, loadingMore, hasMore, handleLoadMore]);
 
   const handleLike = async (userId, e) => {
     e.stopPropagation();
@@ -145,9 +206,10 @@ function Discover() {
     localStorage.removeItem("likedUserIds");
     setLikedUsers(new Set());
 
-    // DON'T refetch currentUser - we already have the updated data!
-    // Just refetch discover results with new filters
-    await fetchUsers(updatedPreferences);
+    // Reset to page 1 with new filters
+    setPage(1);
+    setHasMore(true);
+    await fetchUsers(updatedPreferences, 1, false);
   };
 
   if (loading) {
@@ -189,7 +251,7 @@ function Discover() {
         </div>
       </div>
 
-      {users.length === 0 ? (
+      {users.length === 0 && !loading ? (
         <div className="no-more-users">
           <div className="empty-icon">
             <svg
@@ -233,7 +295,8 @@ function Discover() {
       ) : (
         <div className="users-container">
           <div className="users-count">
-            Showing {users.length} {users.length === 1 ? "person" : "people"}
+            Showing {users.length} of {totalUsers}{" "}
+            {totalUsers === 1 ? "person" : "people"}
           </div>
           <div className="users-grid">
             {users.map((user) => (
@@ -243,7 +306,7 @@ function Discover() {
                 onClick={() => handleCardClick(user._id)}
               >
                 <div className="card-image-small">
-                  <img src={user.profilePhoto} alt={user.name} />
+                  <img src={user.profilePhoto} alt={user.name} loading="lazy" />
                 </div>
 
                 <div className="card-info-small">
@@ -308,6 +371,27 @@ function Discover() {
               </div>
             ))}
           </div>
+
+          {/* Loading indicator for infinite scroll */}
+          {loadingMore && (
+            <div className="loading-more">
+              <div className="spinner"></div>
+              <p>Loading more...</p>
+            </div>
+          )}
+
+          {/* Load more button (optional fallback) */}
+          {!loadingMore && hasMore && users.length > 0 && (
+            <button className="btn-load-more" onClick={handleLoadMore}>
+              Load More ({totalUsers - users.length} remaining)
+            </button>
+          )}
+
+          {!hasMore && users.length > 0 && (
+            <div className="end-of-results">
+              <p>You've seen all available matches!</p>
+            </div>
+          )}
         </div>
       )}
 
