@@ -24,73 +24,32 @@ const mongoose = require("mongoose");
 // ULTRA-SAFE DISCOVER ROUTE
 // This version has built-in timeouts and minimal DB queries
 
-// FINAL OPTIMIZED DISCOVER ROUTE
-// Replace the entire /discover route in /backend/routes/users.js
+// SIMPLEST POSSIBLE DISCOVER ROUTE
+// Replace in /backend/routes/users.js
 
 router.get("/discover", auth, async (req, res) => {
   try {
-    logger.info("🔍 DISCOVER START");
+    logger.info("🔍 START");
 
     const currentUser = await User.findById(req.userId).lean();
+    logger.info("✅ User:", currentUser?.email);
+
     if (!currentUser) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Get preferences from query params OR user profile
-    const locationPref =
-      req.query.locationPreference ||
-      currentUser.locationPreference ||
-      "Same state";
+    // ONLY exclude yourself
+    logger.info("🔍 Query...");
 
-    logger.info("✅ User:", currentUser.email);
-    logger.info("📍 Location filter:", locationPref);
-
-    // Build exclusion list
-    const excludedIds = [
-      currentUser._id,
-      ...(currentUser.matches || []),
-      ...(currentUser.likes || []),
-      ...(currentUser.passed || []),
-      ...(currentUser.blockedUsers || []),
-    ];
-
-    logger.info("📊 Excluding:", excludedIds.length, "users");
-
-    // Fetch users (no limit - get all available)
-    let users = await User.find({
-      _id: { $nin: excludedIds },
-      isDeleted: { $ne: true },
+    const users = await User.find({
+      _id: { $ne: currentUser._id },
     })
-      .select("name age city state profilePhoto bio causes")
+      .select("name age city state profilePhoto")
+      .limit(5)
       .lean();
 
-    logger.info("✅ After exclusion:", users.length, "users");
-
-    // Apply location filter
-    if (locationPref !== "Anywhere") {
-      users = users.filter((user) => {
-        if (!user.city || !user.state) return false;
-
-        if (locationPref === "Same city") {
-          return (
-            user.city.toLowerCase() === currentUser.city.toLowerCase() &&
-            user.state === currentUser.state
-          );
-        }
-
-        if (locationPref === "Same state") {
-          return user.state === currentUser.state;
-        }
-
-        return true;
-      });
-
-      logger.info("📍 After location filter:", users.length, "users");
-    } else {
-      logger.info("🌍 Anywhere - showing all", users.length, "users");
-    }
-
-    logger.info("🎯 DONE - returning", users.length, "users");
+    logger.info("✅ Found:", users.length);
+    logger.info("🎯 DONE");
 
     res.json({ users });
   } catch (error) {
