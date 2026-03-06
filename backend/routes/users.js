@@ -25,127 +25,35 @@ const mongoose = require("mongoose");
 // This version has built-in timeouts and minimal DB queries
 
 router.get("/discover", auth, async (req, res) => {
-  // Set a hard timeout of 25 seconds
-  const timeout = setTimeout(() => {
-    logger.error("⏰ DISCOVER TIMEOUT - Request took too long!");
-    if (!res.headersSent) {
-      res.status(500).json({ message: "Request timeout" });
-    }
-  }, 25000);
-
   try {
-    logger.info("\n========== DISCOVER REQUEST ==========");
-    const startTime = Date.now();
+    logger.info("🔍 DISCOVER START");
 
-    // Step 1: Get current user
-    logger.info("1️⃣ Fetching current user...");
-    const currentUser = await User.findById(req.userId);
-    logger.info(
-      `   ✅ Found user: ${currentUser.email} (${Date.now() - startTime}ms)`,
-    );
+    const currentUser = await User.findById(req.userId).lean();
+    logger.info("✅ Got user:", currentUser?.email);
 
     if (!currentUser) {
-      clearTimeout(timeout);
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Step 2: Get preferences
-    logger.info("2️⃣ Getting preferences...");
-    const locationPref =
-      req.query.locationPreference ||
-      currentUser.locationPreference ||
-      "Same state";
-    logger.info(`   Location: ${locationPref}`);
+    // Simple exclusion - just yourself
+    const excludedIds = [currentUser._id];
+    logger.info("📊 Excluding:", excludedIds.length, "users");
 
-    // Step 3: Build exclusion list (SIMPLE - no extra queries)
-    logger.info("3️⃣ Building exclusion list...");
-    const excludedIds = [
-      currentUser._id,
-      ...(currentUser.matches || []),
-      ...(currentUser.likes || []),
-      ...(currentUser.passed || []),
-      ...(currentUser.blockedUsers || []),
-    ];
-    logger.info(
-      `   ✅ Excluding ${excludedIds.length} users (${Date.now() - startTime}ms)`,
-    );
-
-    // Step 4: SIMPLE query - just get active users
-    logger.info("4️⃣ Querying database...");
-    logger.info(`   Excluded IDs count: ${excludedIds.length}`);
-
-    let potentialMatches = await User.find({
+    // Ultra-simple query
+    const users = await User.find({
       _id: { $nin: excludedIds },
-      isDeleted: { $ne: true },
     })
       .select("name age city state profilePhoto")
-      .limit(50) // ← Even smaller limit
-      .lean()
-      .maxTimeMS(10000); // ← DB query timeout: 10 seconds
+      .limit(5)
+      .lean();
 
-    logger.info(
-      `   ✅ Found ${potentialMatches.length} users (${Date.now() - startTime}ms)`,
-    );
+    logger.info("✅ Found:", users.length, "users");
+    logger.info("🎯 DISCOVER DONE");
 
-    // Step 5: Filter self (safety check)
-    logger.info("5️⃣ Removing self...");
-    const beforeSelfCheck = potentialMatches.length;
-    potentialMatches = potentialMatches.filter(
-      (u) => u._id.toString() !== currentUser._id.toString(),
-    );
-    logger.info(
-      `   ✅ ${beforeSelfCheck} → ${potentialMatches.length} users (${Date.now() - startTime}ms)`,
-    );
-
-    // Step 6: Location filter (if not "Anywhere")
-    if (locationPref !== "Anywhere") {
-      logger.info(`6️⃣ Filtering by location: ${locationPref}...`);
-      const beforeLocation = potentialMatches.length;
-
-      potentialMatches = potentialMatches.filter((user) => {
-        if (!user.city || !user.state) return false;
-
-        if (locationPref === "Same city") {
-          return (
-            user.city.toLowerCase() === currentUser.city.toLowerCase() &&
-            user.state === currentUser.state
-          );
-        }
-
-        if (locationPref === "Same state") {
-          return user.state === currentUser.state;
-        }
-
-        return true;
-      });
-
-      logger.info(
-        `   ✅ ${beforeLocation} → ${potentialMatches.length} users (${Date.now() - startTime}ms)`,
-      );
-    } else {
-      logger.info("6️⃣ Location: Anywhere - keeping all users");
-    }
-
-    // Step 7: Done!
-    logger.info(
-      `✅ DONE in ${Date.now() - startTime}ms - returning ${potentialMatches.length} users`,
-    );
-    logger.info("====================================\n");
-
-    clearTimeout(timeout);
-    res.json({ users: potentialMatches });
+    res.json({ users });
   } catch (error) {
-    clearTimeout(timeout);
-    logger.error("❌ Discover error:", error.message);
-    logger.error("   Error name:", error.name);
-    logger.error("   Stack:", error.stack);
-
-    if (!res.headersSent) {
-      res.status(500).json({
-        message: "Error fetching discover users",
-        error: error.message,
-      });
-    }
+    logger.error("❌ DISCOVER ERROR:", error.message);
+    res.status(500).json({ message: error.message });
   }
 });
 
