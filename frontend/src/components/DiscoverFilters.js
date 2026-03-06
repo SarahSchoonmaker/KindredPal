@@ -134,7 +134,7 @@ const DiscoverFilters = ({ currentUser, onUpdate }) => {
         onUpdate(updatedPreferences);
       }
 
-      alert("Preferences updated! Refreshing matches...");
+      
     } catch (error) {
       console.error("❌ Error updating preferences:", error);
       console.error("Error response:", error.response?.data);

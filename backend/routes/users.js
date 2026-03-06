@@ -72,15 +72,8 @@ router.get("/test/databases", async (req, res) => {
 });
 
 // ==========================================
-// EMERGENCY SIMPLE DISCOVER ROUTE
-// This is GUARANTEED to work - no complex queries
-// Replace entire discover route with this first
-// ==========================================
-
-// ==========================================
-// EMERGENCY SIMPLE DISCOVER ROUTE
-// This is GUARANTEED to work - no complex queries
-// Replace entire discover route with this first
+// COMPLETE WORKING DISCOVER ROUTE WITH ALL FILTERS
+// Replace the discover route in /backend/routes/users.js
 // ==========================================
 
 router.get("/discover", auth, async (req, res) => {
@@ -89,8 +82,11 @@ router.get("/discover", auth, async (req, res) => {
     console.log("User ID:", req.userId);
     console.log("Query params:", req.query);
     
-    // Step 1: Get current user (SIMPLE)
-    const currentUser = await User.findById(req.userId).lean();
+    // Get current user
+    const currentUser = await User.findById(req.userId)
+      .select("_id email city state latitude longitude locationPreference filterPoliticalBeliefs filterReligions filterLifeStages matches likes passed blockedUsers")
+      .lean();
+    
     console.log("Current user found:", currentUser ? currentUser.email : "NOT FOUND");
     
     if (!currentUser) {
@@ -98,28 +94,138 @@ router.get("/discover", auth, async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Step 2: Get ALL other users (NO FILTERS YET)
-    console.log("Fetching all users except self...");
-    const users = await User.find({
-      _id: { $ne: currentUser._id },
-      isDeleted: { $ne: true },
-    })
-    .select("name age city state profilePhoto")
-    .limit(10) // Only get 10 to keep it fast
-    .lean();
+    // Get filter preferences (from query OR user profile)
+    const locationPref = req.query.locationPreference || currentUser.locationPreference || "Same state";
     
-    console.log(`Found ${users.length} users`);
+    const filterPolitical = req.query.filterPoliticalBeliefs 
+      ? JSON.parse(req.query.filterPoliticalBeliefs) 
+      : (currentUser.filterPoliticalBeliefs || []);
+    
+    const filterReligions = req.query.filterReligions 
+      ? JSON.parse(req.query.filterReligions) 
+      : (currentUser.filterReligions || []);
+    
+    const filterLifeStages = req.query.filterLifeStages 
+      ? JSON.parse(req.query.filterLifeStages) 
+      : (currentUser.filterLifeStages || []);
+
+    console.log("📍 Active filters:");
+    console.log("   Location:", locationPref);
+    if (filterPolitical.length > 0) console.log("   Political:", filterPolitical);
+    if (filterReligions.length > 0) console.log("   Religion:", filterReligions);
+    if (filterLifeStages.length > 0) console.log("   Life Stage:", filterLifeStages);
+
+    // Build exclusion list
+    const excludedIds = [
+      currentUser._id,
+      ...(currentUser.matches || []),
+      ...(currentUser.likes || []),
+      ...(currentUser.passed || []),
+      ...(currentUser.blockedUsers || []),
+    ];
+    console.log("🚫 Excluding:", excludedIds.length, "users");
+
+    // Build base query
+    let query = {
+      _id: { $nin: excludedIds },
+      isDeleted: { $ne: true },
+    };
+
+    // LOCATION FILTER (apply to database when possible)
+    const needsDistanceCalc = locationPref.includes("miles");
+    
+    if (!needsDistanceCalc) {
+      if (locationPref === "Same city") {
+        query.city = currentUser.city;
+        query.state = currentUser.state;
+        console.log("🏙️ Filter: Same city");
+      } else if (locationPref === "Same state") {
+        query.state = currentUser.state;
+        console.log("🗺️ Filter: Same state");
+      } else if (locationPref === "Anywhere") {
+        console.log("🌍 Filter: Anywhere (no restriction)");
+      }
+    }
+
+    // POLITICAL BELIEFS FILTER
+    if (filterPolitical && filterPolitical.length > 0) {
+      query.politicalBeliefs = { $in: filterPolitical };
+      console.log("🗳️ Political filter applied");
+    }
+
+    // RELIGION FILTER
+    if (filterReligions && filterReligions.length > 0) {
+      query.religion = { $in: filterReligions };
+      console.log("⛪ Religion filter applied");
+    }
+
+    // LIFE STAGE FILTER
+    if (filterLifeStages && filterLifeStages.length > 0) {
+      query.lifeStage = { $in: filterLifeStages };
+      console.log("👨‍👩‍👧‍👦 Life stage filter applied");
+    }
+
+    console.log("🔎 Final query:", JSON.stringify(query, null, 2));
+
+    // Execute query
+    console.log("Fetching users...");
+    let users = await User.find(query)
+      .select("name age city state profilePhoto bio causes latitude longitude politicalBeliefs religion lifeStage")
+      .lean();
+    
+    console.log(`✅ Database returned ${users.length} users`);
+
+    // DISTANCE FILTERING (if mile-based)
+    if (needsDistanceCalc) {
+      const miles = parseInt(locationPref.match(/\d+/)[0]);
+      console.log(`📏 Applying ${miles} mile filter...`);
+      
+      if (!currentUser.latitude || !currentUser.longitude) {
+        console.log("⚠️ User missing coordinates - falling back to same state");
+        users = users.filter(u => u.state === currentUser.state);
+      } else {
+        users = users.filter(user => {
+          if (!user.latitude || !user.longitude) return false;
+          
+          const distance = calculateDistance(
+            currentUser.latitude,
+            currentUser.longitude,
+            user.latitude,
+            user.longitude
+          );
+          
+          return distance <= miles;
+        });
+      }
+      
+      console.log(`📍 After distance filter: ${users.length} users`);
+    }
+
+    // Remove coordinates from response (privacy)
+    users.forEach(user => {
+      delete user.latitude;
+      delete user.longitude;
+    });
+
+    // Pagination
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+    
+    const totalCount = users.length;
+    const paginatedUsers = users.slice(skip, skip + limit);
+
+    console.log(`✅ Returning ${paginatedUsers.length}/${totalCount} users (page ${page})`);
     console.log("===== DISCOVER COMPLETE =====\n");
     
-    // Return immediately
     return res.json({
-      users,
+      users: paginatedUsers,
       pagination: {
-        page: 1,
-        limit: 10,
-        totalUsers: users.length,
-        totalPages: 1,
-        hasMore: false,
+        page,
+        limit,
+        totalUsers: totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        hasMore: page * limit < totalCount,
       },
     });
     
@@ -131,6 +237,26 @@ router.get("/discover", auth, async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 });
+
+// Helper: Calculate distance between coordinates
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 3959; // Earth's radius in miles
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  
+  return R * c;
+}
+
+function toRad(degrees) {
+  return degrees * (Math.PI / 180);
+}
 
 // ===== PASS USER =====
 
