@@ -597,4 +597,11 @@ userSchema.methods.toJSON = function () {
   return user;
 };
 
+// Indexes for performance
+userSchema.index({ state: 1, city: 1, isDeleted: 1 });
+userSchema.index({ politicalBeliefs: 1 });
+userSchema.index({ religion: 1 });
+userSchema.index({ lifeStage: 1 });
+userSchema.index({ email: 1 }, { unique: true });
+
 module.exports = mongoose.model("User", userSchema);

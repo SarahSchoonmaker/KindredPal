@@ -79,138 +79,104 @@ router.get("/test/databases", async (req, res) => {
 // In /backend/routes/users.js
 // Replace the discover route with this:
 
+// COMPLETE DISCOVER ROUTE WITH ALL FILTERS
+// Replace in /backend/routes/users.js
+
 router.get("/discover", auth, async (req, res) => {
   try {
-    logger.info("🔍 START");
+    logger.info("🔍 DISCOVER START");
 
-    const currentUser = await User.findById(req.userId).lean();
-    logger.info("✅ User:", currentUser?.email);
+    const currentUser = await User.findById(req.userId)
+      .select(
+        "_id email city state locationPreference filterPoliticalBeliefs filterReligions filterLifeStages matches likes passed blockedUsers",
+      )
+      .lean();
 
     if (!currentUser) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // ONLY exclude yourself
-    logger.info("🔍 Query...");
+    logger.info("✅ User:", currentUser.email);
 
-    const users = await User.find({
-      _id: { $ne: currentUser._id },
-    })
-      .select("name age city state profilePhoto")
-      .limit(5)
-      .lean();
+    // Get preferences from query params OR user profile
+    const locationPref =
+      req.query.locationPreference ||
+      currentUser.locationPreference ||
+      "Same state";
+    const filterPolitical = req.query.filterPoliticalBeliefs
+      ? JSON.parse(req.query.filterPoliticalBeliefs)
+      : currentUser.filterPoliticalBeliefs || [];
+    const filterReligions = req.query.filterReligions
+      ? JSON.parse(req.query.filterReligions)
+      : currentUser.filterReligions || [];
+    const filterLifeStages = req.query.filterLifeStages
+      ? JSON.parse(req.query.filterLifeStages)
+      : currentUser.filterLifeStages || [];
 
-    logger.info("✅ Found:", users.length);
+    logger.info("📍 Filters:", {
+      locationPref,
+      filterPolitical,
+      filterReligions,
+      filterLifeStages,
+    });
+
+    // Build exclusion list
+    const excludedIds = [
+      currentUser._id,
+      ...(currentUser.matches || []),
+      ...(currentUser.likes || []),
+      ...(currentUser.passed || []),
+      ...(currentUser.blockedUsers || []),
+    ];
+
+    // Build MongoDB query
+    let query = {
+      _id: { $nin: excludedIds },
+      isDeleted: { $ne: true },
+    };
+
+    // LOCATION FILTER (in database query for performance)
+    if (locationPref === "Same city") {
+      query.city = currentUser.city;
+      query.state = currentUser.state;
+    } else if (locationPref === "Same state") {
+      query.state = currentUser.state;
+    }
+    // Note: "Within X miles" requires geolocation - implement later
+    // "Anywhere" = no location filter
+
+    // POLITICAL BELIEFS FILTER
+    if (filterPolitical && filterPolitical.length > 0) {
+      query.politicalBeliefs = { $in: filterPolitical };
+    }
+
+    // RELIGION FILTER
+    if (filterReligions && filterReligions.length > 0) {
+      query.religion = { $in: filterReligions };
+    }
+
+    // LIFE STAGE FILTER
+    if (filterLifeStages && filterLifeStages.length > 0) {
+      query.lifeStage = { $in: filterLifeStages };
+    }
+
+    logger.info("🔍 Querying with:", query);
+
+    // Execute query with selected fields only (performance)
+    const users = await User.find(query)
+      .select(
+        "name age city state profilePhoto bio causes politicalBeliefs religion lifeStage lookingFor",
+      )
+      .lean()
+      .maxTimeMS(10000); // 10 second timeout
+
+    logger.info(`✅ Found ${users.length} users`);
     logger.info("🎯 DONE");
 
     res.json({ users });
   } catch (error) {
     logger.error("❌ ERROR:", error.message);
     res.status(500).json({ message: error.message });
-  }
-});
-
-// ===== LIKE USER =====
-
-// @route   POST /api/users/like/:userId
-// @desc    Like a user
-// @access  Private
-router.post("/like/:userId", auth, async (req, res) => {
-  try {
-    logger.info(`📥 Like request: ${req.userId} → ${req.params.userId}`);
-
-    const currentUser = await User.findById(req.userId);
-    const likedUser = await User.findById(req.params.userId);
-
-    if (!likedUser) {
-      logger.error(`❌ Liked user not found: ${req.params.userId}`);
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    logger.info(`Current user likes before: ${currentUser.likes.length}`);
-
-    // Check if already liked
-    const alreadyLiked = currentUser.likes.some(
-      (id) => id.toString() === likedUser._id.toString(),
-    );
-    logger.info(`Already liked? ${alreadyLiked}`);
-
-    // Add to likes only if not already there
-    if (!alreadyLiked) {
-      currentUser.likes.push(likedUser._id);
-      logger.info(`✅ Added ${likedUser._id} to likes array`);
-    }
-
-    // Check if it's a match
-    let isMatch = false;
-    let matchedUser = null;
-
-    const otherUserLikesMe = likedUser.likes.some(
-      (id) => id.toString() === currentUser._id.toString(),
-    );
-    logger.info(`Other user likes me? ${otherUserLikesMe}`);
-
-    if (otherUserLikesMe) {
-      const alreadyMatched = currentUser.matches.some(
-        (id) => id.toString() === likedUser._id.toString(),
-      );
-
-      if (!alreadyMatched) {
-        isMatch = true;
-        currentUser.matches.push(likedUser._id);
-        likedUser.matches.push(currentUser._id);
-
-        logger.info(`💾 Saving likedUser...`);
-        await likedUser.save({ validateBeforeSave: false });
-        logger.info(`✅ likedUser saved`);
-
-        matchedUser = likedUser.toObject();
-        logger.info(`🎉 Match created`);
-
-        if (likedUser.pushTokens && likedUser.pushTokens.length > 0) {
-          try {
-            await sendPushNotification(
-              likedUser.pushTokens,
-              "🎉 It's a Match!",
-              `You and ${currentUser.name} matched!`,
-              { type: "match", userId: currentUser._id.toString() },
-            );
-            logger.info(`✅ Push notification sent`);
-          } catch (pushError) {
-            logger.error("⚠️ Push notification failed:", pushError.message);
-          }
-        }
-      } else {
-        matchedUser = likedUser.toObject();
-        isMatch = true;
-      }
-    }
-
-    // Save current user
-    logger.info(
-      `💾 Saving currentUser with ${currentUser.likes.length} likes...`,
-    );
-    try {
-      await currentUser.save({ validateBeforeSave: false });
-      logger.info(`✅ currentUser saved successfully!`);
-      logger.info(`Final likes count: ${currentUser.likes.length}`);
-    } catch (saveError) {
-      logger.error(`❌ Failed to save currentUser:`, saveError);
-      throw saveError;
-    }
-
-    res.json({
-      message: isMatch ? "It's a match!" : "User liked",
-      isMatch,
-      matchedUser,
-    });
-  } catch (error) {
-    logger.error("❌ Like user error:", error);
-    logger.error("❌ Error message:", error.message);
-    logger.error("❌ Error stack:", error.stack);
-    res
-      .status(500)
-      .json({ message: "Error liking user", error: error.message });
   }
 });
 
