@@ -7,35 +7,52 @@ const logger = require("../utils/logger");
 const Message = require("../models/Message");
 const mongoose = require("mongoose");
 
-// Put it right after the discover route
+// Add this endpoint to /backend/routes/users.js
+// This will show ALL databases and collections
 
-// ===== TEST DB CONNECTION =====
-router.get("/test/db", async (req, res) => {
+router.get("/test/databases", async (req, res) => {
   try {
-    const dbState = mongoose.connection.readyState;
-    const stateMap = {
-      0: "disconnected",
-      1: "connected",
-      2: "connecting",
-      3: "disconnecting",
-    };
+    const admin = mongoose.connection.db.admin();
 
+    // List all databases
+    const { databases } = await admin.listDatabases();
+
+    // Current connection info
+    const currentDB = mongoose.connection.db.databaseName;
+    const currentHost = mongoose.connection.host;
+
+    // Get all collections in current database
+    const collections = await mongoose.connection.db
+      .listCollections()
+      .toArray();
+
+    // Count users in current database
     const userCount = await User.countDocuments();
-    const oneUser = await User.findOne().select("name email").lean();
+
+    // Get all users with their emails
+    const allUsers = await User.find().select("name email city state").lean();
 
     res.json({
-      mongooseState: stateMap[dbState],
-      database: mongoose.connection.name,
-      host: mongoose.connection.host,
-      totalUsers: userCount,
-      sampleUser: oneUser,
-      success: true,
+      currentConnection: {
+        database: currentDB,
+        host: currentHost,
+        connectionString: process.env.MONGODB_URI?.replace(/:[^:@]+@/, ":***@"), // Hide password
+      },
+      allDatabases: databases,
+      collectionsInCurrentDB: collections.map((c) => c.name),
+      usersInCurrentDB: {
+        count: userCount,
+        users: allUsers.map((u) => ({
+          name: u.name,
+          email: u.email,
+          location: `${u.city}, ${u.state}`,
+        })),
+      },
     });
   } catch (error) {
     res.status(500).json({
-      success: false,
       error: error.message,
-      mongooseState: mongoose.connection.readyState,
+      stack: error.stack,
     });
   }
 });
