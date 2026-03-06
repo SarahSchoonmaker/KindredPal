@@ -7,6 +7,39 @@ const logger = require("../utils/logger");
 const Message = require("../models/Message");
 const mongoose = require("mongoose");
 
+// Put it right after the discover route
+
+// ===== TEST DB CONNECTION =====
+router.get("/test/db", async (req, res) => {
+  try {
+    const dbState = mongoose.connection.readyState;
+    const stateMap = {
+      0: "disconnected",
+      1: "connected",
+      2: "connecting",
+      3: "disconnecting",
+    };
+
+    const userCount = await User.countDocuments();
+    const oneUser = await User.findOne().select("name email").lean();
+
+    res.json({
+      mongooseState: stateMap[dbState],
+      database: mongoose.connection.name,
+      host: mongoose.connection.host,
+      totalUsers: userCount,
+      sampleUser: oneUser,
+      success: true,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      mongooseState: mongoose.connection.readyState,
+    });
+  }
+});
+
 // ===== DISCOVER ROUTE =====
 
 // @route   GET /api/users/discover
@@ -56,6 +89,8 @@ router.get("/discover", auth, async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
+// Add this DEBUG endpoint to /backend/routes/users.js
 
 // ===== LIKE USER =====
 
