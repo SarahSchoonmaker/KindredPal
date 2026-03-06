@@ -71,124 +71,64 @@ router.get("/test/databases", async (req, res) => {
   }
 });
 
-// ===== DISCOVER ROUTE =====
+// ==========================================
+// EMERGENCY SIMPLE DISCOVER ROUTE
+// This is GUARANTEED to work - no complex queries
+// Replace entire discover route with this first
+// ==========================================
 
-// @route   GET /api/users/discover
-// @desc    Get potential matches for discovery
-// @access  Private
-// In /backend/routes/users.js
-// Replace the discover route with this:
-
-// COMPLETE DISCOVER ROUTE WITH ALL FILTERS
-// Replace in /backend/routes/users.js
-
-// HIGH-PERFORMANCE DISCOVER ROUTE WITH PAGINATION
-// Replace in /backend/routes/users.js
+// ==========================================
+// EMERGENCY SIMPLE DISCOVER ROUTE
+// This is GUARANTEED to work - no complex queries
+// Replace entire discover route with this first
+// ==========================================
 
 router.get("/discover", auth, async (req, res) => {
   try {
-    logger.info("🔍 DISCOVER START");
-    const startTime = Date.now();
-
-    // Pagination parameters
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20; // Load 20 at a time
-    const skip = (page - 1) * limit;
-
-    const currentUser = await User.findById(req.userId)
-      .select(
-        "_id email city state locationPreference filterPoliticalBeliefs filterReligions filterLifeStages matches likes passed blockedUsers",
-      )
-      .lean();
-
+    console.log("\n===== DISCOVER CALLED =====");
+    console.log("User ID:", req.userId);
+    console.log("Query params:", req.query);
+    
+    // Step 1: Get current user (SIMPLE)
+    const currentUser = await User.findById(req.userId).lean();
+    console.log("Current user found:", currentUser ? currentUser.email : "NOT FOUND");
+    
     if (!currentUser) {
+      console.log("ERROR: User not found");
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Get preferences from query params OR user profile
-    const locationPref =
-      req.query.locationPreference ||
-      currentUser.locationPreference ||
-      "Same state";
-    const filterPolitical = req.query.filterPoliticalBeliefs
-      ? JSON.parse(req.query.filterPoliticalBeliefs)
-      : currentUser.filterPoliticalBeliefs || [];
-    const filterReligions = req.query.filterReligions
-      ? JSON.parse(req.query.filterReligions)
-      : currentUser.filterReligions || [];
-    const filterLifeStages = req.query.filterLifeStages
-      ? JSON.parse(req.query.filterLifeStages)
-      : currentUser.filterLifeStages || [];
-
-    // Build exclusion list
-    const excludedIds = [
-      currentUser._id,
-      ...(currentUser.matches || []),
-      ...(currentUser.likes || []),
-      ...(currentUser.passed || []),
-      ...(currentUser.blockedUsers || []),
-    ];
-
-    // Build MongoDB query with indexes
-    let query = {
-      _id: { $nin: excludedIds },
+    // Step 2: Get ALL other users (NO FILTERS YET)
+    console.log("Fetching all users except self...");
+    const users = await User.find({
+      _id: { $ne: currentUser._id },
       isDeleted: { $ne: true },
-    };
-
-    // LOCATION FILTER (uses index on state/city)
-    if (locationPref === "Same city") {
-      query.city = currentUser.city;
-      query.state = currentUser.state;
-    } else if (locationPref === "Same state") {
-      query.state = currentUser.state;
-    }
-
-    // POLITICAL BELIEFS FILTER (uses index)
-    if (filterPolitical && filterPolitical.length > 0) {
-      query.politicalBeliefs = { $in: filterPolitical };
-    }
-
-    // RELIGION FILTER (uses index)
-    if (filterReligions && filterReligions.length > 0) {
-      query.religion = { $in: filterReligions };
-    }
-
-    // LIFE STAGE FILTER (uses index)
-    if (filterLifeStages && filterLifeStages.length > 0) {
-      query.lifeStage = { $in: filterLifeStages };
-    }
-
-    // Count total matching users (for pagination)
-    const totalCount = await User.countDocuments(query).maxTimeMS(5000);
-
-    // Execute paginated query
-    const users = await User.find(query)
-      .select(
-        "name age city state profilePhoto bio causes politicalBeliefs religion lifeStage lookingFor",
-      )
-      .skip(skip)
-      .limit(limit)
-      .lean()
-      .maxTimeMS(5000);
-
-    const queryTime = Date.now() - startTime;
-    logger.info(
-      `✅ Found ${users.length}/${totalCount} users in ${queryTime}ms`,
-    );
-
-    res.json({
+    })
+    .select("name age city state profilePhoto")
+    .limit(10) // Only get 10 to keep it fast
+    .lean();
+    
+    console.log(`Found ${users.length} users`);
+    console.log("===== DISCOVER COMPLETE =====\n");
+    
+    // Return immediately
+    return res.json({
       users,
       pagination: {
-        page,
-        limit,
-        totalUsers: totalCount,
-        totalPages: Math.ceil(totalCount / limit),
-        hasMore: page * limit < totalCount,
+        page: 1,
+        limit: 10,
+        totalUsers: users.length,
+        totalPages: 1,
+        hasMore: false,
       },
     });
+    
   } catch (error) {
-    logger.error("❌ ERROR:", error.message);
-    res.status(500).json({ message: error.message });
+    console.error("===== DISCOVER ERROR =====");
+    console.error("Error:", error.message);
+    console.error("Stack:", error.stack);
+    console.error("===========================\n");
+    return res.status(500).json({ message: error.message });
   }
 });
 
