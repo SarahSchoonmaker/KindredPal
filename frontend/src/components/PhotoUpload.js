@@ -12,7 +12,6 @@ const PhotoUpload = ({
   const [selectedProfileIndex, setSelectedProfileIndex] =
     useState(profilePhotoIndex);
 
-  // Update previews when photos prop changes
   useEffect(() => {
     setPreviews([...photos]);
     setSelectedProfileIndex(profilePhotoIndex);
@@ -27,7 +26,6 @@ const PhotoUpload = ({
       return;
     }
 
-    // Process all files first, then update state once
     const filePromises = files.map((file) => {
       return new Promise((resolve, reject) => {
         if (file.size > 5 * 1024 * 1024) {
@@ -47,7 +45,6 @@ const PhotoUpload = ({
       .then((newPhotos) => {
         const updatedPreviews = [...previews, ...newPhotos];
         setPreviews(updatedPreviews);
-        // ✅ FIX: Call onPhotosChange with the new array, not inside setPreviews
         if (typeof onPhotosChange === "function") {
           onPhotosChange(updatedPreviews, selectedProfileIndex);
         }
@@ -63,7 +60,6 @@ const PhotoUpload = ({
     const newPreviews = previews.filter((_, i) => i !== index);
     let newProfileIndex = selectedProfileIndex;
 
-    // Adjust profile photo index if needed
     if (index === selectedProfileIndex) {
       newProfileIndex = 0;
     } else if (index < selectedProfileIndex) {
@@ -73,7 +69,6 @@ const PhotoUpload = ({
     setPreviews(newPreviews);
     setSelectedProfileIndex(newProfileIndex);
 
-    // ✅ FIX: Call onPhotosChange after state is calculated
     if (typeof onPhotosChange === "function") {
       onPhotosChange(newPreviews, newProfileIndex);
     }
@@ -82,7 +77,6 @@ const PhotoUpload = ({
   const handleSetAsProfile = (index) => {
     setSelectedProfileIndex(index);
 
-    // ✅ FIX: Call onPhotosChange with current previews
     if (typeof onPhotosChange === "function") {
       onPhotosChange(previews, index);
     }
@@ -91,16 +85,15 @@ const PhotoUpload = ({
   return (
     <div className="photo-upload-container">
       <div className="photo-grid">
-        {/* Show existing photos */}
         {previews.map((photo, index) => (
           <div key={`photo-${index}`} className="photo-item">
+            {/* ✅ Fixed: removed "photo" from alt text */}
             <img
               src={photo}
-              alt={`Photo ${index + 1}`}
+              alt={`Upload ${index + 1}`}
               className="photo-preview"
             />
 
-            {/* Profile Photo Badge */}
             {index === selectedProfileIndex && (
               <div className="profile-badge">
                 <Check size={16} />
@@ -108,7 +101,6 @@ const PhotoUpload = ({
               </div>
             )}
 
-            {/* Actions */}
             <div className="photo-actions">
               {index !== selectedProfileIndex && (
                 <button
@@ -132,7 +124,6 @@ const PhotoUpload = ({
           </div>
         ))}
 
-        {/* Upload button */}
         {previews.length < maxPhotos && (
           <label className="photo-upload-box">
             <input

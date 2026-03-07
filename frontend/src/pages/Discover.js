@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { MapPin, UserCheck, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { authAPI } from "../services/api";
 import api from "../services/api";
 import DiscoverFilters from "../components/DiscoverFilters";
+import { useAuth } from "../context/AuthContext";
 import "./Discover.css";
 
 function Discover() {
   const navigate = useNavigate();
+  const { user: currentUser, updateUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -16,27 +17,11 @@ function Discover() {
   const [totalUsers, setTotalUsers] = useState(0);
   const [showMatchModal, setShowMatchModal] = useState(false);
   const [matchedUser, setMatchedUser] = useState(null);
-  const [currentUser, setCurrentUser] = useState(null);
   const [likedUsers, setLikedUsers] = useState(() => {
     const stored = localStorage.getItem("likedUserIds");
     return stored ? new Set(JSON.parse(stored)) : new Set();
   });
   const [actionLoading, setActionLoading] = useState({});
-
-  const fetchCurrentUser = async () => {
-    try {
-      const response = await authAPI.getProfile();
-      setCurrentUser(response.data);
-      console.log(
-        "Current user location:",
-        response.data.city,
-        response.data.state,
-      );
-      console.log("Location preference:", response.data.locationPreference);
-    } catch (error) {
-      console.error("Error fetching current user:", error);
-    }
-  };
 
   const fetchUsers = useCallback(
     async (preferences = null, pageNum = 1, append = false) => {
@@ -49,10 +34,9 @@ function Discover() {
       try {
         console.log(`🔍 Fetching page ${pageNum}...`);
 
-        // Build URL with pagination
         const params = new URLSearchParams({
           page: pageNum.toString(),
-          limit: "20", // Load 20 users at a time
+          limit: "20",
         });
 
         if (preferences) {
@@ -77,10 +61,8 @@ function Discover() {
         const pagination = response.data.pagination;
 
         if (append) {
-          // Append to existing users (infinite scroll)
           setUsers((prev) => [...prev, ...newUsers]);
         } else {
-          // Replace users (new search)
           setUsers(newUsers);
         }
 
@@ -100,9 +82,8 @@ function Discover() {
       }
     },
     [],
-  ); // Empty deps - function doesn't depend on external state
+  );
 
-  // Load more users when scrolling
   const handleLoadMore = useCallback(() => {
     if (!loadingMore && hasMore) {
       fetchUsers(null, page + 1, true);
@@ -110,7 +91,6 @@ function Discover() {
   }, [loadingMore, hasMore, page, fetchUsers]);
 
   useEffect(() => {
-    fetchCurrentUser();
     fetchUsers();
   }, [fetchUsers]);
 
@@ -128,7 +108,6 @@ function Discover() {
       const scrollHeight = document.documentElement.scrollHeight;
       const clientHeight = document.documentElement.clientHeight;
 
-      // Load more when 80% scrolled
       if (scrollTop + clientHeight >= scrollHeight * 0.8) {
         handleLoadMore();
       }
@@ -142,7 +121,6 @@ function Discover() {
     e.stopPropagation();
     console.log("🎯 Liking user:", userId);
 
-    // Prevent double-clicking
     if (actionLoading[userId] || likedUsers.has(userId)) return;
 
     setActionLoading((prev) => ({ ...prev, [userId]: true }));
@@ -150,7 +128,6 @@ function Discover() {
     try {
       const response = await api.post(`/users/like/${userId}`);
 
-      // Add to liked users
       setLikedUsers((prev) => new Set([...prev, userId]));
 
       if (response.data.isMatch) {
@@ -158,7 +135,6 @@ function Discover() {
         setShowMatchModal(true);
       }
 
-      // Remove from list after delay to show "Request Sent"
       setTimeout(() => {
         setUsers((prev) => prev.filter((u) => u._id !== userId));
         setActionLoading((prev) => ({ ...prev, [userId]: false }));
@@ -173,7 +149,6 @@ function Discover() {
   const handlePass = async (userId, e) => {
     e.stopPropagation();
 
-    // Prevent double-clicking
     if (actionLoading[userId]) return;
 
     setActionLoading((prev) => ({ ...prev, [userId]: true }));
@@ -192,15 +167,10 @@ function Discover() {
   };
 
   const handlePreferencesUpdate = async (updatedPreferences) => {
-    console.log("🔄 Preferences updated - clearing liked users and refreshing");
-    console.log("   New preferences:", updatedPreferences);
+    console.log("🔄 Preferences updated - refreshing");
 
-    // IMMEDIATELY update currentUser state with new preferences
-    setCurrentUser((prev) => ({
-      ...prev,
-      ...updatedPreferences,
-    }));
-    console.log("✅ Current user updated optimistically");
+    // Update user in AuthContext
+    updateUser({ ...currentUser, ...updatedPreferences });
 
     // Clear liked users from localStorage
     localStorage.removeItem("likedUserIds");
@@ -372,7 +342,6 @@ function Discover() {
             ))}
           </div>
 
-          {/* Loading indicator for infinite scroll */}
           {loadingMore && (
             <div className="loading-more">
               <div className="spinner"></div>
@@ -380,7 +349,6 @@ function Discover() {
             </div>
           )}
 
-          {/* Load more button (optional fallback) */}
           {!loadingMore && hasMore && users.length > 0 && (
             <button className="btn-load-more" onClick={handleLoadMore}>
               Load More ({totalUsers - users.length} remaining)
@@ -395,7 +363,6 @@ function Discover() {
         </div>
       )}
 
-      {/* Match Modal */}
       {showMatchModal && matchedUser && (
         <div
           className="match-modal-overlay"

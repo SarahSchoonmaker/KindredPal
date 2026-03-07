@@ -1,5 +1,4 @@
-// frontend/src/pages/MeetupDetailsPage.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Calendar,
@@ -23,21 +22,8 @@ function MeetupDetailsPage() {
   const [currentUserId, setCurrentUserId] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  useEffect(() => {
-    fetchMeetupDetails();
-    fetchCurrentUser();
-  }, [meetupId]);
-
-  const fetchCurrentUser = async () => {
-    try {
-      const response = await api.get("/auth/profile");
-      setCurrentUserId(response.data._id);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-    }
-  };
-
-  const fetchMeetupDetails = async () => {
+  // ✅ Fixed: wrapped in useCallback so it can be a useEffect dependency
+  const fetchMeetupDetails = useCallback(async () => {
     try {
       const response = await api.get(`/meetups/${meetupId}`);
       setMeetup(response.data);
@@ -46,7 +32,21 @@ function MeetupDetailsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [meetupId]);
+
+  const fetchCurrentUser = useCallback(async () => {
+    try {
+      const response = await api.get("/auth/profile");
+      setCurrentUserId(response.data._id);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchMeetupDetails();
+    fetchCurrentUser();
+  }, [fetchMeetupDetails, fetchCurrentUser]);
 
   const handleRSVP = async (status) => {
     try {
@@ -230,7 +230,6 @@ function MeetupDetailsPage() {
           </div>
         )}
 
-        {/* RSVP Section */}
         {!isCreator && (
           <div className="rsvp-section">
             <h3>Will you attend?</h3>
@@ -257,11 +256,9 @@ function MeetupDetailsPage() {
           </div>
         )}
 
-        {/* Guest List */}
         <div className="meetup-section">
           <h3>Guest List</h3>
 
-          {/* Going */}
           {goingCount > 0 && (
             <div className="guest-category">
               <h4>Going ({goingCount})</h4>
@@ -296,7 +293,6 @@ function MeetupDetailsPage() {
             </div>
           )}
 
-          {/* Maybe */}
           {maybeCount > 0 && (
             <div className="guest-category">
               <h4>Maybe ({maybeCount})</h4>
@@ -331,7 +327,6 @@ function MeetupDetailsPage() {
             </div>
           )}
 
-          {/* Invited but not responded */}
           <div className="guest-category">
             <h4>Invited</h4>
             <div className="guest-list">
@@ -367,7 +362,6 @@ function MeetupDetailsPage() {
         </div>
       </div>
 
-      {/* Edit Modal - MOVED INSIDE THE RETURN */}
       {showEditModal && (
         <EditMeetupModal
           meetup={meetup}

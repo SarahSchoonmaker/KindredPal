@@ -66,30 +66,26 @@ const Messages = () => {
 
         if (!userMatch) {
           console.error("❌ User not found in conversations:", otherUserId);
-          console.log(
-            "   Available conversations:",
-            conversations.map((c) => ({
-              _id: c._id,
-              name: c.name,
-            })),
-          );
           return;
         }
 
-        console.log("✅ Found conversation:", userMatch);
         setSelectedUser(userMatch);
 
-        // Load messages
+        // Load messages (backend marks them as read)
         const response = await messageAPI.getMessages(otherUserId);
-        console.log("📨 Loaded messages:", response.data?.length || 0);
         setMessages(response.data || []);
 
-        // Clear global unread badge
-        console.log("📖 Viewing conversation - clearing badges");
+        // ✅ Clear the red badge for this specific conversation
+        setConversations((prev) =>
+          prev.map((conv) =>
+            conv._id === otherUserId ? { ...conv, unreadCount: 0 } : conv,
+          ),
+        );
+
+        // Clear global unread badge in navbar
         clearUnread();
       } catch (error) {
         console.error("❌ Error loading conversation:", error);
-        console.error("   Error details:", error.response?.data);
       }
     },
     [conversations, clearUnread],

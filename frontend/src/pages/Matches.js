@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { UserCircle, MapPin, MessageCircle } from "lucide-react";
 import { userAPI } from "../services/api";
@@ -10,62 +10,48 @@ const Matches = () => {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Load removed users from localStorage on mount
   const [removedUserIds, setRemovedUserIds] = useState(() => {
     const stored = localStorage.getItem("removedMatchIds");
     return stored ? new Set(JSON.parse(stored)) : new Set();
   });
 
-  useEffect(() => {
-    loadMatches();
-  }, []);
-
-  // Save removed users to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem(
-      "removedMatchIds",
-      JSON.stringify([...removedUserIds]),
-    );
-  }, [removedUserIds]);
-
-  const loadMatches = async () => {
+  // ✅ Fixed: wrapped in useCallback so it can be a useEffect dependency
+  const loadMatches = useCallback(async () => {
     try {
       const response = await userAPI.getMatches();
       const backendMatches = response.data;
       const backendMatchIds = new Set(backendMatches.map((m) => m._id));
 
-      console.log("🔍 Backend matches:", backendMatches.length);
-      console.log("   Backend IDs:", [...backendMatchIds]);
-      console.log("🚫 localStorage removed IDs:", [...removedUserIds]);
-
-      // CRITICAL FIX: Only keep removed IDs that are STILL in backend
-      // If a user is not in backend, they're already gone - don't filter them
       const validRemovedIds = new Set(
         [...removedUserIds].filter((id) => backendMatchIds.has(id)),
       );
 
-      // Clean up localStorage if needed
       if (validRemovedIds.size !== removedUserIds.size) {
-        console.log("🧹 Cleaning stale localStorage");
-        console.log(
-          `   Removed ${removedUserIds.size - validRemovedIds.size} stale entries`,
-        );
         setRemovedUserIds(validRemovedIds);
       }
 
-      // Show only backend matches that aren't in removedUserIds
       const filteredMatches = backendMatches.filter(
         (match) => !validRemovedIds.has(match._id),
       );
 
-      console.log(`📊 Showing ${filteredMatches.length} matches`);
       setMatches(filteredMatches);
     } catch (error) {
       console.error("Error loading matches:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [removedUserIds]);
+
+  useEffect(() => {
+    loadMatches();
+  }, [loadMatches]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      "removedMatchIds",
+      JSON.stringify([...removedUserIds]),
+    );
+  }, [removedUserIds]);
 
   const handleViewProfile = (matchId) => {
     navigate(`/profile/${matchId}`);
@@ -77,25 +63,12 @@ const Matches = () => {
   };
 
   const handleUserActionComplete = async (unmatchedUserId) => {
-    console.log("🔄 handleUserActionComplete called");
-    console.log("   Action userId:", unmatchedUserId);
-
     if (unmatchedUserId) {
-      // Track this user as removed (will auto-save to localStorage)
       setRemovedUserIds((prev) => new Set([...prev, unmatchedUserId]));
-
-      // OPTIMISTIC UPDATE - Remove from UI immediately
-      console.log("➖ Removing user from matches (optimistic update)");
-      setMatches((prevMatches) => {
-        const filtered = prevMatches.filter((m) => m._id !== unmatchedUserId);
-        console.log(`   Before: ${prevMatches.length} matches`);
-        console.log(`   After: ${filtered.length} matches`);
-        return filtered;
-      });
-      console.log("✅ User removed from UI and tracked as removed");
+      setMatches((prevMatches) =>
+        prevMatches.filter((m) => m._id !== unmatchedUserId),
+      );
     } else {
-      // Only reload if no userId provided (for reports, etc.)
-      console.log("🔄 No userId provided - reloading all matches...");
       await loadMatches();
     }
   };
@@ -144,11 +117,8 @@ const Matches = () => {
               className="match-card"
               onClick={() => handleViewProfile(match._id)}
             >
-              {/* Profile Photo */}
               <div className="match-photo">
                 <img src={match.profilePhoto} alt={match.name} />
-
-                {/* Three dots menu on photo */}
                 <div
                   className="match-card-menu"
                   onClick={(e) => e.stopPropagation()}
@@ -162,7 +132,6 @@ const Matches = () => {
                 </div>
               </div>
 
-              {/* Match Info */}
               <div className="match-info">
                 <h3>
                   {match.name}, {match.age}
