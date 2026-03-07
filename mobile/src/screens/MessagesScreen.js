@@ -21,19 +21,6 @@ export default function MessagesScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <TouchableOpacity
-          onPress={() => console.log("Menu pressed")}
-          style={{ marginRight: 16 }}
-        >
-          <Text style={{ color: "white", fontSize: 24 }}>⋮</Text>
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation]);
-
   // Refresh when screen comes into focus
   useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {
