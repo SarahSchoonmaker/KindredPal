@@ -11,7 +11,7 @@ import SignupScreen from "./src/screens/SignupScreen";
 
 // Main Screens
 import DiscoverScreen from "./src/screens/DiscoverScreen";
-import LikesYouScreen from "./src/screens/LikesYouScreen";
+import LikesYouScreen from "./src/screens/InterestedScreen";
 import ConnectionsScreen from "./src/screens/ConnectionsScreen";
 import MessagesScreen from "./src/screens/MessagesScreen";
 import MeetupsScreen from "./src/screens/MeetupsScreen";
