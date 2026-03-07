@@ -54,7 +54,7 @@ const Landing = () => {
             >
               <Heart size={32} />
             </div>
-            <h3>Value-Based Matching</h3>
+            <h3>Value-Based Connections</h3>
             <p>
               Connect with people who share your core values around religion,
               politics, environment, and more.
@@ -88,8 +88,8 @@ const Landing = () => {
             </div>
             <h3>Meaningful Conversations</h3>
             <p>
-              Build genuine connections through thoughtful matches and authentic
-              conversations.
+              Build genuine connections through thoughtful matching and
+              authentic conversations.
             </p>
           </div>
 

@@ -526,8 +526,8 @@ const Profile = () => {
             <div className="email-settings">
               <div className="email-toggle">
                 <div className="toggle-info">
-                  <strong>New Match Notifications</strong>
-                  <p>Get notified when someone matches with you</p>
+                  <strong>New Connection Notifications</strong>
+                  <p>Get notified when someone connects with you</p>
                 </div>
                 <label className="toggle-switch">
                   <input

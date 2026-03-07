@@ -162,8 +162,8 @@ const Messages = () => {
           {conversations.length === 0 ? (
             <div className="empty-conversations">
               <UserIcon size={48} />
-              <h3>No Matches Yet</h3>
-              <p>Start liking profiles to find your matches!</p>
+              <h3>No Connections Yet</h3>
+              <p>Start liking profiles to find your connections!</p>
               <button
                 className="btn-primary"
                 onClick={() => navigate("/discover")}
@@ -266,7 +266,7 @@ const Messages = () => {
                 {messages.length === 0 ? (
                   <div className="no-messages">
                     <h3>Say Hello! 👋</h3>
-                    <p>You matched with {selectedUser.name}!</p>
+                    <p>Your connected with {selectedUser.name}!</p>
                     <p>Start a conversation below</p>
                   </div>
                 ) : (
@@ -310,7 +310,7 @@ const Messages = () => {
           ) : (
             <div className="no-chat-selected">
               <UserIcon size={64} />
-              <h3>Select a Match to Start Chatting</h3>
+              <h3>Select a Connection to Start Chatting</h3>
               <p>Choose a conversation from the left to begin messaging</p>
             </div>
           )}

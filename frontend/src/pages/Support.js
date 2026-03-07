@@ -35,10 +35,17 @@ const Support = () => {
           <div className="faq-item">
             <h3>What is KindredPal?</h3>
             <p>
-              KindredPal is a <strong>life stage support and community platform</strong> designed to help people find peer support during major life transitions. Whether you're navigating new parenthood, career changes, retirement, or any other life stage—KindredPal connects you with people who understand your journey.
+              KindredPal is a{" "}
+              <strong>life stage support and community platform</strong>{" "}
+              designed to help people find peer support during major life
+              transitions. Whether you're navigating new parenthood, career
+              changes, retirement, or any other life stage—KindredPal connects
+              you with people who understand your journey.
             </p>
             <p>
-              We are <strong>not a dating app</strong>. Our focus is on building supportive communities based on shared life experiences and values.
+              We are <strong>not a dating app</strong>. Our focus is on building
+              supportive communities based on shared life experiences and
+              values.
             </p>
           </div>
 
@@ -69,35 +76,42 @@ const Support = () => {
             </ol>
             <p>
               <strong>Warning:</strong> Account deletion is permanent. All your
-              connections, messages, and profile data will be permanently deleted
-              and cannot be recovered.
+              connections, messages, and profile data will be permanently
+              deleted and cannot be recovered.
             </p>
           </div>
 
           <div className="faq-item">
-            <h3>How does the matching algorithm work?</h3>
+            <h3>How does the connection algorithm work?</h3>
             <p>
-              Our matching algorithm connects you with people who share similar life experiences and values:
+              Our connection algorithm connects you with people who share
+              similar life experiences and values:
             </p>
             <ul>
               <li>
-                <strong>Life Stage (30%):</strong> Current life situation and experiences
+                <strong>Life Stage (30%):</strong> Current life situation and
+                experiences
               </li>
               <li>
-                <strong>Values Alignment (20%):</strong> Political beliefs and religious views
+                <strong>Values Alignment (20%):</strong> Political beliefs and
+                religious views
               </li>
               <li>
-                <strong>Shared Interests (20%):</strong> Common causes and activities
+                <strong>Shared Interests (20%):</strong> Common causes and
+                activities
               </li>
               <li>
-                <strong>Looking For (10%):</strong> Type of support or connection sought (friendship, mentorship, networking, etc.)
+                <strong>Looking For (10%):</strong> Type of support or
+                connection sought (friendship, mentorship, networking, etc.)
               </li>
               <li>
-                <strong>Location (20%):</strong> Geographic proximity based on your preferences
+                <strong>Location (20%):</strong> Geographic proximity based on
+                your preferences
               </li>
             </ul>
             <p>
-              This helps ensure you connect with people who can provide meaningful peer support during your life transitions.
+              This helps ensure you connect with people who can provide
+              meaningful peer support during your life transitions.
             </p>
           </div>
 
@@ -176,16 +190,32 @@ const Support = () => {
 
           <div className="faq-item">
             <h3>What types of connections can I make on KindredPal?</h3>
-            <p>
-              KindredPal supports multiple types of meaningful connections:
-            </p>
+            <p>KindredPal supports multiple types of meaningful connections:</p>
             <ul>
-              <li><strong>Friendship:</strong> Build platonic friendships with people who share your values</li>
-              <li><strong>Peer Support:</strong> Connect with others navigating similar life transitions</li>
-              <li><strong>Mentorship:</strong> Find guidance from those who've been through similar experiences</li>
-              <li><strong>Networking:</strong> Connect professionally with like-minded individuals</li>
-              <li><strong>Activity Partners:</strong> Find people to pursue hobbies and interests together</li>
-              <li><strong>Community:</strong> Join local groups and support networks</li>
+              <li>
+                <strong>Friendship:</strong> Build platonic friendships with
+                people who share your values
+              </li>
+              <li>
+                <strong>Peer Support:</strong> Connect with others navigating
+                similar life transitions
+              </li>
+              <li>
+                <strong>Mentorship:</strong> Find guidance from those who've
+                been through similar experiences
+              </li>
+              <li>
+                <strong>Networking:</strong> Connect professionally with
+                like-minded individuals
+              </li>
+              <li>
+                <strong>Activity Partners:</strong> Find people to pursue
+                hobbies and interests together
+              </li>
+              <li>
+                <strong>Community:</strong> Join local groups and support
+                networks
+              </li>
             </ul>
           </div>
 
@@ -203,7 +233,8 @@ const Support = () => {
             </ul>
             <p>
               Meetups are a great way to build community and make connections in
-              a comfortable, social environment. Examples include support groups, hobby gatherings, coffee meetups, or volunteer activities.
+              a comfortable, social environment. Examples include support
+              groups, hobby gatherings, coffee meetups, or volunteer activities.
             </p>
           </div>
 
@@ -238,20 +269,36 @@ const Support = () => {
           </div>
 
           <div className="faq-item">
-            <h3>Is KindredPal a substitute for therapy or professional mental health care?</h3>
+            <h3>
+              Is KindredPal a substitute for therapy or professional mental
+              health care?
+            </h3>
             <p>
-              <strong>No.</strong> KindredPal is a peer support community platform, not a mental health service or substitute for professional care.
+              <strong>No.</strong> KindredPal is a peer support community
+              platform, not a mental health service or substitute for
+              professional care.
             </p>
             <p>
-              While peer support can be incredibly valuable during life transitions, we strongly encourage seeking professional help for mental health concerns. KindredPal complements—but does not replace—therapy, counseling, or medical treatment.
+              While peer support can be incredibly valuable during life
+              transitions, we strongly encourage seeking professional help for
+              mental health concerns. KindredPal complements—but does not
+              replace—therapy, counseling, or medical treatment.
             </p>
             <p>
               <strong>Crisis Resources:</strong>
             </p>
             <ul>
-              <li><strong>US:</strong> Call or text 988 (Suicide & Crisis Lifeline)</li>
-              <li><strong>Crisis Text Line:</strong> Text "HELLO" to 741741</li>
-              <li><strong>Emergency:</strong> Call 911 or go to your nearest emergency room</li>
+              <li>
+                <strong>US:</strong> Call or text 988 (Suicide & Crisis
+                Lifeline)
+              </li>
+              <li>
+                <strong>Crisis Text Line:</strong> Text "HELLO" to 741741
+              </li>
+              <li>
+                <strong>Emergency:</strong> Call 911 or go to your nearest
+                emergency room
+              </li>
             </ul>
           </div>
         </section>

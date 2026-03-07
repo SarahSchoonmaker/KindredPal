@@ -207,7 +207,7 @@ const Signup = () => {
   const validateStep3 = () => {
     if (formData.lifeStage.length === 0) {
       setError(
-        "Please select at least one life stage - this is very important for matching!",
+        "Please select at least one life stage - this is very important for connections!",
       );
       return false;
     }

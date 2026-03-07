@@ -780,7 +780,13 @@ router.get("/blocked", auth, async (req, res) => {
       .populate("blockedUsers", "name profilePhoto")
       .lean();
 
-    res.json(user.blockedUsers || []);
+    // ✅ Handle missing user or missing blockedUsers field
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const blocked = (user.blockedUsers || []).filter(Boolean);
+    res.json(blocked);
   } catch (error) {
     logger.error("❌ Get blocked users error:", error);
     res.status(500).json({ message: "Error fetching blocked users" });

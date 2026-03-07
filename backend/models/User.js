@@ -368,6 +368,21 @@ const userSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
+
+    blockedUsers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: [],
+      },
+    ],
+    pushTokens: [
+      {
+        token: { type: String, required: true },
+        device: { type: String, default: "unknown" },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
     dailyLikes: {
       count: { type: Number, default: 10 },
       lastReset: { type: Date, default: Date.now },

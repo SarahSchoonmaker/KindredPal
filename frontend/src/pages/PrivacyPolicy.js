@@ -78,7 +78,7 @@ const PrivacyPolicy = () => {
             </li>
             <li>
               <strong>Values & Beliefs:</strong> Political beliefs, religious
-              views, and causes you care about (to match you with compatible
+              views, and causes you care about (to connect you with compatible
               support networks)
             </li>
             <li>
@@ -143,7 +143,7 @@ const PrivacyPolicy = () => {
           <h3>1. Building Support Networks</h3>
           <p>We use your life stage, values, and location information to:</p>
           <ul>
-            <li>Match you with people navigating similar life transitions</li>
+            <li>Connect you with people navigating similar life transitions</li>
             <li>
               Connect you with peer support communities that align with your
               values
@@ -177,7 +177,7 @@ const PrivacyPolicy = () => {
           <ul>
             <li>Understand how people seek and provide peer support</li>
             <li>
-              Improve our matching algorithm for better support connections
+              Improve our connection algorithm for better support connections
             </li>
             <li>Develop new features to serve community needs</li>
             <li>Research effectiveness of life stage-based support networks</li>
@@ -334,7 +334,7 @@ const PrivacyPolicy = () => {
           <p>You have control over:</p>
           <ul>
             <li>
-              <strong>Who sees your profile:</strong> Only matched community
+              <strong>Who sees your profile:</strong> Only connected community
               members see your full profile
             </li>
             <li>
