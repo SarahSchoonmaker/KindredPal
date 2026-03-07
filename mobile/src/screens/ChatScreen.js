@@ -19,19 +19,25 @@ export default function ChatScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState({ x: 0, y: 0 });
   const flatListRef = useRef(null);
 
   const chatUserId = match?._id || userId;
   const chatUserName = match?.name || userName;
 
-  // ✅ Set header title only — menu is rendered in component body
   useEffect(() => {
     navigation.setOptions({
       headerTitle: chatUserName || "Chat",
       headerRight: () => (
         <TouchableOpacity
           style={styles.menuButton}
-          onPress={() => setMenuVisible(true)}
+          onPress={(e) => {
+            // ✅ Measure button position to anchor menu just below it
+            e.target.measure((x, y, width, height, pageX, pageY) => {
+              setMenuAnchor({ x: pageX, y: pageY + height });
+              setMenuVisible(true);
+            });
+          }}
         >
           <MoreVertical size={24} color="white" />
         </TouchableOpacity>
@@ -229,8 +235,7 @@ export default function ChatScreen({ route, navigation }) {
       <Menu
         visible={menuVisible}
         onDismiss={() => setMenuVisible(false)}
-        anchor={{ x: 0, y: 0 }}
-        style={styles.menu}
+        anchor={menuAnchor}
       >
         <Menu.Item
           onPress={handleViewProfile}
