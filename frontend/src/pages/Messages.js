@@ -9,7 +9,7 @@ import UserActionsMenu from "../components/UserActionsMenu";
 const Messages = () => {
   const { userId } = useParams();
   const navigate = useNavigate();
-  const { user, clearUnread } = useAuth();
+  const { user } = useAuth();
   const [conversations, setConversations] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -53,44 +53,30 @@ const Messages = () => {
   const loadConversation = useCallback(
     async (otherUserId) => {
       try {
-        console.log("💬 Loading conversation with:", otherUserId);
-
-        if (!otherUserId) {
-          console.error("❌ No userId provided to loadConversation");
-          return;
-        }
+        if (!otherUserId) return;
 
         const userMatch = conversations.find(
           (conv) => conv._id === otherUserId,
         );
-
-        if (!userMatch) {
-          console.error("❌ User not found in conversations:", otherUserId);
-          return;
-        }
+        if (!userMatch) return;
 
         setSelectedUser(userMatch);
 
-        // Load messages (backend marks them as read)
         const response = await messageAPI.getMessages(otherUserId);
         setMessages(response.data || []);
 
-        // ✅ Clear the red badge for this specific conversation
+        // ✅ Clear badge for this specific conversation in sidebar
         setConversations((prev) =>
           prev.map((conv) =>
             conv._id === otherUserId ? { ...conv, unreadCount: 0 } : conv,
           ),
         );
-
-        // Clear global unread badge in navbar
-        clearUnread();
       } catch (error) {
         console.error("❌ Error loading conversation:", error);
       }
     },
-    [conversations, clearUnread],
+    [conversations],
   );
-
   useEffect(() => {
     console.log("🔄 Messages component mounted");
     loadConversations();
