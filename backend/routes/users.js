@@ -72,8 +72,7 @@ router.get("/test/databases", async (req, res) => {
 });
 
 // ==========================================
-// COMPLETE WORKING DISCOVER ROUTE WITH ALL FILTERS
-// Replace the discover route in /backend/routes/users.js
+//  Discover Route
 // ==========================================
 
 router.get("/discover", auth, async (req, res) => {
@@ -81,39 +80,50 @@ router.get("/discover", auth, async (req, res) => {
     console.log("\n===== DISCOVER CALLED =====");
     console.log("User ID:", req.userId);
     console.log("Query params:", req.query);
-    
+
     // Get current user
     const currentUser = await User.findById(req.userId)
-      .select("_id email city state latitude longitude locationPreference filterPoliticalBeliefs filterReligions filterLifeStages matches likes passed blockedUsers")
+      .select(
+        "_id email city state latitude longitude locationPreference filterPoliticalBeliefs filterReligions filterLifeStages matches likes passed blockedUsers",
+      )
       .lean();
-    
-    console.log("Current user found:", currentUser ? currentUser.email : "NOT FOUND");
-    
+
+    console.log(
+      "Current user found:",
+      currentUser ? currentUser.email : "NOT FOUND",
+    );
+
     if (!currentUser) {
       console.log("ERROR: User not found");
       return res.status(404).json({ message: "User not found" });
     }
 
     // Get filter preferences (from query OR user profile)
-    const locationPref = req.query.locationPreference || currentUser.locationPreference || "Same state";
-    
-    const filterPolitical = req.query.filterPoliticalBeliefs 
-      ? JSON.parse(req.query.filterPoliticalBeliefs) 
-      : (currentUser.filterPoliticalBeliefs || []);
-    
-    const filterReligions = req.query.filterReligions 
-      ? JSON.parse(req.query.filterReligions) 
-      : (currentUser.filterReligions || []);
-    
-    const filterLifeStages = req.query.filterLifeStages 
-      ? JSON.parse(req.query.filterLifeStages) 
-      : (currentUser.filterLifeStages || []);
+    const locationPref =
+      req.query.locationPreference ||
+      currentUser.locationPreference ||
+      "Same state";
+
+    const filterPolitical = req.query.filterPoliticalBeliefs
+      ? JSON.parse(req.query.filterPoliticalBeliefs)
+      : currentUser.filterPoliticalBeliefs || [];
+
+    const filterReligions = req.query.filterReligions
+      ? JSON.parse(req.query.filterReligions)
+      : currentUser.filterReligions || [];
+
+    const filterLifeStages = req.query.filterLifeStages
+      ? JSON.parse(req.query.filterLifeStages)
+      : currentUser.filterLifeStages || [];
 
     console.log("📍 Active filters:");
     console.log("   Location:", locationPref);
-    if (filterPolitical.length > 0) console.log("   Political:", filterPolitical);
-    if (filterReligions.length > 0) console.log("   Religion:", filterReligions);
-    if (filterLifeStages.length > 0) console.log("   Life Stage:", filterLifeStages);
+    if (filterPolitical.length > 0)
+      console.log("   Political:", filterPolitical);
+    if (filterReligions.length > 0)
+      console.log("   Religion:", filterReligions);
+    if (filterLifeStages.length > 0)
+      console.log("   Life Stage:", filterLifeStages);
 
     // Build exclusion list
     const excludedIds = [
@@ -133,7 +143,7 @@ router.get("/discover", auth, async (req, res) => {
 
     // LOCATION FILTER (apply to database when possible)
     const needsDistanceCalc = locationPref.includes("miles");
-    
+
     if (!needsDistanceCalc) {
       if (locationPref === "Same city") {
         query.city = currentUser.city;
@@ -170,39 +180,41 @@ router.get("/discover", auth, async (req, res) => {
     // Execute query
     console.log("Fetching users...");
     let users = await User.find(query)
-      .select("name age city state profilePhoto bio causes latitude longitude politicalBeliefs religion lifeStage")
+      .select(
+        "name age city state profilePhoto bio causes latitude longitude politicalBeliefs religion lifeStage",
+      )
       .lean();
-    
+
     console.log(`✅ Database returned ${users.length} users`);
 
     // DISTANCE FILTERING (if mile-based)
     if (needsDistanceCalc) {
       const miles = parseInt(locationPref.match(/\d+/)[0]);
       console.log(`📏 Applying ${miles} mile filter...`);
-      
+
       if (!currentUser.latitude || !currentUser.longitude) {
         console.log("⚠️ User missing coordinates - falling back to same state");
-        users = users.filter(u => u.state === currentUser.state);
+        users = users.filter((u) => u.state === currentUser.state);
       } else {
-        users = users.filter(user => {
+        users = users.filter((user) => {
           if (!user.latitude || !user.longitude) return false;
-          
+
           const distance = calculateDistance(
             currentUser.latitude,
             currentUser.longitude,
             user.latitude,
-            user.longitude
+            user.longitude,
           );
-          
+
           return distance <= miles;
         });
       }
-      
+
       console.log(`📍 After distance filter: ${users.length} users`);
     }
 
     // Remove coordinates from response (privacy)
-    users.forEach(user => {
+    users.forEach((user) => {
       delete user.latitude;
       delete user.longitude;
     });
@@ -211,13 +223,15 @@ router.get("/discover", auth, async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
-    
+
     const totalCount = users.length;
     const paginatedUsers = users.slice(skip, skip + limit);
 
-    console.log(`✅ Returning ${paginatedUsers.length}/${totalCount} users (page ${page})`);
+    console.log(
+      `✅ Returning ${paginatedUsers.length}/${totalCount} users (page ${page})`,
+    );
     console.log("===== DISCOVER COMPLETE =====\n");
-    
+
     return res.json({
       users: paginatedUsers,
       pagination: {
@@ -228,7 +242,6 @@ router.get("/discover", auth, async (req, res) => {
         hasMore: page * limit < totalCount,
       },
     });
-    
   } catch (error) {
     console.error("===== DISCOVER ERROR =====");
     console.error("Error:", error.message);
@@ -243,14 +256,16 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   const R = 3959; // Earth's radius in miles
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
-  
-  const a = 
+
+  const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  
+
   return R * c;
 }
 
@@ -258,6 +273,57 @@ function toRad(degrees) {
   return degrees * (Math.PI / 180);
 }
 
+// ===== LIKE USER =====
+
+// @route   POST /api/users/like/:userId
+// @desc    Like/connect with a user
+// @access  Private
+router.post("/like/:userId", auth, async (req, res) => {
+  try {
+    const currentUser = await User.findById(req.userId);
+    const likedUserId = req.params.userId;
+    const likedUser = await User.findById(likedUserId);
+
+    if (!likedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Add to likes if not already liked
+    if (!currentUser.likes.includes(likedUserId)) {
+      currentUser.likes.push(likedUserId);
+      await currentUser.save();
+    }
+
+    // Check if it's a match (they already liked you)
+    const isMatch = likedUser.likes.includes(req.userId);
+
+    if (isMatch) {
+      // Add to matches for both users
+      if (!currentUser.matches.includes(likedUserId)) {
+        currentUser.matches.push(likedUserId);
+      }
+      if (!likedUser.matches.includes(req.userId)) {
+        likedUser.matches.push(req.userId);
+      }
+      await currentUser.save();
+      await likedUser.save();
+
+      return res.json({
+        isMatch: true,
+        matchedUser: {
+          _id: likedUser._id,
+          name: likedUser.name,
+          profilePhoto: likedUser.profilePhoto,
+        },
+      });
+    }
+
+    res.json({ isMatch: false });
+  } catch (error) {
+    logger.error("Like user error:", error);
+    res.status(500).json({ message: "Error liking user" });
+  }
+});
 
 // ===== PASS USER =====
 
