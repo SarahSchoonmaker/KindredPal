@@ -126,7 +126,7 @@ function AppRoutes() {
 
 function App() {
   return (
-    // ✅ Router wraps AuthProvider so useNavigate works inside AuthContext
+    
     <Router>
       <AuthProvider>
         <AppRoutes />
