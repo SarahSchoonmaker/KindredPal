@@ -68,8 +68,8 @@ export default function LoginScreen({ navigation }) {
           <Text style={styles.logo}>KindredPal</Text>
           <Text style={styles.tagline}>Find Your Social Support Network</Text>
           <Text style={styles.subtitle}>
-            Connect with like-minded adults 40+ through shared values, causes,
-            and community events
+            Connect with like-minded adults through shared values, causes, and
+            community events
           </Text>
 
           {/* Feature Icons */}
