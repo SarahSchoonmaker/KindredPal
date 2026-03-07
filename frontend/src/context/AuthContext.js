@@ -4,6 +4,7 @@ import React, {
   useContext,
   useEffect,
   useRef,
+  useCallback,
 } from "react";
 import { io } from "socket.io-client";
 import api from "../services/api";
@@ -39,29 +40,27 @@ export const AuthProvider = ({ children }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ✅ Load initial unread count when user logs in
+  // ✅ Exposed so Messages page can refresh count after opening a conversation
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const response = await api.get("/messages/unread/count");
+      console.log("📊 Unread count:", response.data.count);
+      setUnreadCount(response.data.count);
+    } catch (error) {
+      console.error("Error loading unread count:", error);
+      setUnreadCount(0);
+    }
+  }, []);
+
+  // Load initial unread count when user logs in
   useEffect(() => {
-    // Use user.id OR user._id (backend might return either)
     const userId = user?.id || user?._id;
     if (!userId) return;
+    fetchUnreadCount();
+  }, [user?.id, user?._id, fetchUnreadCount]);
 
-    const loadInitialUnreadCount = async () => {
-      try {
-        const response = await api.get("/messages/unread/count");
-        console.log("📊 Initial unread count:", response.data.count);
-        setUnreadCount(response.data.count);
-      } catch (error) {
-        console.error("Error loading initial unread count:", error);
-        setUnreadCount(0);
-      }
-    };
-
-    loadInitialUnreadCount();
-  }, [user?.id, user?._id]); // Watch both
-
-  // ✅ Connect socket when user is available
+  // Connect socket when user is available
   useEffect(() => {
-    // Use user.id OR user._id (backend might return either)
     const userId = user?.id || user?._id;
     if (!userId) return;
 
@@ -79,7 +78,7 @@ export const AuthProvider = ({ children }) => {
 
     s.on("connect", () => {
       console.log("✅ Socket connected!");
-      s.emit("user-online", userId); // Use the userId variable
+      s.emit("user-online", userId);
     });
 
     s.on("new-message", () => {
@@ -93,6 +92,9 @@ export const AuthProvider = ({ children }) => {
           console.log(`Unread: ${prev} → ${prev + 1}`);
           return prev + 1;
         });
+      } else {
+        // On messages page - refresh from server to get accurate count
+        fetchUnreadCount();
       }
     });
 
@@ -104,14 +106,12 @@ export const AuthProvider = ({ children }) => {
       s.disconnect();
       socketRef.current = null;
     };
-  }, [user?.id, user?._id]); // Watch both
+  }, [user?.id, user?._id, fetchUnreadCount]);
 
   const fetchUser = async () => {
     try {
       const response = await api.get("/auth/profile");
       console.log("👤 Fetched user:", response.data);
-      console.log("   User has id?", !!response.data.id);
-      console.log("   User has _id?", !!response.data._id);
       setUser(response.data);
     } catch (error) {
       console.error("Error fetching user:", error);
@@ -146,10 +146,8 @@ export const AuthProvider = ({ children }) => {
       const response = await api.post("/auth/login", { email, password });
 
       if (response.data.token) {
-        // Clear previous user's cached data
         localStorage.removeItem("likedUserIds");
         localStorage.removeItem("connectedInterestedIds");
-
         localStorage.setItem("token", response.data.token);
         setUser(response.data.user);
         return { success: true };
@@ -203,6 +201,7 @@ export const AuthProvider = ({ children }) => {
     unreadCount,
     incrementUnread,
     clearUnread,
+    fetchUnreadCount,
     socket: socketRef.current,
   };
 

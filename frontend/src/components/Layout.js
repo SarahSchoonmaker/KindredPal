@@ -16,9 +16,8 @@ import "./Layout.css";
 const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, unreadCount } = useAuth();
 
-  // Don't show footer on messages page
   const hideFooter = location.pathname.startsWith("/messages");
 
   const handleLogout = () => {
@@ -28,7 +27,6 @@ const Layout = () => {
 
   return (
     <div className="layout">
-      {/* Navigation Bar */}
       <nav className="navbar">
         <div className="navbar-container">
           <div className="navbar-brand" onClick={() => navigate("/discover")}>
@@ -39,13 +37,10 @@ const Layout = () => {
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
             >
-              {/* Circle of 4 people */}
               <circle cx="20" cy="8" r="3" fill="white" />
               <circle cx="32" cy="20" r="3" fill="white" />
               <circle cx="20" cy="32" r="3" fill="white" />
               <circle cx="8" cy="20" r="3" fill="white" />
-
-              {/* Connecting ring */}
               <circle
                 cx="20"
                 cy="20"
@@ -72,7 +67,7 @@ const Layout = () => {
               className={`nav-link ${location.pathname === "/likes-you" ? "active" : ""}`}
               onClick={() => navigate("/likes-you")}
             >
-              <Users size={20} /> {/* ← CHANGED from Heart to Users */}
+              <Users size={20} />
               <span>Interested</span>
             </button>
 
@@ -84,11 +79,19 @@ const Layout = () => {
               <span>Matches</span>
             </button>
 
+            {/* ✅ Messages button with unread badge */}
             <button
               className={`nav-link ${location.pathname.startsWith("/messages") ? "active" : ""}`}
               onClick={() => navigate("/messages")}
             >
-              <MessageCircle size={20} />
+              <div style={{ position: "relative", display: "inline-flex" }}>
+                <MessageCircle size={20} />
+                {unreadCount > 0 && (
+                  <span className="nav-unread-badge">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
+              </div>
               <span>Messages</span>
             </button>
 
@@ -116,12 +119,10 @@ const Layout = () => {
         </div>
       </nav>
 
-      {/* Main Content */}
       <main className="main-content">
         <Outlet />
       </main>
 
-      {/* Footer - Hidden on Messages page */}
       {!hideFooter && <Footer />}
     </div>
   );
