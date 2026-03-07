@@ -1,4 +1,19 @@
+// ===== CRASH HANDLER (must be first) =====
+process.on("uncaughtException", (err) => {
+  console.error("❌ UNCAUGHT EXCEPTION:", err.message);
+  console.error(err.stack);
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("❌ UNHANDLED REJECTION at:", promise);
+  console.error("Reason:", reason);
+  process.exit(1);
+});
+
+// ===== ENVIRONMENT =====
 require("dotenv").config();
+
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -18,35 +33,7 @@ const app = express();
 // Trust Railway proxy for rate limiting
 app.set("trust proxy", 1);
 
-process.on("uncaughtException", (err) => {
-  console.error("STARTUP CRASH:", err.message);
-  console.error(err.stack);
-  process.exit(1);
-});
-
-require("dotenv").config();
-
-// ===== SECURITY MIDDLEWARE =====
-
-// Helmet for secure HTTP headers
-app.use(
-  helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        scriptSrc: ["'self'"],
-        imgSrc: ["'self'", "data:", "https:", "blob:"],
-        connectSrc: [
-          "'self'",
-          process.env.CLIENT_URL || "http://localhost:3000",
-        ],
-      },
-    },
-    crossOriginEmbedderPolicy: false,
-  }),
-);
-
+// ===== CORS (must be before Helmet and all routes) =====
 const allowedOrigins = [
   "https://kindredpal-production.up.railway.app",
   "https://kindredpal.com",
@@ -58,22 +45,39 @@ const allowedOrigins = [
   "http://localhost:19006",
 ];
 
+// Handle preflight explicitly before everything else
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+
+  if (!origin || allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin || "*");
+    res.setHeader(
+      "Access-Control-Allow-Methods",
+      "GET,POST,PUT,DELETE,OPTIONS,PATCH",
+    );
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type,Authorization,X-Requested-With,Accept,Origin",
+    );
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+  }
+
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
+  next();
+});
+
 const corsOptions = {
   origin: function (origin, callback) {
-    if (!origin) {
-      logger.info("✅ Allowing request with no origin (mobile/API client)");
+    if (!origin || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
-
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      logger.info("✅ Allowing origin:", origin);
-      callback(null, true);
-    } else {
-      logger.error("🚫 Blocked origin:", origin);
-      callback(
-        new Error(`CORS policy does not allow access from origin: ${origin}`),
-      );
-    }
+    logger.error("🚫 Blocked origin:", origin);
+    callback(
+      new Error(`CORS policy does not allow access from origin: ${origin}`),
+    );
   },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
   credentials: true,
@@ -92,6 +96,25 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 
+// ===== SECURITY MIDDLEWARE =====
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", "data:", "https:", "blob:"],
+        connectSrc: [
+          "'self'",
+          process.env.CLIENT_URL || "http://localhost:3000",
+        ],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+  }),
+);
+
 // Body parser with size limits
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
@@ -99,7 +122,7 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 // MongoDB injection protection
 app.use(mongoSanitize());
 
-// General API rate limit
+// ===== RATE LIMITING =====
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -107,31 +130,25 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
-
 app.use("/api/", limiter);
 
-// Stricter limit for auth routes
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: process.env.NODE_ENV === "production" ? 10 : 100, // Relaxed in dev
   message: "Too many login attempts, please try again later.",
   skipSuccessfulRequests: true,
 });
-
 app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/signup", authLimiter);
 
-// Rate limit for profile updates
 const profileLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
   message: "Too many profile updates, please try again later.",
 });
-
 app.use("/api/users/profile", profileLimiter);
 
 // ===== SERVER & SOCKET.IO SETUP =====
-
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: corsOptions,
@@ -140,7 +157,6 @@ const io = new Server(server, {
 });
 
 app.use((req, res, next) => {
-  // Cache static data for 5 minutes
   if (req.method === "GET" && !req.path.includes("/messages")) {
     res.set("Cache-Control", "public, max-age=300");
   }
@@ -158,24 +174,17 @@ io.on("connection", (socket) => {
       logger.info("⚠️ Invalid userId in user-online event");
       return;
     }
-
     userSockets.set(userId, socket.id);
     logger.info(`👤 User ${userId} is now online (socket: ${socket.id})`);
-
-    socket.broadcast.emit("user-status-change", {
-      userId,
-      status: "online",
-    });
+    socket.broadcast.emit("user-status-change", { userId, status: "online" });
   });
 
   socket.on("disconnect", () => {
     logger.info("🔌 Socket disconnected:", socket.id);
-
     for (const [userId, socketId] of userSockets.entries()) {
       if (socketId === socket.id) {
         userSockets.delete(userId);
         logger.info(`👤 User ${userId} went offline`);
-
         socket.broadcast.emit("user-status-change", {
           userId,
           status: "offline",
@@ -194,7 +203,6 @@ app.set("io", io);
 app.set("userSockets", userSockets);
 
 // ===== ROUTES =====
-
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/messages", messageRoutes);
@@ -210,7 +218,6 @@ app.get("/", (req, res) => {
   });
 });
 
-// API info endpoint
 app.get("/api", (req, res) => {
   res.json({
     name: "KindredPal API",
@@ -225,22 +232,16 @@ app.get("/api", (req, res) => {
 });
 
 // ===== ERROR HANDLING =====
-
 app.use((req, res) => {
-  res.status(404).json({
-    message: "Route not found",
-    path: req.path,
-  });
+  res.status(404).json({ message: "Route not found", path: req.path });
 });
 
 app.use((err, req, res, next) => {
   logger.error("❌ Global error:", err);
-
   const message =
     process.env.NODE_ENV === "production"
       ? "Internal server error"
       : err.message;
-
   res.status(err.status || 500).json({
     message,
     ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
@@ -248,7 +249,6 @@ app.use((err, req, res, next) => {
 });
 
 // ===== DATABASE CONNECTION =====
-
 mongoose
   .connect(process.env.MONGODB_URI, {
     serverSelectionTimeoutMS: 5000,
@@ -263,16 +263,14 @@ mongoose
     process.exit(1);
   });
 
-mongoose.connection.on("disconnected", () => {
-  logger.info("⚠️ MongoDB disconnected");
-});
-
-mongoose.connection.on("error", (err) => {
-  logger.error("❌ MongoDB error:", err);
-});
+mongoose.connection.on("disconnected", () =>
+  logger.info("⚠️ MongoDB disconnected"),
+);
+mongoose.connection.on("error", (err) =>
+  logger.error("❌ MongoDB error:", err),
+);
 
 // ===== SERVER STARTUP =====
-
 const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
@@ -286,13 +284,10 @@ server.listen(PORT, () => {
 });
 
 // ===== GRACEFUL SHUTDOWN =====
-
 process.on("SIGTERM", () => {
   logger.info("⚠️ SIGTERM received, shutting down gracefully...");
-
   server.close(() => {
     logger.info("✅ HTTP server closed");
-
     mongoose.connection.close(false, () => {
       logger.info("✅ MongoDB connection closed");
       process.exit(0);
@@ -302,27 +297,13 @@ process.on("SIGTERM", () => {
 
 process.on("SIGINT", () => {
   logger.info("\n⚠️ SIGINT received, shutting down gracefully...");
-
   server.close(() => {
     logger.info("✅ HTTP server closed");
-
     mongoose.connection.close(false, () => {
       logger.info("✅ MongoDB connection closed");
       process.exit(0);
     });
   });
-});
-
-process.on("uncaughtException", (err) => {
-  logger.error("❌ UNCAUGHT EXCEPTION:", err);
-  logger.error("Stack:", err.stack);
-  process.exit(1);
-});
-
-process.on("unhandledRejection", (reason, promise) => {
-  logger.error("❌ UNHANDLED REJECTION at:", promise);
-  logger.error("Reason:", reason);
-  process.exit(1);
 });
 
 module.exports = { app, server, io };
