@@ -146,6 +146,10 @@ export const AuthProvider = ({ children }) => {
       const response = await api.post("/auth/login", { email, password });
 
       if (response.data.token) {
+        // Clear previous user's cached data
+        localStorage.removeItem("likedUserIds");
+        localStorage.removeItem("connectedInterestedIds");
+
         localStorage.setItem("token", response.data.token);
         setUser(response.data.user);
         return { success: true };
@@ -162,6 +166,8 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("likedUserIds");
+    localStorage.removeItem("connectedInterestedIds");
     setUser(null);
     setUnreadCount(0);
 
