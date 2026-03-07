@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import * as SecureStore from "expo-secure-store";
 import { authAPI, userAPI } from "../services/api";
+import { useFocusEffect } from "@react-navigation/native";
 
 export default function ProfileScreen({ navigation }) {
   const [user, setUser] = useState(null);
@@ -30,16 +31,12 @@ export default function ProfileScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [photos, setPhotos] = useState([]);
 
-  useEffect(() => {
-    fetchProfile();
-  }, []);
-
-  const fetchProfile = async () => {
+  // ✅ fetchProfile wrapped in useCallback so useFocusEffect can depend on it
+  const fetchProfile = useCallback(async () => {
     try {
       const response = await authAPI.getProfile();
       setUser(response.data);
 
-      // Initialize photos array with profile photo and empty slots
       const currentPhotos = response.data.additionalPhotos || [];
       setPhotos(
         [
@@ -55,7 +52,18 @@ export default function ProfileScreen({ navigation }) {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
+
+  // ✅ useFocusEffect re-fetches every time this tab comes into focus
+  // This fixes the stale data issue when logging out and in as a different user
+  useFocusEffect(
+    useCallback(() => {
+      setUser(null);       // Clear old user data immediately
+      setPhotos([]);       // Clear old photos immediately
+      setLoading(true);    // Show loading spinner
+      fetchProfile();
+    }, [fetchProfile])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -82,13 +90,9 @@ export default function ProfileScreen({ navigation }) {
 
       if (!result.canceled && result.assets[0].base64) {
         const base64Image = `data:image/jpeg;base64,${result.assets[0].base64}`;
-
-        // Update photos array
         const newPhotos = [...photos];
         newPhotos[index] = base64Image;
         setPhotos(newPhotos);
-
-        // Update backend
         await updatePhotos(newPhotos);
       }
     } catch (error) {
@@ -125,7 +129,6 @@ export default function ProfileScreen({ navigation }) {
         text: "Set",
         onPress: async () => {
           const newPhotos = [...photos];
-          // Swap with current profile photo
           const temp = newPhotos[0];
           newPhotos[0] = newPhotos[index];
           newPhotos[index] = temp;
@@ -162,8 +165,11 @@ export default function ProfileScreen({ navigation }) {
         text: "Logout",
         style: "destructive",
         onPress: async () => {
+          // ✅ Clear all stored credentials
           await SecureStore.deleteItemAsync("token");
           await SecureStore.deleteItemAsync("userId");
+
+          // ✅ Full navigation stack reset - destroys all cached screen state
           navigation.reset({
             index: 0,
             routes: [{ name: "Login" }],
@@ -183,7 +189,6 @@ export default function ProfileScreen({ navigation }) {
           text: "Delete",
           style: "destructive",
           onPress: () => {
-            // Second confirmation
             Alert.alert(
               "Final Confirmation",
               "This will permanently delete all your data, matches, and messages. Are you absolutely sure?",
@@ -203,7 +208,11 @@ export default function ProfileScreen({ navigation }) {
                         [
                           {
                             text: "OK",
-                            onPress: () => navigation.replace("Login"),
+                            onPress: () =>
+                              navigation.reset({
+                                index: 0,
+                                routes: [{ name: "Login" }],
+                              }),
                           },
                         ],
                       );
@@ -411,7 +420,7 @@ export default function ProfileScreen({ navigation }) {
         </Card>
       </View>
 
-      {/* Privacy & Safety Section */}
+      {/* Privacy & Safety */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Privacy & Safety</Text>
         <TouchableOpacity
