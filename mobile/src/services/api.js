@@ -8,36 +8,56 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 10000,
+  timeout: 30000,
 });
 
-// Add token to requests using SecureStore
+// ✅ Read token fresh from SecureStore on every request
+// This ensures that after logout/login, the new user's token is always used
 api.interceptors.request.use(
   async (config) => {
     try {
       const token = await SecureStore.getItemAsync("token");
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+      } else {
+        // ✅ Explicitly remove Authorization if no token (prevents stale header)
+        delete config.headers.Authorization;
       }
-      return config;
     } catch (error) {
-      console.error("🔧 Error retrieving token from SecureStore:", error);
-      return config;
+      console.error("Error reading token:", error);
+      delete config.headers.Authorization;
     }
+
+    // ✅ Prevent axios from caching GET requests between users
+    if (config.method === "get") {
+      config.params = {
+        ...config.params,
+        _t: Date.now(),
+      };
+    }
+
+    return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  },
+  (error) => Promise.reject(error),
 );
 
-// Add response interceptor for debugging
+// Response interceptor
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    console.error("❌ Response error:", error.message);
-    console.error("❌ Request URL:", error.config?.url);
-    console.error("❌ Response status:", error.response?.status);
-    console.error("❌ Response data:", error.response?.data);
+  async (error) => {
+    if (error.message === "Network Error" && !error.response) {
+      console.error("❌ Network Error:", {
+        url: error.config?.url,
+        baseURL: error.config?.baseURL,
+      });
+    }
+
+    if (error.response?.status === 401) {
+      console.warn("⚠️ Unauthorized - clearing token");
+      await SecureStore.deleteItemAsync("token");
+      await SecureStore.deleteItemAsync("userId");
+    }
+
     return Promise.reject(error);
   },
 );
@@ -58,10 +78,8 @@ export const userAPI = {
   getProfile: (userId) => api.get(`/users/profile/${userId}`),
   getMatches: () => api.get("/users/matches"),
   updateProfile: (data) => api.put("/users/profile", data),
-  getPreferences: () => api.get("/auth/profile"), // ✅ Added - PreferencesScreen uses this
   deleteAccount: () => api.delete("/users/account"),
   getLikesYou: () => api.get("/users/likes-you"),
-  unmatch: (userId) => api.post(`/users/unmatch/${userId}`),
   updateNotificationSettings: (settings) =>
     api.put("/users/notification-settings", settings),
   reportUser: (userId, reason) =>
@@ -69,12 +87,7 @@ export const userAPI = {
   blockUser: (userId) => api.post(`/users/${userId}/block`),
   unblockUser: (userId) => api.delete(`/users/${userId}/block`),
   getBlockedUsers: () => api.get("/users/blocked"),
-  like: (userId) => api.post(`/users/like/${userId}`),
-  pass: (userId) => api.post(`/users/pass/${userId}`),
-};
-
-// Swipe API (keeping for compatibility)
-export const swipeAPI = {
+  unmatch: (userId) => api.post(`/users/unmatch/${userId}`),
   like: (userId) => api.post(`/users/like/${userId}`),
   pass: (userId) => api.post(`/users/pass/${userId}`),
 };
@@ -99,10 +112,6 @@ export const meetupsAPI = {
   updateMeetup: (meetupId, data) => api.put(`/meetups/${meetupId}`, data),
   deleteMeetup: (meetupId) => api.delete(`/meetups/${meetupId}`),
   rsvp: (meetupId, status) => api.post(`/meetups/${meetupId}/rsvp`, { status }),
-};
-
-export const optimizeImage = (base64Image, maxWidth = 800) => {
-  return base64Image;
 };
 
 export default api;
