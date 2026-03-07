@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   StyleSheet,
@@ -15,25 +15,17 @@ import {
   ActivityIndicator,
 } from "react-native-paper";
 import { MessageCircle } from "lucide-react-native";
+import { useFocusEffect } from "@react-navigation/native";
 
 export default function MessagesScreen({ navigation }) {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Refresh when screen comes into focus
-  useEffect(() => {
-    const unsubscribe = navigation.addListener("focus", () => {
-      fetchMatches();
-    });
-    return unsubscribe;
-  }, [navigation]);
-
-  const fetchMatches = async () => {
+  const fetchMatches = useCallback(async () => {
     try {
       console.log("📥 Fetching connections...");
 
-      // ✅ Run all requests in parallel for speed
       const [matchesResponse, conversationsResponse, blockedResponse] =
         await Promise.allSettled([
           userAPI.getMatches(),
@@ -41,7 +33,6 @@ export default function MessagesScreen({ navigation }) {
           userAPI.getBlockedUsers(),
         ]);
 
-      // Extract matches
       const matchData =
         matchesResponse.status === "fulfilled"
           ? Array.isArray(matchesResponse.value.data)
@@ -50,14 +41,12 @@ export default function MessagesScreen({ navigation }) {
           : [];
       console.log(`✅ Got ${matchData.length} matches`);
 
-      // Extract blocked user IDs (gracefully — don't crash if it fails)
       const blockedUserIds =
         blockedResponse.status === "fulfilled"
           ? (blockedResponse.value.data || []).map((u) => u._id)
           : [];
       console.log(`🚫 ${blockedUserIds.length} blocked users`);
 
-      // Filter out blocked users
       const filteredMatches = matchData.filter(
         (match) => !blockedUserIds.includes(match._id),
       );
@@ -65,19 +54,16 @@ export default function MessagesScreen({ navigation }) {
         `✅ ${filteredMatches.length} matches after filtering blocked`,
       );
 
-      // Extract conversations — web backend returns flat array with _id at top level
       const conversations =
         conversationsResponse.status === "fulfilled"
           ? conversationsResponse.value.data || []
           : [];
       console.log(`💬 Got ${conversations.length} conversations`);
 
-      // ✅ Merge: match conversations by top-level _id (not otherUser._id)
       const matchesWithMessages = filteredMatches.map((match) => {
         const conversation = conversations.find(
           (conv) => conv._id === match._id,
         );
-
         return {
           ...match,
           lastMessage: conversation?.lastMessage?.content || null,
@@ -86,7 +72,6 @@ export default function MessagesScreen({ navigation }) {
         };
       });
 
-      // Sort by most recent message
       matchesWithMessages.sort((a, b) => {
         if (!a.timestamp && !b.timestamp) return 0;
         if (!a.timestamp) return 1;
@@ -102,7 +87,18 @@ export default function MessagesScreen({ navigation }) {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
+
+  // ✅ useFocusEffect re-fetches every time screen comes into focus
+  // Replaces both useEffect + navigation.addListener("focus") pattern
+  // Ensures fresh data after login/logout with a different user
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      setMatches([]);
+      fetchMatches();
+    }, [fetchMatches]),
+  );
 
   const onRefresh = () => {
     setRefreshing(true);

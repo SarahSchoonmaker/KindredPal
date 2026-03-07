@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, memo } from "react";
+import React, { useState, useCallback, useMemo, memo } from "react";
 import {
   View,
   ScrollView,
@@ -13,9 +13,9 @@ import { Text, ActivityIndicator, Button, Chip } from "react-native-paper";
 import { MapPin, Heart, X } from "lucide-react-native";
 import { userAPI, authAPI } from "../services/api";
 import DiscoverFilters from "../components/DiscoverFilters";
+import { useFocusEffect } from "@react-navigation/native";
 
 const { width } = Dimensions.get("window");
-const CARD_WIDTH = width - 32;
 
 // Memoized ProfileCard component to prevent unnecessary re-renders
 const ProfileCard = memo(({ user, onPress, onLike, onPass }) => {
@@ -25,7 +25,6 @@ const ProfileCard = memo(({ user, onPress, onLike, onPass }) => {
       activeOpacity={0.9}
       onPress={() => onPress(user._id)}
     >
-      {/* Image */}
       <View style={styles.imageContainer}>
         <Image
           source={{ uri: user.profilePhoto }}
@@ -34,7 +33,6 @@ const ProfileCard = memo(({ user, onPress, onLike, onPass }) => {
         />
       </View>
 
-      {/* Info */}
       <View style={styles.cardContent}>
         <Text style={styles.cardName}>
           {user.name}, {user.age}
@@ -78,7 +76,6 @@ const ProfileCard = memo(({ user, onPress, onLike, onPass }) => {
         )}
       </View>
 
-      {/* Actions */}
       <View style={styles.actions}>
         <TouchableOpacity
           style={styles.passButton}
@@ -134,7 +131,6 @@ export default function DiscoverScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Memoize fetch functions with useCallback to prevent recreation
   const fetchCurrentUser = useCallback(async () => {
     try {
       const response = await authAPI.getProfile();
@@ -164,13 +160,18 @@ export default function DiscoverScreen({ navigation }) {
     }
   }, []);
 
-  // Initial data fetch
-  useEffect(() => {
-    fetchCurrentUser();
-    fetchUsers();
-  }, [fetchCurrentUser, fetchUsers]);
+  // ✅ useFocusEffect re-fetches every time this screen comes into focus
+  // This ensures fresh data after login/logout with a different user
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      setUsers([]);
+      setCurrentUser(null);
+      fetchCurrentUser();
+      fetchUsers();
+    }, [fetchCurrentUser, fetchUsers]),
+  );
 
-  // Memoize handlers
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchCurrentUser();
@@ -186,11 +187,8 @@ export default function DiscoverScreen({ navigation }) {
     async (userId) => {
       try {
         const response = await userAPI.like(userId);
-
-        // Remove user from list first
         setUsers((prev) => prev.filter((u) => u._id !== userId));
 
-        // Show appropriate alert
         if (response.data.isMatch) {
           Alert.alert(
             "🎉 It's a Match!",
@@ -203,10 +201,7 @@ export default function DiscoverScreen({ navigation }) {
                     match: response.data.matchedUser,
                   }),
               },
-              {
-                text: "Keep Discovering",
-                style: "cancel",
-              },
+              { text: "Keep Discovering", style: "cancel" },
             ],
           );
         } else {
@@ -246,13 +241,11 @@ export default function DiscoverScreen({ navigation }) {
     navigation.navigate("Messages");
   }, [navigation]);
 
-  // Memoize users count text
   const usersCountText = useMemo(
     () => `Showing ${users.length} ${users.length === 1 ? "person" : "people"}`,
     [users.length],
   );
 
-  // Memoize search info text
   const searchInfoText = useMemo(
     () =>
       currentUser
@@ -272,7 +265,6 @@ export default function DiscoverScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Header with search info and filters */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Text style={styles.headerTitle}>Find Your Community</Text>
@@ -310,7 +302,6 @@ export default function DiscoverScreen({ navigation }) {
           windowSize={5}
         >
           <Text style={styles.usersCount}>{usersCountText}</Text>
-
           {users.map((user) => (
             <ProfileCard
               key={user._id}
@@ -405,25 +396,6 @@ const styles = StyleSheet.create({
   image: {
     width: "100%",
     height: "100%",
-  },
-  matchBadge: {
-    position: "absolute",
-    top: 16,
-    right: 16,
-    backgroundColor: "#2B6CB0",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    shadowColor: "#2B6CB0",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  matchBadgeText: {
-    color: "white",
-    fontSize: 13,
-    fontWeight: "700",
   },
   cardContent: {
     padding: 16,

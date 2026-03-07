@@ -156,18 +156,21 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const handleLogout = async () => {
-    // Clear all stored data
-    await SecureStore.deleteItemAsync("token");
-    await SecureStore.deleteItemAsync("userId");
-
-    // Clear React Query cache
-    queryClient.clear();
-
-    // ✅ Full stack reset - destroys all screen instances
-    navigation.reset({
-      index: 0,
-      routes: [{ name: "Login" }],
-    });
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Logout",
+        style: "destructive",
+        onPress: async () => {
+          await SecureStore.deleteItemAsync("token");
+          await SecureStore.deleteItemAsync("userId");
+          navigation.reset({
+            index: 0,
+            routes: [{ name: "Login" }],
+          });
+        },
+      },
+    ]);
   };
 
   const handleDeleteAccount = async () => {
