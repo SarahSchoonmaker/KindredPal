@@ -251,8 +251,13 @@ app.use((err, req, res, next) => {
 // ===== DATABASE CONNECTION =====
 mongoose
   .connect(process.env.MONGODB_URI, {
-    serverSelectionTimeoutMS: 5000,
-    socketTimeoutMS: 45000,
+    serverSelectionTimeoutMS: 30000,
+    socketTimeoutMS: 75000,
+    connectTimeoutMS: 30000,
+    maxPoolSize: 10,
+    minPoolSize: 1,
+    maxIdleTimeMS: 10000,
+    retryWrites: true,
   })
   .then(() => {
     logger.info("✅ MongoDB connected successfully");
@@ -263,12 +268,17 @@ mongoose
     process.exit(1);
   });
 
-mongoose.connection.on("disconnected", () =>
-  logger.info("⚠️ MongoDB disconnected"),
-);
-mongoose.connection.on("error", (err) =>
-  logger.error("❌ MongoDB error:", err),
-);
+mongoose.connection.on("disconnected", () => {
+  logger.info("⚠️ MongoDB disconnected - attempting reconnect...");
+});
+
+mongoose.connection.on("error", (err) => {
+  logger.error("❌ MongoDB error:", err);
+});
+
+mongoose.connection.on("reconnected", () => {
+  logger.info("✅ MongoDB reconnected successfully");
+});
 
 // ===== SERVER STARTUP =====
 const PORT = process.env.PORT || 5000;
