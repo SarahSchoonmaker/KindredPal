@@ -18,6 +18,14 @@ const app = express();
 // Trust Railway proxy for rate limiting
 app.set("trust proxy", 1);
 
+process.on("uncaughtException", (err) => {
+  console.error("STARTUP CRASH:", err.message);
+  console.error(err.stack);
+  process.exit(1);
+});
+
+require("dotenv").config();
+
 // ===== SECURITY MIDDLEWARE =====
 
 // Helmet for secure HTTP headers

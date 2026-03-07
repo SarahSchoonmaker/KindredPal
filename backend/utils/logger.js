@@ -1,21 +1,15 @@
-const isDevelopment = process.env.NODE_ENV !== "production";
-
 module.exports = {
   info: (...args) => {
-    if (isDevelopment) {
-      console.log(...args);
-    }
+    console.log(...args);
   },
   error: (...args) => {
     console.error(...args);
   },
   warn: (...args) => {
-    if (isDevelopment) {
-      console.warn(...args);
-    }
+    console.warn(...args);
   },
   debug: (...args) => {
-    if (isDevelopment) {
+    if (process.env.NODE_ENV !== "production") {
       console.log(...args);
     }
   },
