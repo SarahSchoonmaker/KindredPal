@@ -21,7 +21,7 @@ export default function LoginScreen({ navigation }) {
   const handleLogin = async () => {
     setLoading(true);
     try {
-      console.log("🔐 Logging in:", email); // ← CHANGED
+      console.log("🔐 Logging in:", email);
       const response = await authAPI.login(email, password);
 
       const token = response.data.token;
@@ -37,11 +37,10 @@ export default function LoginScreen({ navigation }) {
       await SecureStore.setItemAsync("userId", userId);
 
       console.log("✅ Login successful! Token and userId saved securely.");
-
       navigation.replace("MainTabs");
     } catch (error) {
-      console.error("❌ Login error:", error); // ← CHANGED
-      console.error("❌ Error response:", error.response?.data); // ← CHANGED
+      console.error("❌ Login error:", error);
+      console.error("❌ Error response:", error.response?.data);
 
       const message =
         error.response?.data?.message || error.message || "Invalid credentials";
@@ -51,7 +50,6 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
-  // Add forgot password handler
   const handleForgotPassword = () => {
     navigation.navigate("ForgotPassword");
   };
@@ -68,7 +66,11 @@ export default function LoginScreen({ navigation }) {
         {/* Hero Section */}
         <View style={styles.hero}>
           <Text style={styles.logo}>KindredPal</Text>
-          <Text style={styles.tagline}>Find Your Support Network</Text>
+          <Text style={styles.tagline}>Find Your Social Support Network</Text>
+          <Text style={styles.subtitle}>
+            Connect with like-minded adults 40+ through shared values, causes,
+            and community events
+          </Text>
 
           {/* Feature Icons */}
           <View style={styles.features}>
@@ -86,6 +88,7 @@ export default function LoginScreen({ navigation }) {
             </View>
           </View>
         </View>
+        {/* ✅ hero closes here, after features */}
 
         {/* Login Form */}
         <View style={styles.formContainer}>
@@ -114,7 +117,6 @@ export default function LoginScreen({ navigation }) {
             activeOutlineColor="#2B6CB0"
           />
 
-          {/* Add Forgot Password Button */}
           <Button
             mode="text"
             onPress={handleForgotPassword}
@@ -177,13 +179,21 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: "white",
     opacity: 0.9,
-    marginBottom: 32,
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: "white",
+    opacity: 0.8,
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 20,
   },
   features: {
     flexDirection: "row",
     justifyContent: "space-around",
     width: "100%",
-    marginTop: 20,
+    marginTop: 8,
   },
   feature: {
     alignItems: "center",
