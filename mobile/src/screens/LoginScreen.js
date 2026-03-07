@@ -37,6 +37,14 @@ export default function LoginScreen({ navigation }) {
       await SecureStore.setItemAsync("userId", userId);
 
       console.log("✅ Login successful! Token and userId saved securely.");
+      const savedToken = await SecureStore.getItemAsync("token");
+      const savedUserId = await SecureStore.getItemAsync("userId");
+      console.log(
+        "🔐 About to navigate - token matches:",
+        savedToken === token,
+      );
+      console.log("🔐 About to navigate - userId:", savedUserId);
+
       navigation.replace("MainTabs");
     } catch (error) {
       console.error("❌ Login error:", error);
