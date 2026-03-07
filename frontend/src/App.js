@@ -57,10 +57,10 @@ const PublicRoute = ({ children }) => {
 
 function AppRoutes() {
   return (
-    <Router>
-      <ScrollToTop /> {/* ADD THIS - must be inside Router */}
+    <>
+      <ScrollToTop />
       <Routes>
-        {/* Public routes - Login/Signup (redirect to /discover if authenticated) */}
+        {/* Public routes */}
         <Route
           path="/"
           element={
@@ -88,7 +88,7 @@ function AppRoutes() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-        {/* Legal/Compliance Pages - PUBLIC (accessible to everyone) */}
+        {/* Legal/Compliance Pages - PUBLIC */}
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/support" element={<Support />} />
@@ -120,15 +120,18 @@ function AppRoutes() {
         {/* Catch-all redirect */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
-    </Router>
+    </>
   );
 }
 
 function App() {
   return (
-    <AuthProvider>
-      <AppRoutes />
-    </AuthProvider>
+    // ✅ Router wraps AuthProvider so useNavigate works inside AuthContext
+    <Router>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </Router>
   );
 }
 

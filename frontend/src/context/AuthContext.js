@@ -7,6 +7,7 @@ import React, {
   useCallback,
 } from "react";
 import { io } from "socket.io-client";
+import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 
 const AuthContext = createContext();
@@ -25,6 +26,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
+  const navigate = useNavigate(); // ✅ Added - was missing, caused logout crash
 
   const socketRef = useRef(null);
 
@@ -40,7 +42,6 @@ export const AuthProvider = ({ children }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ✅ Exposed so Messages page can refresh count after opening a conversation
   const fetchUnreadCount = useCallback(async () => {
     try {
       const response = await api.get("/messages/unread/count");
@@ -52,14 +53,12 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // Load initial unread count when user logs in
   useEffect(() => {
     const userId = user?.id || user?._id;
     if (!userId) return;
     fetchUnreadCount();
   }, [user?.id, user?._id, fetchUnreadCount]);
 
-  // Connect socket when user is available
   useEffect(() => {
     const userId = user?.id || user?._id;
     if (!userId) return;
@@ -84,16 +83,9 @@ export const AuthProvider = ({ children }) => {
     s.on("new-message", () => {
       console.log("📨 NEW MESSAGE EVENT RECEIVED!");
       const onMessagesPage = window.location.pathname.startsWith("/messages");
-      console.log("📍 On messages page?", onMessagesPage);
-
       if (!onMessagesPage) {
-        console.log("➕ Incrementing unread count");
-        setUnreadCount((prev) => {
-          console.log(`Unread: ${prev} → ${prev + 1}`);
-          return prev + 1;
-        });
+        setUnreadCount((prev) => prev + 1);
       } else {
-        // On messages page - refresh from server to get accurate count
         fetchUnreadCount();
       }
     });
@@ -125,13 +117,11 @@ export const AuthProvider = ({ children }) => {
   const signup = async (userData) => {
     try {
       const response = await api.post("/auth/signup", userData);
-
       if (response.data.token) {
         localStorage.setItem("token", response.data.token);
         setUser(response.data.user);
         return { success: true };
       }
-
       return { success: false, error: "Signup failed" };
     } catch (error) {
       return {
@@ -144,15 +134,14 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       const response = await api.post("/auth/login", { email, password });
-
       if (response.data.token) {
+        // ✅ Clear previous user's cached localStorage data
         localStorage.removeItem("likedUserIds");
         localStorage.removeItem("connectedInterestedIds");
         localStorage.setItem("token", response.data.token);
         setUser(response.data.user);
         return { success: true };
       }
-
       return { success: false, error: "Login failed" };
     } catch (error) {
       return {
@@ -163,25 +152,34 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-  localStorage.removeItem("token");
-  localStorage.removeItem("likedUserIds");
-  localStorage.removeItem("connectedInterestedIds");
-  setUser(null);        
-  setToken(null);      
-  navigate("/login");
-};
+    // ✅ Clear all localStorage
+    localStorage.removeItem("token");
+    localStorage.removeItem("likedUserIds");
+    localStorage.removeItem("connectedInterestedIds");
+
+    // ✅ Reset all in-memory state
+    setUser(null);
+    setUnreadCount(0);
+
+    // ✅ Disconnect socket cleanly
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
+
+    // ✅ Navigate to login - fixed, was calling undefined setToken() and navigate()
+    navigate("/login");
+  };
 
   const updateUser = (updatedUser) => {
     setUser(updatedUser);
   };
 
   const incrementUnread = () => {
-    console.log("➕ Manual increment unread");
     setUnreadCount((prev) => prev + 1);
   };
 
   const clearUnread = () => {
-    console.log("🧹 Clearing unread count");
     setUnreadCount(0);
   };
 
