@@ -9,6 +9,7 @@ import {
   Alert,
   RefreshControl,
 } from "react-native";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button, Card, ActivityIndicator } from "react-native-paper";
 import {
   User,
@@ -30,6 +31,8 @@ export default function ProfileScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [photos, setPhotos] = useState([]);
+
+  const queryClient = useQueryClient();
 
   // ✅ fetchProfile wrapped in useCallback so useFocusEffect can depend on it
   const fetchProfile = useCallback(async () => {
@@ -159,25 +162,26 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const handleLogout = async () => {
-    Alert.alert("Logout", "Are you sure you want to logout?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Logout",
-        style: "destructive",
-        onPress: async () => {
-          // ✅ Clear all stored credentials
-          await SecureStore.deleteItemAsync("token");
-          await SecureStore.deleteItemAsync("userId");
+  Alert.alert("Logout", "Are you sure you want to logout?", [
+    { text: "Cancel", style: "cancel" },
+    {
+      text: "Logout",
+      style: "destructive",
+      onPress: async () => {
+        await SecureStore.deleteItemAsync("token");
+        await SecureStore.deleteItemAsync("userId");
+        
+        // ✅ Clear ALL cached query data
+        queryClient.clear();
 
-          // ✅ Full navigation stack reset - destroys all cached screen state
-          navigation.reset({
-            index: 0,
-            routes: [{ name: "Login" }],
-          });
-        },
+        navigation.reset({
+          index: 0,
+          routes: [{ name: "Login" }],
+        });
       },
-    ]);
-  };
+    },
+  ]);
+};
 
   const handleDeleteAccount = async () => {
     Alert.alert(

@@ -163,17 +163,13 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("likedUserIds");
-    localStorage.removeItem("connectedInterestedIds");
-    setUser(null);
-    setUnreadCount(0);
-
-    if (socketRef.current) {
-      socketRef.current.disconnect();
-      socketRef.current = null;
-    }
-  };
+  localStorage.removeItem("token");
+  localStorage.removeItem("likedUserIds");
+  localStorage.removeItem("connectedInterestedIds");
+  setUser(null);        
+  setToken(null);      
+  navigate("/login");
+};
 
   const updateUser = (updatedUser) => {
     setUser(updatedUser);
