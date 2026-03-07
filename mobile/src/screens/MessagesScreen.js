@@ -25,11 +25,8 @@ export default function MessagesScreen({ navigation }) {
     navigation.setOptions({
       headerRight: () => (
         <TouchableOpacity
-          onPress={() => {
-            // Handle menu action
-            console.log("Menu pressed");
-          }}
-          style={{ marginRight: 16 }} // ← Adjust this margin
+          onPress={() => console.log("Menu pressed")}
+          style={{ marginRight: 16 }}
         >
           <Text style={{ color: "white", fontSize: 24 }}>⋮</Text>
         </TouchableOpacity>
@@ -37,7 +34,7 @@ export default function MessagesScreen({ navigation }) {
     });
   }, [navigation]);
 
-  // Refresh when screen comes into focus (after blocking someone)
+  // Refresh when screen comes into focus
   useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {
       fetchMatches();
@@ -47,71 +44,73 @@ export default function MessagesScreen({ navigation }) {
 
   const fetchMatches = async () => {
     try {
-      console.log("📥 Fetching matches...");
+      console.log("📥 Fetching connections...");
 
-      // Get matches
-      const matchesResponse = await userAPI.getMatches();
-      const matchData = Array.isArray(matchesResponse.data)
-        ? matchesResponse.data
-        : matchesResponse.data.matches || [];
+      // ✅ Run all requests in parallel for speed
+      const [matchesResponse, conversationsResponse, blockedResponse] =
+        await Promise.allSettled([
+          userAPI.getMatches(),
+          messageAPI.getConversations(),
+          userAPI.getBlockedUsers(),
+        ]);
 
-      // Get blocked users to filter them out
-      let blockedUserIds = [];
-      try {
-        const blockedResponse = await userAPI.getBlockedUsers();
-        blockedUserIds = (blockedResponse.data || []).map((u) => u._id);
-        console.log("🚫 Blocked users:", blockedUserIds);
-      } catch (err) {
-        console.log("⚠️ Could not fetch blocked users:", err);
-      }
+      // Extract matches
+      const matchData =
+        matchesResponse.status === "fulfilled"
+          ? Array.isArray(matchesResponse.value.data)
+            ? matchesResponse.value.data
+            : matchesResponse.value.data?.matches || []
+          : [];
+      console.log(`✅ Got ${matchData.length} matches`);
 
-      // Filter out blocked users from matches
+      // Extract blocked user IDs (gracefully — don't crash if it fails)
+      const blockedUserIds =
+        blockedResponse.status === "fulfilled"
+          ? (blockedResponse.value.data || []).map((u) => u._id)
+          : [];
+      console.log(`🚫 ${blockedUserIds.length} blocked users`);
+
+      // Filter out blocked users
       const filteredMatches = matchData.filter(
         (match) => !blockedUserIds.includes(match._id),
       );
       console.log(
-        `✅ Filtered ${matchData.length} matches to ${filteredMatches.length} (removed ${matchData.length - filteredMatches.length} blocked)`,
+        `✅ ${filteredMatches.length} matches after filtering blocked`,
       );
 
-      // Get conversations for last messages
-      try {
-        const conversationsResponse = await messageAPI.getConversations();
-        const conversations = conversationsResponse.data || [];
+      // Extract conversations — web backend returns flat array with _id at top level
+      const conversations =
+        conversationsResponse.status === "fulfilled"
+          ? conversationsResponse.value.data || []
+          : [];
+      console.log(`💬 Got ${conversations.length} conversations`);
 
-        // Merge match data with conversation data
-        const matchesWithMessages = filteredMatches.map((match) => {
-          const conversation = conversations.find(
-            (conv) => conv.otherUser?._id === match._id,
-          );
-
-          return {
-            ...match,
-            lastMessage: conversation?.lastMessage?.content || null,
-            timestamp: conversation?.lastMessage?.createdAt || null,
-            unreadCount: conversation?.unreadCount || 0,
-          };
-        });
-
-        console.log(
-          "✅ Found",
-          matchesWithMessages.length,
-          "matches with messages",
+      // ✅ Merge: match conversations by top-level _id (not otherUser._id)
+      const matchesWithMessages = filteredMatches.map((match) => {
+        const conversation = conversations.find(
+          (conv) => conv._id === match._id,
         );
-        setMatches(matchesWithMessages);
-      } catch (convError) {
-        // If conversations fail, just show matches without messages
-        console.log("⚠️ Conversations failed, showing matches only");
-        setMatches(
-          filteredMatches.map((match) => ({
-            ...match,
-            lastMessage: null,
-            timestamp: null,
-            unreadCount: 0,
-          })),
-        );
-      }
+
+        return {
+          ...match,
+          lastMessage: conversation?.lastMessage?.content || null,
+          timestamp: conversation?.lastMessage?.createdAt || null,
+          unreadCount: conversation?.unreadCount || 0,
+        };
+      });
+
+      // Sort by most recent message
+      matchesWithMessages.sort((a, b) => {
+        if (!a.timestamp && !b.timestamp) return 0;
+        if (!a.timestamp) return 1;
+        if (!b.timestamp) return -1;
+        return new Date(b.timestamp) - new Date(a.timestamp);
+      });
+
+      console.log(`✅ Returning ${matchesWithMessages.length} connections`);
+      setMatches(matchesWithMessages);
     } catch (error) {
-      console.error("❌ Error fetching matches:", error);
+      console.error("❌ Error fetching connections:", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -163,10 +162,10 @@ export default function MessagesScreen({ navigation }) {
         <View style={styles.emptyContainer}>
           <MessageCircle size={64} color="#CBD5E0" />
           <Text variant="headlineMedium" style={styles.emptyTitle}>
-            No Matches Yet
+            No Connections Yet
           </Text>
           <Text variant="bodyLarge" style={styles.emptyText}>
-            Start swiping to find your community!!
+            Start connecting to find your community!
           </Text>
         </View>
       </ScrollView>
@@ -182,7 +181,7 @@ export default function MessagesScreen({ navigation }) {
     >
       <View style={styles.header}>
         <Text variant="headlineSmall" style={styles.title}>
-          Your Matches
+          Your Connections
         </Text>
         <Text variant="bodyMedium" style={styles.subtitle}>
           {matches.length} conversation{matches.length !== 1 ? "s" : ""}

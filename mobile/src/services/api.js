@@ -14,15 +14,11 @@ const api = axios.create({
 // Add token to requests using SecureStore
 api.interceptors.request.use(
   async (config) => {
-    console.log("🔧 Interceptor: Getting token...");
     try {
       const token = await SecureStore.getItemAsync("token");
-      console.log("🔧 Token retrieved:", token ? "EXISTS" : "NULL");
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
-        console.log("🔧 Authorization header set");
       }
-      console.log("🔧 Making request to:", config.baseURL + config.url);
       return config;
     } catch (error) {
       console.error("🔧 Error retrieving token from SecureStore:", error);
@@ -30,18 +26,13 @@ api.interceptors.request.use(
     }
   },
   (error) => {
-    console.error("🔧 Interceptor error:", error);
     return Promise.reject(error);
   },
 );
 
 // Add response interceptor for debugging
 api.interceptors.response.use(
-  (response) => {
-    console.log("✅ Response received from:", response.config.url);
-    console.log("✅ Status:", response.status);
-    return response;
-  },
+  (response) => response,
   (error) => {
     console.error("❌ Response error:", error.message);
     console.error("❌ Request URL:", error.config?.url);
@@ -63,13 +54,14 @@ export const authAPI = {
 
 // User API
 export const userAPI = {
-  getDiscover: () => api.get("/users/discover"),
+  getDiscover: (params) => api.get("/users/discover", { params }),
   getProfile: (userId) => api.get(`/users/profile/${userId}`),
   getMatches: () => api.get("/users/matches"),
   updateProfile: (data) => api.put("/users/profile", data),
+  getPreferences: () => api.get("/auth/profile"), // ✅ Added - PreferencesScreen uses this
   deleteAccount: () => api.delete("/users/account"),
   getLikesYou: () => api.get("/users/likes-you"),
-
+  unmatch: (userId) => api.post(`/users/unmatch/${userId}`),
   updateNotificationSettings: (settings) =>
     api.put("/users/notification-settings", settings),
   reportUser: (userId, reason) =>
@@ -81,7 +73,7 @@ export const userAPI = {
   pass: (userId) => api.post(`/users/pass/${userId}`),
 };
 
-// Swipe API (keeping this for compatibility)
+// Swipe API (keeping for compatibility)
 export const swipeAPI = {
   like: (userId) => api.post(`/users/like/${userId}`),
   pass: (userId) => api.post(`/users/pass/${userId}`),
@@ -110,8 +102,6 @@ export const meetupsAPI = {
 };
 
 export const optimizeImage = (base64Image, maxWidth = 800) => {
-  // For mobile, images are already compressed by ImagePicker
-  // But you can add further optimization if needed
   return base64Image;
 };
 

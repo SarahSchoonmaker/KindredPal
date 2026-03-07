@@ -8,10 +8,9 @@ import {
   TouchableOpacity,
   Alert,
 } from "react-native";
-import { Text, TextInput, Avatar, ActivityIndicator } from "react-native-paper";
+import { Text, TextInput, ActivityIndicator, Menu } from "react-native-paper";
 import { Send, MoreVertical } from "lucide-react-native";
 import { messageAPI, userAPI } from "../services/api";
-import { Menu } from "react-native-paper";
 
 export default function ChatScreen({ route, navigation }) {
   const { match, userId, userName, userPhoto } = route.params;
@@ -24,56 +23,27 @@ export default function ChatScreen({ route, navigation }) {
 
   const chatUserId = match?._id || userId;
   const chatUserName = match?.name || userName;
-  const chatUserPhoto = match?.profilePhoto || userPhoto;
+
+  // ✅ Set header title only — menu is rendered in component body
+  useEffect(() => {
+    navigation.setOptions({
+      headerTitle: chatUserName || "Chat",
+      headerRight: () => (
+        <TouchableOpacity
+          style={styles.menuButton}
+          onPress={() => setMenuVisible(true)}
+        >
+          <MoreVertical size={24} color="white" />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, chatUserName]);
 
   useEffect(() => {
     if (chatUserId) {
       fetchMessages();
-      // Set custom header with menu
-      navigation.setOptions({
-        headerTitle: chatUserName || "Chat",
-        headerRight: () => (
-          <Menu
-            visible={menuVisible}
-            onDismiss={() => setMenuVisible(false)}
-            anchor={
-              <TouchableOpacity
-                style={{ paddingRight: 16 }}
-                onPress={() => setMenuVisible(true)}
-              >
-                <MoreVertical size={24} color="white" />
-              </TouchableOpacity>
-            }
-          >
-            <Menu.Item
-              onPress={() => {
-                setMenuVisible(false);
-                navigation.navigate("UserProfile", { userId: chatUserId });
-              }}
-              title="View Profile"
-              leadingIcon="account"
-            />
-            <Menu.Item
-              onPress={() => {
-                setMenuVisible(false);
-                handleReport();
-              }}
-              title="Report User"
-              leadingIcon="flag"
-            />
-            <Menu.Item
-              onPress={() => {
-                setMenuVisible(false);
-                handleBlock();
-              }}
-              title="Block User"
-              leadingIcon="block-helper"
-            />
-          </Menu>
-        ),
-      });
     }
-  }, [chatUserId, menuVisible, navigation]);
+  }, [chatUserId]);
 
   const fetchMessages = async () => {
     try {
@@ -87,6 +57,7 @@ export default function ChatScreen({ route, navigation }) {
   };
 
   const handleReport = () => {
+    setMenuVisible(false);
     Alert.alert(
       "Report User",
       "Why are you reporting this user?",
@@ -99,18 +70,9 @@ export default function ChatScreen({ route, navigation }) {
           text: "Fake profile/Catfishing",
           onPress: () => submitReport("Fake profile/Catfishing"),
         },
-        {
-          text: "Harassment",
-          onPress: () => submitReport("Harassment"),
-        },
-        {
-          text: "Spam",
-          onPress: () => submitReport("Spam"),
-        },
-        {
-          text: "Other",
-          onPress: () => submitReport("Other"),
-        },
+        { text: "Harassment", onPress: () => submitReport("Harassment") },
+        { text: "Spam", onPress: () => submitReport("Spam") },
+        { text: "Other", onPress: () => submitReport("Other") },
         { text: "Cancel", style: "cancel" },
       ],
       { cancelable: true },
@@ -123,7 +85,6 @@ export default function ChatScreen({ route, navigation }) {
       Alert.alert(
         "Report Submitted",
         "Thank you for your report. Our team will review it shortly.",
-        [{ text: "OK" }],
       );
     } catch (error) {
       console.error("Error reporting user:", error);
@@ -132,14 +93,12 @@ export default function ChatScreen({ route, navigation }) {
   };
 
   const handleBlock = () => {
+    setMenuVisible(false);
     Alert.alert(
       "Block User",
       `Are you sure you want to block ${chatUserName}? You won't be able to see each other's profiles or send messages.`,
       [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
+        { text: "Cancel", style: "cancel" },
         {
           text: "Block",
           style: "destructive",
@@ -147,10 +106,7 @@ export default function ChatScreen({ route, navigation }) {
             try {
               await userAPI.blockUser(chatUserId);
               Alert.alert("User Blocked", `${chatUserName} has been blocked.`, [
-                {
-                  text: "OK",
-                  onPress: () => navigation.navigate("Messages"),
-                },
+                { text: "OK", onPress: () => navigation.navigate("Messages") },
               ]);
             } catch (error) {
               console.error("Error blocking user:", error);
@@ -160,6 +116,44 @@ export default function ChatScreen({ route, navigation }) {
         },
       ],
     );
+  };
+
+  const handleUnmatch = () => {
+    setMenuVisible(false);
+    Alert.alert(
+      "Unmatch",
+      `Are you sure you want to unmatch with ${chatUserName}? This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Unmatch",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await userAPI.unmatch(chatUserId);
+              Alert.alert(
+                "Unmatched",
+                `You have unmatched with ${chatUserName}.`,
+                [
+                  {
+                    text: "OK",
+                    onPress: () => navigation.navigate("Messages"),
+                  },
+                ],
+              );
+            } catch (error) {
+              console.error("Error unmatching:", error);
+              Alert.alert("Error", "Failed to unmatch. Please try again.");
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleViewProfile = () => {
+    setMenuVisible(false);
+    navigation.navigate("UserProfile", { userId: chatUserId });
   };
 
   const handleSend = async () => {
@@ -231,6 +225,37 @@ export default function ChatScreen({ route, navigation }) {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={90}
     >
+      {/* ✅ Menu rendered in component body so it positions correctly */}
+      <Menu
+        visible={menuVisible}
+        onDismiss={() => setMenuVisible(false)}
+        anchor={{ x: 0, y: 0 }}
+        style={styles.menu}
+      >
+        <Menu.Item
+          onPress={handleViewProfile}
+          title="View Profile"
+          leadingIcon="account"
+        />
+        <Menu.Item
+          onPress={handleUnmatch}
+          title="Unmatch"
+          leadingIcon="account-remove"
+          titleStyle={styles.unmatchText}
+        />
+        <Menu.Item
+          onPress={handleReport}
+          title="Report User"
+          leadingIcon="flag"
+        />
+        <Menu.Item
+          onPress={handleBlock}
+          title="Block User"
+          leadingIcon="block-helper"
+          titleStyle={styles.blockText}
+        />
+      </Menu>
+
       <FlatList
         ref={flatListRef}
         data={messages}
@@ -282,6 +307,16 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  menuButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  menu: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    zIndex: 999,
   },
   messagesList: {
     padding: 16,
@@ -354,5 +389,11 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: "#CBD5E0",
+  },
+  unmatchText: {
+    color: "#E53E3E",
+  },
+  blockText: {
+    color: "#E53E3E",
   },
 });
