@@ -11,8 +11,134 @@ import {
 } from "react-native";
 import { Button, Checkbox, Avatar } from "react-native-paper";
 import { X, Calendar, MapPin, Users, Tag } from "lucide-react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import api from "../services/api";
+
+// Pure JS date picker — no native modules needed
+function SimpleDateTimePicker({ value, onChange }) {
+  const pad = (n) => String(n).padStart(2, "0");
+  const d = value instanceof Date ? value : new Date();
+
+  const [month, setMonth] = useState(pad(d.getMonth() + 1));
+  const [day, setDay] = useState(pad(d.getDate()));
+  const [year, setYear] = useState(String(d.getFullYear()));
+  const [hour, setHour] = useState(pad(d.getHours()));
+  const [minute, setMinute] = useState(pad(d.getMinutes()));
+
+  useEffect(() => {
+    const d2 = value instanceof Date ? value : new Date();
+    setMonth(pad(d2.getMonth() + 1));
+    setDay(pad(d2.getDate()));
+    setYear(String(d2.getFullYear()));
+    setHour(pad(d2.getHours()));
+    setMinute(pad(d2.getMinutes()));
+  }, [value]);
+
+  const commit = (m, dy, y, h, mn) => {
+    const parsed = new Date(`${y}-${m}-${dy}T${h}:${mn}:00`);
+    if (!isNaN(parsed)) onChange(parsed);
+  };
+
+  return (
+    <View style={dtStyles.container}>
+      <Text style={dtStyles.hint}>Date (MM / DD / YYYY)</Text>
+      <View style={dtStyles.row}>
+        <TextInput
+          style={dtStyles.seg}
+          value={month}
+          onChangeText={(v) => {
+            setMonth(v);
+            commit(v, day, year, hour, minute);
+          }}
+          keyboardType="number-pad"
+          maxLength={2}
+          placeholder="MM"
+          placeholderTextColor="#999"
+        />
+        <Text style={dtStyles.sep}>/</Text>
+        <TextInput
+          style={dtStyles.seg}
+          value={day}
+          onChangeText={(v) => {
+            setDay(v);
+            commit(month, v, year, hour, minute);
+          }}
+          keyboardType="number-pad"
+          maxLength={2}
+          placeholder="DD"
+          placeholderTextColor="#999"
+        />
+        <Text style={dtStyles.sep}>/</Text>
+        <TextInput
+          style={[dtStyles.seg, dtStyles.yearSeg]}
+          value={year}
+          onChangeText={(v) => {
+            setYear(v);
+            commit(month, day, v, hour, minute);
+          }}
+          keyboardType="number-pad"
+          maxLength={4}
+          placeholder="YYYY"
+          placeholderTextColor="#999"
+        />
+      </View>
+      <Text style={[dtStyles.hint, { marginTop: 10 }]}>
+        Time (HH : MM, 24-hr)
+      </Text>
+      <View style={dtStyles.row}>
+        <TextInput
+          style={dtStyles.seg}
+          value={hour}
+          onChangeText={(v) => {
+            setHour(v);
+            commit(month, day, year, v, minute);
+          }}
+          keyboardType="number-pad"
+          maxLength={2}
+          placeholder="HH"
+          placeholderTextColor="#999"
+        />
+        <Text style={dtStyles.sep}>:</Text>
+        <TextInput
+          style={dtStyles.seg}
+          value={minute}
+          onChangeText={(v) => {
+            setMinute(v);
+            commit(month, day, year, hour, v);
+          }}
+          keyboardType="number-pad"
+          maxLength={2}
+          placeholder="MM"
+          placeholderTextColor="#999"
+        />
+      </View>
+    </View>
+  );
+}
+
+const dtStyles = StyleSheet.create({
+  container: {
+    backgroundColor: "#F7FAFC",
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  hint: { fontSize: 12, color: "#718096", marginBottom: 6 },
+  row: { flexDirection: "row", alignItems: "center", gap: 6 },
+  seg: {
+    backgroundColor: "white",
+    borderWidth: 1,
+    borderColor: "#CBD5E0",
+    borderRadius: 6,
+    padding: 10,
+    fontSize: 16,
+    color: "#2D3748",
+    textAlign: "center",
+    width: 56,
+  },
+  yearSeg: { width: 72 },
+  sep: { fontSize: 18, color: "#4A5568", fontWeight: "bold" },
+});
 
 export default function EditMeetupModal({
   visible,
@@ -24,21 +150,14 @@ export default function EditMeetupModal({
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    location: {
-      address: "",
-      city: "",
-      state: "",
-    },
+    location: { address: "", city: "", state: "" },
     dateTime: new Date(),
     invitedUsers: [],
     maxAttendees: "",
   });
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
 
   useEffect(() => {
     if (visible && meetup) {
-      // Pre-fill form with meetup data
       setFormData({
         title: meetup.title || "",
         description: meetup.description || "",
@@ -89,13 +208,11 @@ export default function EditMeetupModal({
       Alert.alert("Error", "Please enter a title");
       return;
     }
-
     if (formData.invitedUsers.length === 0) {
       Alert.alert("Error", "Please invite at least one person");
       return;
     }
 
-    // Clean up location
     const location = {};
     if (formData.location.address) location.address = formData.location.address;
     if (formData.location.city) location.city = formData.location.city;
@@ -108,13 +225,9 @@ export default function EditMeetupModal({
       invitedUsers: formData.invitedUsers,
     };
 
-    if (Object.keys(location).length > 0) {
-      meetupData.location = location;
-    }
-
-    if (formData.maxAttendees) {
+    if (Object.keys(location).length > 0) meetupData.location = location;
+    if (formData.maxAttendees)
       meetupData.maxAttendees = parseInt(formData.maxAttendees);
-    }
 
     try {
       await api.put(`/meetups/${meetup._id}`, meetupData);
@@ -124,23 +237,6 @@ export default function EditMeetupModal({
     } catch (error) {
       console.error("Error updating meetup:", error);
       Alert.alert("Error", "Failed to update meetup");
-    }
-  };
-
-  const onDateChange = (event, selectedDate) => {
-    setShowDatePicker(false);
-    if (selectedDate) {
-      setFormData((prev) => ({ ...prev, dateTime: selectedDate }));
-    }
-  };
-
-  const onTimeChange = (event, selectedTime) => {
-    setShowTimePicker(false);
-    if (selectedTime) {
-      const newDateTime = new Date(formData.dateTime);
-      newDateTime.setHours(selectedTime.getHours());
-      newDateTime.setMinutes(selectedTime.getMinutes());
-      setFormData((prev) => ({ ...prev, dateTime: newDateTime }));
     }
   };
 
@@ -154,7 +250,6 @@ export default function EditMeetupModal({
       presentationStyle="pageSheet"
     >
       <View style={styles.container}>
-        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Edit Meetup</Text>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -196,50 +291,18 @@ export default function EditMeetupModal({
             />
           </View>
 
-          {/* Date & Time */}
+          {/* Date & Time — pure JS, no native module */}
           <View style={styles.section}>
             <View style={styles.labelRow}>
               <Calendar color="#2B6CB0" size={18} />
               <Text style={styles.label}>Date & Time *</Text>
             </View>
-            <View style={styles.dateTimeRow}>
-              <TouchableOpacity
-                style={styles.dateTimeButton}
-                onPress={() => setShowDatePicker(true)}
-              >
-                <Text style={styles.dateTimeText}>
-                  {formData.dateTime.toLocaleDateString()}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.dateTimeButton}
-                onPress={() => setShowTimePicker(true)}
-              >
-                <Text style={styles.dateTimeText}>
-                  {formData.dateTime.toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {showDatePicker && (
-              <DateTimePicker
-                value={formData.dateTime}
-                mode="date"
-                onChange={onDateChange}
-                minimumDate={new Date()}
-              />
-            )}
-
-            {showTimePicker && (
-              <DateTimePicker
-                value={formData.dateTime}
-                mode="time"
-                onChange={onTimeChange}
-              />
-            )}
+            <SimpleDateTimePicker
+              value={formData.dateTime}
+              onChange={(date) =>
+                setFormData((prev) => ({ ...prev, dateTime: date }))
+              }
+            />
           </View>
 
           {/* Location */}
@@ -362,7 +425,6 @@ export default function EditMeetupModal({
           </View>
         </ScrollView>
 
-        {/* Actions */}
         <View style={styles.actions}>
           <Button
             mode="outlined"
@@ -388,10 +450,7 @@ export default function EditMeetupModal({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F7FAFC",
-  },
+  container: { flex: 1, backgroundColor: "#F7FAFC" },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -401,32 +460,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: "#E2E8F0",
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#1E3A8A",
-  },
-  closeButton: {
-    padding: 4,
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
-  section: {
-    marginBottom: 24,
-  },
+  headerTitle: { fontSize: 24, fontWeight: "bold", color: "#1E3A8A" },
+  closeButton: { padding: 4 },
+  content: { flex: 1, padding: 20 },
+  section: { marginBottom: 24 },
   labelRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     marginBottom: 8,
   },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#1E3A8A",
-  },
+  label: { fontSize: 14, fontWeight: "600", color: "#1E3A8A" },
   input: {
     backgroundColor: "white",
     borderWidth: 2,
@@ -436,47 +480,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#2D2D2D",
   },
-  textArea: {
-    height: 80,
-    textAlignVertical: "top",
-  },
-  dateTimeRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  dateTimeButton: {
-    flex: 1,
-    backgroundColor: "white",
-    borderWidth: 2,
-    borderColor: "#E2E8F0",
-    borderRadius: 8,
-    padding: 12,
-    alignItems: "center",
-  },
-  dateTimeText: {
-    fontSize: 14,
-    color: "#2D2D2D",
-    fontWeight: "500",
-  },
-  locationRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 8,
-  },
-  halfInput: {
-    flex: 1,
-  },
+  textArea: { height: 80, textAlignVertical: "top" },
+  locationRow: { flexDirection: "row", gap: 12, marginTop: 8 },
+  halfInput: { flex: 1 },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 12,
   },
-  selectAllText: {
-    color: "#2B6CB0",
-    fontSize: 13,
-    fontWeight: "600",
-  },
+  selectAllText: { color: "#2B6CB0", fontSize: 13, fontWeight: "600" },
   noMatches: {
     textAlign: "center",
     color: "#64748B",
@@ -501,23 +514,10 @@ const styles = StyleSheet.create({
     borderColor: "#E2E8F0",
     borderRadius: 8,
   },
-  matchItemSelected: {
-    borderColor: "#2B6CB0",
-    backgroundColor: "#DBEAFE",
-  },
-  matchInfo: {
-    flex: 1,
-  },
-  matchName: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#1E3A8A",
-  },
-  matchLocation: {
-    fontSize: 13,
-    color: "#64748B",
-    marginTop: 2,
-  },
+  matchItemSelected: { borderColor: "#2B6CB0", backgroundColor: "#DBEAFE" },
+  matchInfo: { flex: 1 },
+  matchName: { fontSize: 15, fontWeight: "600", color: "#1E3A8A" },
+  matchLocation: { fontSize: 13, color: "#64748B", marginTop: 2 },
   actions: {
     flexDirection: "row",
     gap: 12,
@@ -526,14 +526,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 2,
     borderTopColor: "#E2E8F0",
   },
-  button: {
-    flex: 1,
-  },
-  primaryButton: {
-    backgroundColor: "#2B6CB0",
-  },
-  buttonLabel: {
-    fontSize: 15,
-    fontWeight: "600",
-  },
+  button: { flex: 1 },
+  primaryButton: { backgroundColor: "#2B6CB0" },
+  buttonLabel: { fontSize: 15, fontWeight: "600" },
 });
