@@ -7,8 +7,8 @@ import {
   TouchableOpacity,
   Alert,
   RefreshControl,
+  Image,
 } from "react-native";
-import { Image } from "expo-image";
 import { Button, Card, ActivityIndicator } from "react-native-paper";
 import {
   User,
@@ -292,7 +292,7 @@ export default function ProfileScreen({ navigation }) {
             <View key={index} style={styles.photoContainer}>
               {photo ? (
                 <>
-                  <Image source={{ uri: photo }} style={styles.photo} contentFit="cover" cachePolicy="memory-disk" transition={200} />
+                  <Image source={{ uri: photo }} style={styles.photo} resizeMode="cover" />
                   {index === 0 && (
                     <View style={styles.profileBadge}>
                       <Star color="white" size={16} fill="white" />

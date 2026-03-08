@@ -8,7 +8,7 @@ import {
   Alert,
   RefreshControl,
 } from "react-native";
-import { Image } from "expo-image";
+import { Image } from "react-native";
 import { ActivityIndicator } from "react-native-paper";
 import { MessageCircle, UserX, MapPin, ChevronRight } from "lucide-react-native";
 import { userAPI } from "../services/api";
@@ -121,9 +121,7 @@ export default function ConnectionsScreen({ navigation }) {
             <Image
               source={{ uri: connection.profilePhoto }}
               style={styles.avatar}
-              contentFit="cover"
-              cachePolicy="memory-disk"
-              transition={200}
+              resizeMode="cover"
             />
             <View style={styles.info}>
               <Text style={styles.name}>{connection.name}</Text>

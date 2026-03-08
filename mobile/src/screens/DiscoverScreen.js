@@ -8,7 +8,7 @@ import {
   Dimensions,
   Alert,
 } from "react-native";
-import { Image } from "expo-image";
+import { Image } from "react-native";
 import { Text, ActivityIndicator, Chip } from "react-native-paper";
 import { MapPin, Heart, X } from "lucide-react-native";
 import { userAPI, authAPI } from "../services/api";
@@ -27,9 +27,7 @@ const ProfileCard = memo(({ user, onPress, onLike, onPass }) => (
       <Image
         source={{ uri: user.profilePhoto }}
         style={styles.image}
-        contentFit="cover"
-        transition={200}
-        cachePolicy="memory-disk"
+        resizeMode="cover"
       />
     </View>
 
