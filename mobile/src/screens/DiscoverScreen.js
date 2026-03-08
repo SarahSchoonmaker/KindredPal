@@ -158,6 +158,11 @@ export default function DiscoverScreen({ navigation }) {
           </View>
           <DiscoverFilters
             currentPreference={currentUser.locationPreference}
+            currentFilters={{
+              politicalBeliefs: currentUser.filterPoliticalBeliefs || [],
+              religions: currentUser.filterReligions || [],
+              lifeStages: currentUser.filterLifeStages || [],
+            }}
             onUpdate={fetchAll}
           />
         </View>
