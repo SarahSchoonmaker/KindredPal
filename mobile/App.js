@@ -21,7 +21,8 @@ import ProfileScreen from "./src/screens/ProfileScreen";
 import ChatScreen from "./src/screens/ChatScreen";
 import PreferencesScreen from "./src/screens/PreferencesScreen";
 import EditProfileScreen from "./src/screens/EditProfileScreen";
-import MeetupDetailsScreen from "./src/screens/MeetupDetailsScreen";
+import MeetupDetailsScreen from "./src/screens/MeetupsDetailScreen";
+
 import UserProfileScreen from "./src/screens/UserProfileScreen";
 import BlockedUsersScreen from "./src/screens/BlockedUsersScreen";
 import WebViewScreen from "./src/screens/WebViewScreen";
