@@ -2,13 +2,13 @@ import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
   Alert,
   RefreshControl,
 } from "react-native";
-import { Image } from "react-native";
 import { ActivityIndicator } from "react-native-paper";
 import { MessageCircle, UserX, MapPin, ChevronRight } from "lucide-react-native";
 import { userAPI } from "../services/api";
@@ -25,7 +25,6 @@ export default function ConnectionsScreen({ navigation }) {
       setConnections(response.data || []);
     } catch (error) {
       console.error("Error fetching connections:", error);
-      Alert.alert("Error", "Failed to load connections");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -40,20 +39,20 @@ export default function ConnectionsScreen({ navigation }) {
     }, [fetchConnections])
   );
 
-  const onRefresh = () => {
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchConnections();
-  };
+  }, [fetchConnections]);
 
-  const handleViewProfile = (connection) => {
+  const handleViewProfile = useCallback((connection) => {
     navigation.navigate("UserProfile", { userId: connection._id });
-  };
+  }, [navigation]);
 
-  const handleMessage = (connection) => {
+  const handleMessage = useCallback((connection) => {
     navigation.navigate("Chat", { match: connection });
-  };
+  }, [navigation]);
 
-  const handleUnmatch = (connection) => {
+  const handleUnmatch = useCallback((connection) => {
     Alert.alert(
       "Remove Connection",
       `Are you sure you want to remove your connection with ${connection.name}?`,
@@ -73,7 +72,7 @@ export default function ConnectionsScreen({ navigation }) {
         },
       ]
     );
-  };
+  }, []);
 
   if (loading) {
     return (

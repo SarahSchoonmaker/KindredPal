@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo, memo } from "react";
 import {
   View,
+  Image,
   ScrollView,
   TouchableOpacity,
   RefreshControl,
@@ -8,54 +9,36 @@ import {
   Dimensions,
   Alert,
 } from "react-native";
-import { Image } from "react-native";
 import { Text, ActivityIndicator, Chip } from "react-native-paper";
 import { MapPin, Heart, X } from "lucide-react-native";
 import { userAPI, authAPI } from "../services/api";
-import DiscoverFilters from "../components/DiscoverFilters";
 import { useFocusEffect } from "@react-navigation/native";
 
 const { width } = Dimensions.get("window");
 
 const ProfileCard = memo(({ user, onPress, onLike, onPass }) => (
-  <TouchableOpacity
-    style={styles.card}
-    activeOpacity={0.9}
-    onPress={() => onPress(user._id)}
-  >
+  <TouchableOpacity style={styles.card} activeOpacity={0.9} onPress={() => onPress(user._id)}>
     <View style={styles.imageContainer}>
-      <Image
-        source={{ uri: user.profilePhoto }}
-        style={styles.image}
-        resizeMode="cover"
-      />
+      <Image source={{ uri: user.profilePhoto }} style={styles.image} resizeMode="cover" />
     </View>
-
     <View style={styles.cardContent}>
       <Text style={styles.cardName}>{user.name}, {user.age}</Text>
       <View style={styles.locationRow}>
         <MapPin size={16} color="#2B6CB0" />
         <Text style={styles.locationText}>{user.city}, {user.state}</Text>
       </View>
-      {user.bio && (
-        <Text style={styles.bioText} numberOfLines={3}>{user.bio}</Text>
-      )}
+      {user.bio && <Text style={styles.bioText} numberOfLines={3}>{user.bio}</Text>}
       {user.causes && user.causes.length > 0 && (
         <View style={styles.tagsContainer}>
           {user.causes.slice(0, 3).map((cause, idx) => (
-            <Chip key={idx} style={styles.chip} textStyle={styles.chipText} compact>
-              {cause}
-            </Chip>
+            <Chip key={idx} style={styles.chip} textStyle={styles.chipText} compact>{cause}</Chip>
           ))}
           {user.causes.length > 3 && (
-            <Chip style={styles.chipMore} textStyle={styles.chipTextMore} compact>
-              +{user.causes.length - 3} more
-            </Chip>
+            <Chip style={styles.chipMore} textStyle={styles.chipTextMore} compact>+{user.causes.length - 3} more</Chip>
           )}
         </View>
       )}
     </View>
-
     <View style={styles.actions}>
       <TouchableOpacity style={styles.passButton} onPress={() => onPass(user._id)}>
         <X size={24} color="#718096" />
@@ -69,48 +52,22 @@ const ProfileCard = memo(({ user, onPress, onLike, onPass }) => (
   </TouchableOpacity>
 ));
 
-const EmptyState = memo(({ currentUser, onNavigate, onRefresh }) => (
-  <ScrollView
-    contentContainerStyle={styles.emptyContainer}
-    refreshControl={<RefreshControl refreshing={false} onRefresh={onRefresh} />}
-  >
-    <Text style={styles.emptyIcon}>🔍</Text>
-    <Text style={styles.emptyTitle}>No More Users Right Now</Text>
-    <Text style={styles.emptyText}>We've shown you everyone in your area!</Text>
-    {currentUser?.locationPreference === "Same city" && (
-      <View style={styles.tipBox}>
-        <Text style={styles.tipText}>
-          💡 Try expanding your search to "Home state" or "Anywhere" to see more people
-        </Text>
-      </View>
-    )}
-    <TouchableOpacity style={styles.emptyButton} onPress={onNavigate}>
-      <Text style={styles.emptyButtonText}>View Your Connections</Text>
-    </TouchableOpacity>
-  </ScrollView>
-));
-
 export default function DiscoverScreen({ navigation }) {
   const [users, setUsers] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchCurrentUser = useCallback(async () => {
+  const fetchAll = useCallback(async () => {
     try {
-      const response = await authAPI.getProfile();
-      setCurrentUser(response.data);
+      const [profileRes, discoverRes] = await Promise.all([
+        authAPI.getProfile(),
+        userAPI.getDiscover(),
+      ]);
+      setCurrentUser(profileRes.data);
+      setUsers(discoverRes.data.users || []);
     } catch (error) {
-      console.error("Error fetching current user:", error);
-    }
-  }, []);
-
-  const fetchUsers = useCallback(async () => {
-    try {
-      const response = await userAPI.getDiscover();
-      setUsers(response.data.users || []);
-    } catch (error) {
-      console.error("❌ Error fetching profiles:", error);
+      console.error("Error fetching discover:", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -122,21 +79,14 @@ export default function DiscoverScreen({ navigation }) {
       setLoading(true);
       setUsers([]);
       setCurrentUser(null);
-      fetchCurrentUser();
-      fetchUsers();
-    }, [fetchCurrentUser, fetchUsers])
+      fetchAll();
+    }, [fetchAll])
   );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    fetchCurrentUser();
-    fetchUsers();
-  }, [fetchCurrentUser, fetchUsers]);
-
-  const handlePreferencesUpdate = useCallback(() => {
-    fetchCurrentUser();
-    fetchUsers();
-  }, [fetchCurrentUser, fetchUsers]);
+    fetchAll();
+  }, [fetchAll]);
 
   const handleLike = useCallback(async (userId) => {
     try {
@@ -151,8 +101,6 @@ export default function DiscoverScreen({ navigation }) {
             { text: "Keep Discovering", style: "cancel" },
           ]
         );
-      } else {
-        Alert.alert("✅ Connection Sent!", "We'll let you know if they connect back!", [{ text: "OK" }]);
       }
     } catch (error) {
       console.error("Error liking user:", error);
@@ -172,20 +120,6 @@ export default function DiscoverScreen({ navigation }) {
     navigation.navigate("UserProfile", { userId });
   }, [navigation]);
 
-  const handleNavigateToConnections = useCallback(() => {
-    navigation.navigate("Connections");
-  }, [navigation]);
-
-  const usersCountText = useMemo(
-    () => `Showing ${users.length} ${users.length === 1 ? "person" : "people"}`,
-    [users.length]
-  );
-
-  const searchInfoText = useMemo(
-    () => currentUser ? `${currentUser.city}, ${currentUser.state} • ${currentUser.locationPreference || "Home state"}` : "",
-    [currentUser]
-  );
-
   if (loading) {
     return (
       <View style={styles.centerContainer}>
@@ -195,50 +129,49 @@ export default function DiscoverScreen({ navigation }) {
     );
   }
 
+  if (users.length === 0) {
+    return (
+      <ScrollView
+        contentContainerStyle={styles.emptyContainer}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        <Text style={styles.emptyIcon}>🔍</Text>
+        <Text style={styles.emptyTitle}>No More Users Right Now</Text>
+        <Text style={styles.emptyText}>We've shown you everyone in your area!</Text>
+        <TouchableOpacity style={styles.emptyButton} onPress={() => navigation.navigate("Connections")}>
+          <Text style={styles.emptyButtonText}>View Your Connections</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>Find Your Community</Text>
-          {currentUser && (
-            <View style={styles.searchInfo}>
-              <MapPin size={14} color="#2B6CB0" />
-              <Text style={styles.searchInfoText}>{searchInfoText}</Text>
-            </View>
-          )}
+      {currentUser && (
+        <View style={styles.header}>
+          <View style={styles.searchInfo}>
+            <MapPin size={14} color="#2B6CB0" />
+            <Text style={styles.searchInfoText}>
+              {currentUser.city}, {currentUser.state} • {currentUser.locationPreference || "Home state"}
+            </Text>
+          </View>
         </View>
-        {currentUser && (
-          <DiscoverFilters
-            currentPreference={currentUser.locationPreference}
-            onUpdate={handlePreferencesUpdate}
-          />
-        )}
-      </View>
-
-      {users.length === 0 ? (
-        <EmptyState
-          currentUser={currentUser}
-          onNavigate={handleNavigateToConnections}
-          onRefresh={onRefresh}
-        />
-      ) : (
-        <ScrollView
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          contentContainerStyle={styles.scrollContent}
-          removeClippedSubviews={true}
-        >
-          <Text style={styles.usersCount}>{usersCountText}</Text>
-          {users.map((user) => (
-            <ProfileCard
-              key={user._id}
-              user={user}
-              onPress={handleCardPress}
-              onLike={handleLike}
-              onPass={handlePass}
-            />
-          ))}
-        </ScrollView>
       )}
+      <ScrollView
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        contentContainerStyle={styles.scrollContent}
+        removeClippedSubviews={true}
+      >
+        {users.map((user) => (
+          <ProfileCard
+            key={user._id}
+            user={user}
+            onPress={handleCardPress}
+            onLike={handleLike}
+            onPass={handlePass}
+          />
+        ))}
+      </ScrollView>
     </View>
   );
 }
@@ -247,24 +180,16 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F7FAFC" },
   header: {
     backgroundColor: "white",
-    padding: 16,
-    paddingTop: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: "#E2E8F0",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
   },
-  headerLeft: { marginBottom: 12 },
-  headerTitle: { fontSize: 20, fontWeight: "700", color: "#2D3748", marginBottom: 4 },
   searchInfo: { flexDirection: "row", alignItems: "center", gap: 6 },
   searchInfoText: { fontSize: 13, color: "#4A5568", fontWeight: "500" },
   centerContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#F7FAFC" },
   loadingText: { marginTop: 16, fontSize: 16, color: "#718096" },
   scrollContent: { padding: 16, paddingBottom: 32 },
-  usersCount: { textAlign: "center", fontSize: 14, color: "#718096", fontWeight: "600", marginBottom: 16 },
   card: {
     backgroundColor: "white",
     borderRadius: 12,
@@ -312,9 +237,7 @@ const styles = StyleSheet.create({
   emptyContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: 40 },
   emptyIcon: { fontSize: 64, marginBottom: 24 },
   emptyTitle: { fontSize: 24, fontWeight: "700", color: "#2D3748", marginBottom: 12, textAlign: "center" },
-  emptyText: { fontSize: 16, color: "#718096", textAlign: "center", marginBottom: 16 },
-  tipBox: { backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FEF3C7", borderRadius: 8, padding: 12, marginBottom: 24 },
-  tipText: { fontSize: 14, color: "#92400E", textAlign: "center" },
-  emptyButton: { backgroundColor: "#2B6CB0", paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8, marginTop: 8 },
+  emptyText: { fontSize: 16, color: "#718096", textAlign: "center", marginBottom: 24 },
+  emptyButton: { backgroundColor: "#2B6CB0", paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
   emptyButtonText: { color: "white", fontSize: 16, fontWeight: "600" },
 });
