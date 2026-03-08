@@ -5,11 +5,10 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   Alert,
   RefreshControl,
 } from "react-native";
-import { useQueryClient } from "@tanstack/react-query";
+import { Image } from "expo-image";
 import { Button, Card, ActivityIndicator } from "react-native-paper";
 import {
   User,
@@ -31,8 +30,6 @@ export default function ProfileScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [photos, setPhotos] = useState([]);
-
-  const queryClient = useQueryClient();
 
   // ✅ fetchProfile wrapped in useCallback so useFocusEffect can depend on it
   const fetchProfile = useCallback(async () => {
@@ -162,26 +159,25 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const handleLogout = async () => {
-  Alert.alert("Logout", "Are you sure you want to logout?", [
-    { text: "Cancel", style: "cancel" },
-    {
-      text: "Logout",
-      style: "destructive",
-      onPress: async () => {
-        await SecureStore.deleteItemAsync("token");
-        await SecureStore.deleteItemAsync("userId");
-        
-        // ✅ Clear ALL cached query data
-        queryClient.clear();
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Logout",
+        style: "destructive",
+        onPress: async () => {
+          // ✅ Clear all stored credentials
+          await SecureStore.deleteItemAsync("token");
+          await SecureStore.deleteItemAsync("userId");
 
-        navigation.reset({
-          index: 0,
-          routes: [{ name: "Login" }],
-        });
+          // ✅ Full navigation stack reset - destroys all cached screen state
+          navigation.reset({
+            index: 0,
+            routes: [{ name: "Login" }],
+          });
+        },
       },
-    },
-  ]);
-};
+    ]);
+  };
 
   const handleDeleteAccount = async () => {
     Alert.alert(
@@ -296,7 +292,7 @@ export default function ProfileScreen({ navigation }) {
             <View key={index} style={styles.photoContainer}>
               {photo ? (
                 <>
-                  <Image source={{ uri: photo }} style={styles.photo} />
+                  <Image source={{ uri: photo }} style={styles.photo} contentFit="cover" cachePolicy="memory-disk" transition={200} />
                   {index === 0 && (
                     <View style={styles.profileBadge}>
                       <Star color="white" size={16} fill="white" />

@@ -2,14 +2,14 @@ import React, { useState, useCallback, useMemo, memo } from "react";
 import {
   View,
   ScrollView,
-  Image,
   TouchableOpacity,
   RefreshControl,
   StyleSheet,
   Dimensions,
   Alert,
 } from "react-native";
-import { Text, ActivityIndicator, Button, Chip } from "react-native-paper";
+import { Image } from "expo-image";
+import { Text, ActivityIndicator, Chip } from "react-native-paper";
 import { MapPin, Heart, X } from "lucide-react-native";
 import { userAPI, authAPI } from "../services/api";
 import DiscoverFilters from "../components/DiscoverFilters";
@@ -17,87 +17,60 @@ import { useFocusEffect } from "@react-navigation/native";
 
 const { width } = Dimensions.get("window");
 
-// Memoized ProfileCard component to prevent unnecessary re-renders
-const ProfileCard = memo(({ user, onPress, onLike, onPass }) => {
-  return (
-    <TouchableOpacity
-      style={styles.card}
-      activeOpacity={0.9}
-      onPress={() => onPress(user._id)}
-    >
-      <View style={styles.imageContainer}>
-        <Image
-          source={{ uri: user.profilePhoto }}
-          style={styles.image}
-          resizeMode="cover"
-        />
+const ProfileCard = memo(({ user, onPress, onLike, onPass }) => (
+  <TouchableOpacity
+    style={styles.card}
+    activeOpacity={0.9}
+    onPress={() => onPress(user._id)}
+  >
+    <View style={styles.imageContainer}>
+      <Image
+        source={{ uri: user.profilePhoto }}
+        style={styles.image}
+        contentFit="cover"
+        transition={200}
+        cachePolicy="memory-disk"
+      />
+    </View>
+
+    <View style={styles.cardContent}>
+      <Text style={styles.cardName}>{user.name}, {user.age}</Text>
+      <View style={styles.locationRow}>
+        <MapPin size={16} color="#2B6CB0" />
+        <Text style={styles.locationText}>{user.city}, {user.state}</Text>
       </View>
-
-      <View style={styles.cardContent}>
-        <Text style={styles.cardName}>
-          {user.name}, {user.age}
-        </Text>
-
-        <View style={styles.locationRow}>
-          <MapPin size={16} color="#2B6CB0" />
-          <Text style={styles.locationText}>
-            {user.city}, {user.state}
-          </Text>
+      {user.bio && (
+        <Text style={styles.bioText} numberOfLines={3}>{user.bio}</Text>
+      )}
+      {user.causes && user.causes.length > 0 && (
+        <View style={styles.tagsContainer}>
+          {user.causes.slice(0, 3).map((cause, idx) => (
+            <Chip key={idx} style={styles.chip} textStyle={styles.chipText} compact>
+              {cause}
+            </Chip>
+          ))}
+          {user.causes.length > 3 && (
+            <Chip style={styles.chipMore} textStyle={styles.chipTextMore} compact>
+              +{user.causes.length - 3} more
+            </Chip>
+          )}
         </View>
+      )}
+    </View>
 
-        {user.bio && (
-          <Text style={styles.bioText} numberOfLines={3}>
-            {user.bio}
-          </Text>
-        )}
+    <View style={styles.actions}>
+      <TouchableOpacity style={styles.passButton} onPress={() => onPass(user._id)}>
+        <X size={24} color="#718096" />
+        <Text style={styles.passButtonText}>Pass</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.likeButton} onPress={() => onLike(user._id)}>
+        <Heart size={24} color="white" />
+        <Text style={styles.likeButtonText}>Connect</Text>
+      </TouchableOpacity>
+    </View>
+  </TouchableOpacity>
+));
 
-        {user.causes && user.causes.length > 0 && (
-          <View style={styles.tagsContainer}>
-            {user.causes.slice(0, 3).map((cause, idx) => (
-              <Chip
-                key={idx}
-                style={styles.chip}
-                textStyle={styles.chipText}
-                compact
-              >
-                {cause}
-              </Chip>
-            ))}
-            {user.causes.length > 3 && (
-              <Chip
-                style={styles.chipMore}
-                textStyle={styles.chipTextMore}
-                compact
-              >
-                +{user.causes.length - 3} more
-              </Chip>
-            )}
-          </View>
-        )}
-      </View>
-
-      <View style={styles.actions}>
-        <TouchableOpacity
-          style={styles.passButton}
-          onPress={() => onPass(user._id)}
-        >
-          <X size={24} color="#718096" />
-          <Text style={styles.passButtonText}>Pass</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.likeButton}
-          onPress={() => onLike(user._id)}
-        >
-          <Heart size={24} color="white" />
-          <Text style={styles.likeButtonText}>Connect</Text>
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
-  );
-});
-
-// Memoized EmptyState component
 const EmptyState = memo(({ currentUser, onNavigate, onRefresh }) => (
   <ScrollView
     contentContainerStyle={styles.emptyContainer}
@@ -109,19 +82,13 @@ const EmptyState = memo(({ currentUser, onNavigate, onRefresh }) => (
     {currentUser?.locationPreference === "Same city" && (
       <View style={styles.tipBox}>
         <Text style={styles.tipText}>
-          💡 Try expanding your search to "Home state" or "Anywhere" to see more
-          people
+          💡 Try expanding your search to "Home state" or "Anywhere" to see more people
         </Text>
       </View>
     )}
-    <Button
-      mode="contained"
-      onPress={onNavigate}
-      style={styles.emptyButton}
-      buttonColor="#2B6CB0"
-    >
-      View Your Matches
-    </Button>
+    <TouchableOpacity style={styles.emptyButton} onPress={onNavigate}>
+      <Text style={styles.emptyButtonText}>View Your Connections</Text>
+    </TouchableOpacity>
   </ScrollView>
 ));
 
@@ -135,12 +102,6 @@ export default function DiscoverScreen({ navigation }) {
     try {
       const response = await authAPI.getProfile();
       setCurrentUser(response.data);
-      console.log(
-        "📍 Current location:",
-        response.data.city,
-        response.data.state,
-      );
-      console.log("🔍 Search preference:", response.data.locationPreference);
     } catch (error) {
       console.error("Error fetching current user:", error);
     }
@@ -148,9 +109,7 @@ export default function DiscoverScreen({ navigation }) {
 
   const fetchUsers = useCallback(async () => {
     try {
-      console.log("📥 Fetching real users from API...");
       const response = await userAPI.getDiscover();
-      console.log("✅ Got users:", response.data.users?.length || 0);
       setUsers(response.data.users || []);
     } catch (error) {
       console.error("❌ Error fetching profiles:", error);
@@ -160,8 +119,6 @@ export default function DiscoverScreen({ navigation }) {
     }
   }, []);
 
-  // ✅ useFocusEffect re-fetches every time this screen comes into focus
-  // This ensures fresh data after login/logout with a different user
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
@@ -169,7 +126,7 @@ export default function DiscoverScreen({ navigation }) {
       setCurrentUser(null);
       fetchCurrentUser();
       fetchUsers();
-    }, [fetchCurrentUser, fetchUsers]),
+    }, [fetchCurrentUser, fetchUsers])
   );
 
   const onRefresh = useCallback(() => {
@@ -183,43 +140,26 @@ export default function DiscoverScreen({ navigation }) {
     fetchUsers();
   }, [fetchCurrentUser, fetchUsers]);
 
-  const handleLike = useCallback(
-    async (userId) => {
-      try {
-        const response = await userAPI.like(userId);
-        setUsers((prev) => prev.filter((u) => u._id !== userId));
-
-        if (response.data.isMatch) {
-          Alert.alert(
-            "🎉 It's a Match!",
-            `You and ${response.data.matchedUser?.name} connected!`,
-            [
-              {
-                text: "Send Message",
-                onPress: () =>
-                  navigation.navigate("Chat", {
-                    match: response.data.matchedUser,
-                  }),
-              },
-              { text: "Keep Discovering", style: "cancel" },
-            ],
-          );
-        } else {
-          Alert.alert(
-            "✅ Connection Sent!",
-            `We'll let you know if they connect back!`,
-            [{ text: "OK" }],
-          );
-        }
-      } catch (error) {
-        console.error("Error liking user:", error);
-        Alert.alert("Error", "Couldn't send connection. Please try again.", [
-          { text: "OK" },
-        ]);
+  const handleLike = useCallback(async (userId) => {
+    try {
+      const response = await userAPI.like(userId);
+      setUsers((prev) => prev.filter((u) => u._id !== userId));
+      if (response.data.isMatch) {
+        Alert.alert(
+          "🎉 It's a Match!",
+          `You and ${response.data.matchedUser?.name} connected!`,
+          [
+            { text: "Send Message", onPress: () => navigation.navigate("Chat", { match: response.data.matchedUser }) },
+            { text: "Keep Discovering", style: "cancel" },
+          ]
+        );
+      } else {
+        Alert.alert("✅ Connection Sent!", "We'll let you know if they connect back!", [{ text: "OK" }]);
       }
-    },
-    [navigation],
-  );
+    } catch (error) {
+      console.error("Error liking user:", error);
+    }
+  }, [navigation]);
 
   const handlePass = useCallback(async (userId) => {
     try {
@@ -230,28 +170,22 @@ export default function DiscoverScreen({ navigation }) {
     }
   }, []);
 
-  const handleCardPress = useCallback(
-    (userId) => {
-      navigation.navigate("UserProfile", { userId });
-    },
-    [navigation],
-  );
+  const handleCardPress = useCallback((userId) => {
+    navigation.navigate("UserProfile", { userId });
+  }, [navigation]);
 
-  const handleNavigateToMessages = useCallback(() => {
-    navigation.navigate("Messages");
+  const handleNavigateToConnections = useCallback(() => {
+    navigation.navigate("Connections");
   }, [navigation]);
 
   const usersCountText = useMemo(
     () => `Showing ${users.length} ${users.length === 1 ? "person" : "people"}`,
-    [users.length],
+    [users.length]
   );
 
   const searchInfoText = useMemo(
-    () =>
-      currentUser
-        ? `${currentUser.city}, ${currentUser.state} • ${currentUser.locationPreference || "Home state"}`
-        : "",
-    [currentUser],
+    () => currentUser ? `${currentUser.city}, ${currentUser.state} • ${currentUser.locationPreference || "Home state"}` : "",
+    [currentUser]
   );
 
   if (loading) {
@@ -286,20 +220,14 @@ export default function DiscoverScreen({ navigation }) {
       {users.length === 0 ? (
         <EmptyState
           currentUser={currentUser}
-          onNavigate={handleNavigateToMessages}
+          onNavigate={handleNavigateToConnections}
           onRefresh={onRefresh}
         />
       ) : (
         <ScrollView
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           contentContainerStyle={styles.scrollContent}
           removeClippedSubviews={true}
-          maxToRenderPerBatch={5}
-          updateCellsBatchingPeriod={100}
-          initialNumToRender={3}
-          windowSize={5}
         >
           <Text style={styles.usersCount}>{usersCountText}</Text>
           {users.map((user) => (
@@ -318,10 +246,7 @@ export default function DiscoverScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F7FAFC",
-  },
+  container: { flex: 1, backgroundColor: "#F7FAFC" },
   header: {
     backgroundColor: "white",
     padding: 16,
@@ -334,47 +259,14 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
   },
-  headerLeft: {
-    marginBottom: 12,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#2D3748",
-    marginBottom: 4,
-  },
-  searchInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  searchInfoText: {
-    fontSize: 13,
-    color: "#4A5568",
-    fontWeight: "500",
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#F7FAFC",
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: "#718096",
-  },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  usersCount: {
-    textAlign: "center",
-    fontSize: 14,
-    color: "#718096",
-    fontWeight: "600",
-    marginBottom: 16,
-  },
+  headerLeft: { marginBottom: 12 },
+  headerTitle: { fontSize: 20, fontWeight: "700", color: "#2D3748", marginBottom: 4 },
+  searchInfo: { flexDirection: "row", alignItems: "center", gap: 6 },
+  searchInfoText: { fontSize: 13, color: "#4A5568", fontWeight: "500" },
+  centerContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#F7FAFC" },
+  loadingText: { marginTop: 16, fontSize: 16, color: "#718096" },
+  scrollContent: { padding: 16, paddingBottom: 32 },
+  usersCount: { textAlign: "center", fontSize: 14, color: "#718096", fontWeight: "600", marginBottom: 16 },
   card: {
     backgroundColor: "white",
     borderRadius: 12,
@@ -388,62 +280,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E2E8F0",
   },
-  imageContainer: {
-    position: "relative",
-    height: 320,
-    backgroundColor: "#E2E8F0",
-  },
-  image: {
-    width: "100%",
-    height: "100%",
-  },
-  cardContent: {
-    padding: 16,
-  },
-  cardName: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#2D3748",
-    marginBottom: 8,
-  },
-  locationRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 12,
-  },
-  locationText: {
-    fontSize: 14,
-    color: "#718096",
-  },
-  bioText: {
-    fontSize: 14,
-    color: "#4A5568",
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  tagsContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  chip: {
-    backgroundColor: "#EBF4FF",
-    height: 28,
-  },
-  chipText: {
-    fontSize: 12,
-    color: "#2B6CB0",
-    fontWeight: "600",
-  },
-  chipMore: {
-    backgroundColor: "#F7FAFC",
-    height: 28,
-  },
-  chipTextMore: {
-    fontSize: 12,
-    color: "#718096",
-  },
+  imageContainer: { height: 320, backgroundColor: "#E2E8F0" },
+  image: { width: "100%", height: "100%" },
+  cardContent: { padding: 16 },
+  cardName: { fontSize: 20, fontWeight: "700", color: "#2D3748", marginBottom: 8 },
+  locationRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 12 },
+  locationText: { fontSize: 14, color: "#718096" },
+  bioText: { fontSize: 14, color: "#4A5568", lineHeight: 20, marginBottom: 12 },
+  tagsContainer: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: { backgroundColor: "#EBF4FF", height: 28 },
+  chipText: { fontSize: 12, color: "#2B6CB0", fontWeight: "600" },
+  chipMore: { backgroundColor: "#F7FAFC", height: 28 },
+  chipTextMore: { fontSize: 12, color: "#718096" },
   actions: {
     flexDirection: "row",
     gap: 12,
@@ -453,74 +301,22 @@ const styles = StyleSheet.create({
     backgroundColor: "#FAFAFA",
   },
   passButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    height: 48,
-    backgroundColor: "white",
-    borderWidth: 2,
-    borderColor: "#E2E8F0",
-    borderRadius: 8,
+    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 8, height: 48, backgroundColor: "white", borderWidth: 2,
+    borderColor: "#E2E8F0", borderRadius: 8,
   },
-  passButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#718096",
-  },
+  passButtonText: { fontSize: 14, fontWeight: "600", color: "#718096" },
   likeButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    height: 48,
-    backgroundColor: "#2B6CB0",
-    borderRadius: 8,
+    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 8, height: 48, backgroundColor: "#2B6CB0", borderRadius: 8,
   },
-  likeButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "white",
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 40,
-  },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: 24,
-  },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#2D3748",
-    marginBottom: 12,
-    textAlign: "center",
-  },
-  emptyText: {
-    fontSize: 16,
-    color: "#718096",
-    textAlign: "center",
-    marginBottom: 16,
-  },
-  tipBox: {
-    backgroundColor: "#FFFBEB",
-    borderWidth: 1,
-    borderColor: "#FEF3C7",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 24,
-  },
-  tipText: {
-    fontSize: 14,
-    color: "#92400E",
-    textAlign: "center",
-  },
-  emptyButton: {
-    marginTop: 8,
-  },
+  likeButtonText: { fontSize: 14, fontWeight: "600", color: "white" },
+  emptyContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: 40 },
+  emptyIcon: { fontSize: 64, marginBottom: 24 },
+  emptyTitle: { fontSize: 24, fontWeight: "700", color: "#2D3748", marginBottom: 12, textAlign: "center" },
+  emptyText: { fontSize: 16, color: "#718096", textAlign: "center", marginBottom: 16 },
+  tipBox: { backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FEF3C7", borderRadius: 8, padding: 12, marginBottom: 24 },
+  tipText: { fontSize: 14, color: "#92400E", textAlign: "center" },
+  emptyButton: { backgroundColor: "#2B6CB0", paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8, marginTop: 8 },
+  emptyButtonText: { color: "white", fontSize: 16, fontWeight: "600" },
 });

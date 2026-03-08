@@ -6,8 +6,6 @@ import { PaperProvider, MD3LightTheme } from "react-native-paper";
 import { Compass, MessageCircle, User, Calendar, Users, UserSearch } from "lucide-react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-const queryClient = new QueryClient();
-
 // Auth Screens
 import LoginScreen from "./src/screens/LoginScreen";
 import SignupScreen from "./src/screens/SignupScreen";
@@ -31,6 +29,7 @@ import WebViewScreen from "./src/screens/WebViewScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+const queryClient = new QueryClient();
 
 const theme = {
   ...MD3LightTheme,
@@ -124,7 +123,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <PaperProvider theme={theme}>
         <NavigationContainer>
-          <Stack.Navigator>
+          <Stack.Navigator screenOptions={{ animation: "ios" }}>
           {/* Auth */}
           <Stack.Screen
             name="Login"
