@@ -63,124 +63,72 @@ function MainTabs() {
         headerTitleStyle: { fontWeight: "bold" },
       }}
     >
-      <Tab.Screen
-        name="Discover"
-        component={DiscoverScreen}
-        options={{
-          tabBarLabel: "Discover",
-          tabBarIcon: ({ color, size }) => <Compass color={color} size={size} />,
-        }}
-      />
-      <Tab.Screen
-        name="Interested"
-        component={LikesYouScreen}
-        options={{
-          tabBarLabel: "Interested",
-          tabBarIcon: ({ color, size }) => <UserSearch color={color} size={size} />,
-        }}
-      />
-      <Tab.Screen
-        name="Connections"
-        component={ConnectionsScreen}
-        options={{
-          tabBarLabel: "Connections",
-          tabBarIcon: ({ color, size }) => <Users color={color} size={size} />,
-          title: "My Connections",
-        }}
-      />
-      <Tab.Screen
-        name="Messages"
-        component={MessagesScreen}
-        options={{
-          tabBarLabel: "Messages",
-          tabBarIcon: ({ color, size }) => <MessageCircle color={color} size={size} />,
-        }}
-      />
-      <Tab.Screen
-        name="Meetups"
-        component={MeetupsScreen}
-        options={{
-          tabBarLabel: "Meetups",
-          tabBarIcon: ({ color, size }) => <Calendar color={color} size={size} />,
-        }}
-      />
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{
-          tabBarLabel: "Profile",
-          tabBarIcon: ({ color, size }) => <User color={color} size={size} />,
-        }}
-      />
+      <Tab.Screen name="Discover" component={DiscoverScreen}
+        options={{ tabBarLabel: "Discover", tabBarIcon: ({ color, size }) => <Compass color={color} size={size} /> }} />
+      <Tab.Screen name="Interested" component={LikesYouScreen}
+        options={{ tabBarLabel: "Interested", tabBarIcon: ({ color, size }) => <UserSearch color={color} size={size} /> }} />
+      <Tab.Screen name="Connections" component={ConnectionsScreen}
+        options={{ tabBarLabel: "Connections", title: "My Connections", tabBarIcon: ({ color, size }) => <Users color={color} size={size} /> }} />
+      <Tab.Screen name="Messages" component={MessagesScreen}
+        options={{ tabBarLabel: "Messages", tabBarIcon: ({ color, size }) => <MessageCircle color={color} size={size} /> }} />
+      <Tab.Screen name="Meetups" component={MeetupsScreen}
+        options={{ tabBarLabel: "Meetups", tabBarIcon: ({ color, size }) => <Calendar color={color} size={size} /> }} />
+      <Tab.Screen name="Profile" component={ProfileScreen}
+        options={{ tabBarLabel: "Profile", tabBarIcon: ({ color, size }) => <User color={color} size={size} /> }} />
     </Tab.Navigator>
   );
 }
 
+// ✅ Error boundary to show crash reason on screen instead of silent crash
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  render() {
+    if (this.state.hasError) {
+      const { View, Text, ScrollView } = require("react-native");
+      return (
+        <View style={{ flex: 1, padding: 40, paddingTop: 80, backgroundColor: "#fff" }}>
+          <Text style={{ fontSize: 20, fontWeight: "bold", color: "red", marginBottom: 16 }}>
+            App Crashed
+          </Text>
+          <ScrollView>
+            <Text style={{ fontSize: 13, color: "#333", fontFamily: "monospace" }}>
+              {this.state.error?.toString()}
+              {"\n\n"}
+              {this.state.error?.stack}
+            </Text>
+          </ScrollView>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function App() {
   return (
-    <PaperProvider theme={theme}>
-      <NavigationContainer>
-        <Stack.Navigator>
-          {/* Auth */}
-          <Stack.Screen
-            name="Login"
-            component={LoginScreen}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="Signup"
-            component={SignupScreen}
-            options={{ title: "Create Account", ...headerStyle }}
-          />
-
-          {/* Main App */}
-          <Stack.Screen
-            name="MainTabs"
-            component={MainTabs}
-            options={{ headerShown: false }}
-          />
-
-          {/* Stack Screens */}
-          <Stack.Screen
-            name="Chat"
-            component={ChatScreen}
-            options={{ title: "Chat", ...headerStyle }}
-          />
-          <Stack.Screen
-            name="Preferences"
-            component={PreferencesScreen}
-            options={{ title: "Search Preferences", ...headerStyle }}
-          />
-          <Stack.Screen
-            name="EditProfile"
-            component={EditProfileScreen}
-            options={{ title: "Edit Profile", ...headerStyle }}
-          />
-          <Stack.Screen
-            name="MeetupDetails"
-            component={MeetupDetailsScreen}
-            options={{ title: "Meetup Details", ...headerStyle }}
-          />
-          <Stack.Screen
-            name="UserProfile"
-            component={UserProfileScreen}
-            options={{ title: "Profile", ...headerStyle }}
-          />
-          <Stack.Screen
-            name="BlockedUsers"
-            component={BlockedUsersScreen}
-            options={{ title: "Blocked Users", ...headerStyle }}
-          />
-          <Stack.Screen
-            name="WebView"
-            component={WebViewScreen}
-            options={({ route }) => ({
-              title: route.params?.title || "KindredPal",
-              ...headerStyle,
-            })}
-          />
-        </Stack.Navigator>
-      </NavigationContainer>
-    </PaperProvider>
+    <ErrorBoundary>
+      <PaperProvider theme={theme}>
+        <NavigationContainer>
+          <Stack.Navigator>
+            <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Signup" component={SignupScreen} options={{ title: "Create Account", ...headerStyle }} />
+            <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
+            <Stack.Screen name="Chat" component={ChatScreen} options={{ title: "Chat", ...headerStyle }} />
+            <Stack.Screen name="Preferences" component={PreferencesScreen} options={{ title: "Search Preferences", ...headerStyle }} />
+            <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: "Edit Profile", ...headerStyle }} />
+            <Stack.Screen name="MeetupDetails" component={MeetupDetailsScreen} options={{ title: "Meetup Details", ...headerStyle }} />
+            <Stack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: "Profile", ...headerStyle }} />
+            <Stack.Screen name="BlockedUsers" component={BlockedUsersScreen} options={{ title: "Blocked Users", ...headerStyle }} />
+            <Stack.Screen name="WebView" component={WebViewScreen} options={({ route }) => ({ title: route.params?.title || "KindredPal", ...headerStyle })} />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </PaperProvider>
+    </ErrorBoundary>
   );
 }
