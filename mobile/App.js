@@ -4,7 +4,6 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { PaperProvider, MD3LightTheme } from "react-native-paper";
 import { Compass, MessageCircle, User, Calendar, Users, UserSearch } from "lucide-react-native";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 // Auth Screens
 import LoginScreen from "./src/screens/LoginScreen";
@@ -29,7 +28,6 @@ import WebViewScreen from "./src/screens/WebViewScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
-const queryClient = new QueryClient();
 
 const theme = {
   ...MD3LightTheme,
@@ -120,10 +118,9 @@ function MainTabs() {
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <PaperProvider theme={theme}>
-        <NavigationContainer>
-          <Stack.Navigator screenOptions={{ animation: "ios" }}>
+    <PaperProvider theme={theme}>
+      <NavigationContainer>
+        <Stack.Navigator>
           {/* Auth */}
           <Stack.Screen
             name="Login"
@@ -183,8 +180,7 @@ export default function App() {
             })}
           />
         </Stack.Navigator>
-        </NavigationContainer>
-      </PaperProvider>
-    </QueryClientProvider>
+      </NavigationContainer>
+    </PaperProvider>
   );
 }
