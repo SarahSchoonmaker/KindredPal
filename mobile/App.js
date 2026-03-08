@@ -3,7 +3,10 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { PaperProvider, MD3LightTheme } from "react-native-paper";
-import { Heart, MessageCircle, User, Calendar, Users } from "lucide-react-native";
+import { Compass, MessageCircle, User, Calendar, Users, UserSearch } from "lucide-react-native";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+const queryClient = new QueryClient();
 
 // Auth Screens
 import LoginScreen from "./src/screens/LoginScreen";
@@ -22,7 +25,6 @@ import ChatScreen from "./src/screens/ChatScreen";
 import PreferencesScreen from "./src/screens/PreferencesScreen";
 import EditProfileScreen from "./src/screens/EditProfileScreen";
 import MeetupDetailsScreen from "./src/screens/MeetupsDetailScreen";
-
 import UserProfileScreen from "./src/screens/UserProfileScreen";
 import BlockedUsersScreen from "./src/screens/BlockedUsersScreen";
 import WebViewScreen from "./src/screens/WebViewScreen";
@@ -69,7 +71,7 @@ function MainTabs() {
         component={DiscoverScreen}
         options={{
           tabBarLabel: "Discover",
-          tabBarIcon: ({ color, size }) => <Heart color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <Compass color={color} size={size} />,
         }}
       />
       <Tab.Screen
@@ -77,7 +79,7 @@ function MainTabs() {
         component={LikesYouScreen}
         options={{
           tabBarLabel: "Interested",
-          tabBarIcon: ({ color, size }) => <Heart color={color} size={size} fill={color} />,
+          tabBarIcon: ({ color, size }) => <UserSearch color={color} size={size} />,
         }}
       />
       <Tab.Screen
@@ -119,9 +121,10 @@ function MainTabs() {
 
 export default function App() {
   return (
-    <PaperProvider theme={theme}>
-      <NavigationContainer>
-        <Stack.Navigator>
+    <QueryClientProvider client={queryClient}>
+      <PaperProvider theme={theme}>
+        <NavigationContainer>
+          <Stack.Navigator>
           {/* Auth */}
           <Stack.Screen
             name="Login"
@@ -181,7 +184,8 @@ export default function App() {
             })}
           />
         </Stack.Navigator>
-      </NavigationContainer>
-    </PaperProvider>
+        </NavigationContainer>
+      </PaperProvider>
+    </QueryClientProvider>
   );
 }
