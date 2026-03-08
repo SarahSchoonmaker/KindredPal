@@ -13,6 +13,7 @@ import { Text, ActivityIndicator, Chip } from "react-native-paper";
 import { MapPin, Heart, X } from "lucide-react-native";
 import { userAPI, authAPI } from "../services/api";
 import { useFocusEffect } from "@react-navigation/native";
+import DiscoverFilters from "../components/DiscoverFilters";
 
 const { width } = Dimensions.get("window");
 
@@ -155,6 +156,10 @@ export default function DiscoverScreen({ navigation }) {
               {currentUser.city}, {currentUser.state} • {currentUser.locationPreference || "Home state"}
             </Text>
           </View>
+          <DiscoverFilters
+            currentPreference={currentUser.locationPreference}
+            onUpdate={fetchAll}
+          />
         </View>
       )}
       <ScrollView
@@ -184,8 +189,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: "#E2E8F0",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
   },
-  searchInfo: { flexDirection: "row", alignItems: "center", gap: 6 },
+  searchInfo: { flexDirection: "row", alignItems: "center", gap: 6, flex: 1 },
   searchInfoText: { fontSize: 13, color: "#4A5568", fontWeight: "500" },
   centerContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#F7FAFC" },
   loadingText: { marginTop: 16, fontSize: 16, color: "#718096" },
