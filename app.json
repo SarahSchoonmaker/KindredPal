@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "8bb796a0-3d92-433b-b785-873ba792ee87"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.sschoonm.kindredpal",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
+  }
+}
