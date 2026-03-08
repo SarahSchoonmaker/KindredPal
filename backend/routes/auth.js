@@ -8,7 +8,9 @@ const { body, validationResult } = require("express-validator");
 const logger = require("../utils/logger");
 const { Resend } = require("resend");
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
 
 // ===== SIGNUP ROUTE =====
 router.post(
@@ -218,7 +220,8 @@ router.post(
 
       // ✅ Send email via Resend
       try {
-        await resend.emails.send({
+        if (resend) {
+          await resend.emails.send({
           from: process.env.FROM_EMAIL || "KindredPal <onboarding@resend.dev>",
           to: user.email,
           subject: "Reset Your KindredPal Password",
@@ -253,7 +256,10 @@ router.post(
             </div>
           `,
         });
-        logger.info("✅ Reset email sent to:", user.email);
+          logger.info("✅ Reset email sent to:", user.email);
+        } else {
+          logger.warn("⚠️ RESEND_API_KEY not set - email not sent. Reset URL:", resetUrl);
+        }
       } catch (emailError) {
         logger.error("❌ Email send error:", emailError);
         // Don't fail the request if email fails — token is still saved
