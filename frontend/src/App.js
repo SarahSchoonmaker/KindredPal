@@ -1,328 +1,137 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
-import { NavigationContainer } from "@react-navigation/native";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { PaperProvider, MD3LightTheme } from "react-native-paper";
+import React from "react";
 import {
-  Compass,
-  MessageCircle,
-  User,
-  Calendar,
-  Users,
-  UserSearch,
-} from "lucide-react-native";
-import { AppState } from "react-native";
-import * as SecureStore from "expo-secure-store";
-import {
-  registerForPushNotifications,
-  setupNotificationListeners,
-} from "./src/services/pushNotifications";
-import api from "./src/services/api";
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 
-// Auth Screens
-import LoginScreen from "./src/screens/LoginScreen";
-import SignupScreen from "./src/screens/SignupScreen";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import Layout from "./components/Layout";
+import ScrollToTop from "./components/ScrollToTop";
+import SafetyTips from "./pages/SafetyTips";
+import Landing from "./pages/Landing";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import Discover from "./pages/Discover";
+import Matches from "./pages/Matches";
+import Messages from "./pages/Messages";
+import Profile from "./pages/Profile";
+import LikesYou from "./pages/LikesYou";
+import UserProfile from "./pages/UserProfile";
+import MeetupsPage from "./pages/MeetupsPage";
+import MeetupDetailsPage from "./pages/MeetupDetailsPage";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
+import CommunityGuidelines from "./pages/CommunityGuidelines";
+import AboutUs from "./pages/AboutUs";
+import CookiePolicy from "./pages/CookiePolicy";
+import Support from "./pages/Support";
+import BlockedUsers from "./pages/BlockedUsers";
 
-// Main Screens
-import DiscoverScreen from "./src/screens/DiscoverScreen";
-import LikesYouScreen from "./src/screens/InterestedScreen";
-import ConnectionsScreen from "./src/screens/ConnectionsScreen";
-import MessagesScreen from "./src/screens/MessagesScreen";
-import MeetupsScreen from "./src/screens/MeetupsScreen";
-import ProfileScreen from "./src/screens/ProfileScreen";
+import "./App.css";
 
-// Stack Screens
-import ChatScreen from "./src/screens/ChatScreen";
-import PreferencesScreen from "./src/screens/PreferencesScreen";
-import EditProfileScreen from "./src/screens/EditProfileScreen";
-import MeetupDetailsScreen from "./src/screens/MeetupsDetailScreen";
-import UserProfileScreen from "./src/screens/UserProfileScreen";
-import BlockedUsersScreen from "./src/screens/BlockedUsersScreen";
-import WebViewScreen from "./src/screens/WebViewScreen";
+// Protected Route wrapper
+const ProtectedRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth();
 
-const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
+  if (loading) {
+    return <div className="loading-screen">Loading...</div>;
+  }
 
-const theme = {
-  ...MD3LightTheme,
-  colors: {
-    ...MD3LightTheme.colors,
-    primary: "#2B6CB0",
-    secondary: "#68A57D",
-    background: "#F7FAFC",
-  },
+  return isAuthenticated ? children : <Navigate to="/login" />;
 };
 
-const headerStyle = {
-  headerStyle: { backgroundColor: "#2B6CB0" },
-  headerTintColor: "#fff",
-  headerTitleStyle: { fontWeight: "bold" },
+// Public Route wrapper (redirect to discover if already authenticated)
+const PublicRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return <div className="loading-screen">Loading...</div>;
+  }
+
+  return !isAuthenticated ? children : <Navigate to="/discover" />;
 };
 
-const BADGE_STYLE = {
-  backgroundColor: "#E53E3E",
-  color: "white",
-  fontSize: 11,
-};
-
-function MainTabs() {
-  const [counts, setCounts] = useState({
-    unread: 0,
-    interested: 0,
-    matches: 0,
-    meetups: 0,
-  });
-
-  const fetchCounts = useCallback(async () => {
-    try {
-      const token = await SecureStore.getItemAsync("token");
-      if (!token) return;
-      const res = await api.get("/users/counts");
-      setCounts(res.data);
-    } catch (err) {
-      // Silently fail — user may not be logged in yet
-    }
-  }, []);
-
-  // Fetch on mount and every 30 seconds
-  useEffect(() => {
-    fetchCounts();
-    const interval = setInterval(fetchCounts, 30000);
-    return () => clearInterval(interval);
-  }, [fetchCounts]);
-
-  // Also refresh when app comes back to foreground
-  useEffect(() => {
-    const sub = AppState.addEventListener("change", (state) => {
-      if (state === "active") fetchCounts();
-    });
-    return () => sub.remove();
-  }, [fetchCounts]);
-
-  const badge = (n) => (n > 0 ? (n > 99 ? "99+" : n) : undefined);
-
+function AppRoutes() {
   return (
-    <Tab.Navigator
-      screenOptions={{
-        tabBarActiveTintColor: "#2B6CB0",
-        tabBarInactiveTintColor: "#999",
-        tabBarStyle: {
-          backgroundColor: "white",
-          borderTopColor: "#E2E8F0",
-          paddingBottom: 20,
-          paddingTop: 8,
-          height: 70,
-        },
-        headerStyle: { backgroundColor: "#2B6CB0" },
-        headerTintColor: "#fff",
-        headerTitleStyle: { fontWeight: "bold" },
-      }}
-    >
-      <Tab.Screen
-        name="Discover"
-        component={DiscoverScreen}
-        options={{
-          tabBarLabel: "Discover",
-          tabBarIcon: ({ color, size }) => (
-            <Compass color={color} size={size} />
-          ),
-        }}
-      />
+    <>
+      <ScrollToTop />
+      <Routes>
+        {/* Public routes */}
+        <Route
+          path="/"
+          element={
+            <PublicRoute>
+              <Landing />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/login"
+          element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/signup"
+          element={
+            <PublicRoute>
+              <Signup />
+            </PublicRoute>
+          }
+        />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-      <Tab.Screen
-        name="Interested"
-        component={LikesYouScreen}
-        listeners={{
-          tabPress: () => setCounts((c) => ({ ...c, interested: 0 })),
-        }}
-        options={{
-          tabBarLabel: "Interested",
-          tabBarBadge: badge(counts.interested),
-          tabBarBadgeStyle: BADGE_STYLE,
-          tabBarIcon: ({ color, size }) => (
-            <UserSearch color={color} size={size} />
-          ),
-        }}
-      />
+        {/* Legal/Compliance Pages - PUBLIC */}
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsOfService />} />
+        <Route path="/support" element={<Support />} />
+        <Route path="/community-guidelines" element={<CommunityGuidelines />} />
+        <Route path="/cookies" element={<CookiePolicy />} />
+        <Route path="/about" element={<AboutUs />} />
+        <Route path="/safety" element={<SafetyTips />} />
+        <Route path="/blocked-users" element={<BlockedUsers />} />
 
-      <Tab.Screen
-        name="Connections"
-        component={ConnectionsScreen}
-        listeners={{ tabPress: () => setCounts((c) => ({ ...c, matches: 0 })) }}
-        options={{
-          tabBarLabel: "Connections",
-          title: "My Connections",
-          tabBarBadge: badge(counts.matches),
-          tabBarBadgeStyle: BADGE_STYLE,
-          tabBarIcon: ({ color, size }) => <Users color={color} size={size} />,
-        }}
-      />
-
-      <Tab.Screen
-        name="Messages"
-        component={MessagesScreen}
-        listeners={{ tabPress: () => setCounts((c) => ({ ...c, unread: 0 })) }}
-        options={{
-          tabBarLabel: "Messages",
-          tabBarBadge: badge(counts.unread),
-          tabBarBadgeStyle: BADGE_STYLE,
-          tabBarIcon: ({ color, size }) => (
-            <MessageCircle color={color} size={size} />
-          ),
-        }}
-      />
-
-      <Tab.Screen
-        name="Meetups"
-        component={MeetupsScreen}
-        listeners={{ tabPress: () => setCounts((c) => ({ ...c, meetups: 0 })) }}
-        options={{
-          tabBarLabel: "Meetups",
-          tabBarBadge: badge(counts.meetups),
-          tabBarBadgeStyle: BADGE_STYLE,
-          tabBarIcon: ({ color, size }) => (
-            <Calendar color={color} size={size} />
-          ),
-        }}
-      />
-
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{
-          tabBarLabel: "Profile",
-          tabBarIcon: ({ color, size }) => <User color={color} size={size} />,
-        }}
-      />
-    </Tab.Navigator>
-  );
-}
-
-class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-  render() {
-    if (this.state.hasError) {
-      const { View, Text, ScrollView } = require("react-native");
-      return (
-        <View
-          style={{
-            flex: 1,
-            padding: 40,
-            paddingTop: 80,
-            backgroundColor: "#fff",
-          }}
+        {/* Protected routes WITH Layout */}
+        <Route
+          element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }
         >
-          <Text
-            style={{
-              fontSize: 20,
-              fontWeight: "bold",
-              color: "red",
-              marginBottom: 16,
-            }}
-          >
-            App Crashed
-          </Text>
-          <ScrollView>
-            <Text
-              style={{ fontSize: 13, color: "#333", fontFamily: "monospace" }}
-            >
-              {this.state.error?.toString()}
-              {"\n\n"}
-              {this.state.error?.stack}
-            </Text>
-          </ScrollView>
-        </View>
-      );
-    }
-    return this.props.children;
-  }
-}
+          <Route path="discover" element={<Discover />} />
+          <Route path="likes-you" element={<LikesYou />} />
+          <Route path="matches" element={<Matches />} />
+          <Route path="messages" element={<Messages />} />
+          <Route path="messages/:userId" element={<Messages />} />
+          <Route path="meetups" element={<MeetupsPage />} />
+          <Route path="meetups/:meetupId" element={<MeetupDetailsPage />} />
+          <Route path="profile" element={<Profile />} />
+          <Route path="profile/:userId" element={<UserProfile />} />
+        </Route>
 
-export default function App() {
-  const navigationRef = useRef(null);
-  const notificationSubscription = useRef(null);
-
-  useEffect(() => {
-    registerForPushNotifications();
-    if (navigationRef.current) {
-      notificationSubscription.current = setupNotificationListeners(
-        navigationRef.current,
-      );
-    }
-    return () => {
-      if (notificationSubscription.current) {
-        notificationSubscription.current.remove();
-      }
-    };
-  }, []);
-
-  return (
-    <ErrorBoundary>
-      <PaperProvider theme={theme}>
-        <NavigationContainer ref={navigationRef}>
-          <Stack.Navigator>
-            <Stack.Screen
-              name="Login"
-              component={LoginScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="Signup"
-              component={SignupScreen}
-              options={{ title: "Create Account", ...headerStyle }}
-            />
-            <Stack.Screen
-              name="MainTabs"
-              component={MainTabs}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="Chat"
-              component={ChatScreen}
-              options={{ title: "Chat", ...headerStyle }}
-            />
-            <Stack.Screen
-              name="Preferences"
-              component={PreferencesScreen}
-              options={{ title: "Search Preferences", ...headerStyle }}
-            />
-            <Stack.Screen
-              name="EditProfile"
-              component={EditProfileScreen}
-              options={{ title: "Edit Profile", ...headerStyle }}
-            />
-            <Stack.Screen
-              name="MeetupDetails"
-              component={MeetupDetailsScreen}
-              options={{ title: "Meetup Details", ...headerStyle }}
-            />
-            <Stack.Screen
-              name="UserProfile"
-              component={UserProfileScreen}
-              options={{ title: "Profile", ...headerStyle }}
-            />
-            <Stack.Screen
-              name="BlockedUsers"
-              component={BlockedUsersScreen}
-              options={{ title: "Blocked Users", ...headerStyle }}
-            />
-            <Stack.Screen
-              name="WebView"
-              component={WebViewScreen}
-              options={({ route }) => ({
-                title: route.params?.title || "KindredPal",
-                ...headerStyle,
-              })}
-            />
-          </Stack.Navigator>
-        </NavigationContainer>
-      </PaperProvider>
-    </ErrorBoundary>
+        {/* Catch-all redirect */}
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </>
   );
 }
+
+function App() {
+  return (
+    <Router>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </Router>
+  );
+}
+
+export default App;
