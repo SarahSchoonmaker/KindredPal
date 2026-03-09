@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import { UserCircle, MapPin, MessageCircle } from "lucide-react";
 import { userAPI } from "../services/api";
 import UserActionsMenu from "../components/UserActionsMenu";
@@ -7,13 +8,20 @@ import "./Matches.css";
 
 const Matches = () => {
   const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
+  const removedKey = currentUser?._id
+    ? `removedMatchIds_${currentUser._id}`
+    : "removedMatchIds";
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [removedUserIds, setRemovedUserIds] = useState(() => {
-    const stored = localStorage.getItem("removedMatchIds");
-    return stored ? new Set(JSON.parse(stored)) : new Set();
-  });
+  const [removedUserIds, setRemovedUserIds] = useState(new Set());
+
+  useEffect(() => {
+    if (!currentUser?._id) return;
+    const stored = localStorage.getItem(removedKey);
+    setRemovedUserIds(stored ? new Set(JSON.parse(stored)) : new Set());
+  }, [currentUser?._id, removedKey]);
 
   const loadMatches = useCallback(async () => {
     try {
@@ -44,11 +52,8 @@ const Matches = () => {
   }, [loadMatches]);
 
   useEffect(() => {
-    localStorage.setItem(
-      "removedMatchIds",
-      JSON.stringify([...removedUserIds]),
-    );
-  }, [removedUserIds]);
+    localStorage.setItem(removedKey, JSON.stringify([...removedUserIds]));
+  }, [removedUserIds, removedKey]);
 
   const handleViewProfile = (matchId) => navigate(`/profile/${matchId}`);
 

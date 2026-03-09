@@ -105,6 +105,7 @@ router.post(
         expiresIn: "7d",
       });
 
+      // ✅ Full user object — must include all fields AuthContext and Discover depend on
       const userResponse = {
         id: user._id.toString(),
         _id: user._id,
@@ -122,6 +123,12 @@ router.post(
         causes: user.causes,
         lifeStage: user.lifeStage,
         lookingFor: user.lookingFor,
+        locationPreference: user.locationPreference,
+        filterPoliticalBeliefs: user.filterPoliticalBeliefs || [],
+        filterReligions: user.filterReligions || [],
+        filterLifeStages: user.filterLifeStages || [],
+        matches: user.matches || [],
+        likes: user.likes || [],
         createdAt: user.createdAt,
       };
 
@@ -176,6 +183,7 @@ router.post(
         expiresIn: "7d",
       });
 
+      // ✅ Full user object — must include all fields AuthContext and Discover depend on
       const userResponse = {
         id: user._id.toString(),
         _id: user._id,
@@ -193,6 +201,12 @@ router.post(
         causes: user.causes,
         lifeStage: user.lifeStage,
         lookingFor: user.lookingFor,
+        locationPreference: user.locationPreference,
+        filterPoliticalBeliefs: user.filterPoliticalBeliefs || [],
+        filterReligions: user.filterReligions || [],
+        filterLifeStages: user.filterLifeStages || [],
+        matches: user.matches || [],
+        likes: user.likes || [],
         createdAt: user.createdAt,
       };
 
@@ -378,20 +392,5 @@ router.post(
     }
   },
 );
-
-router.post("/push-token", auth, async (req, res) => {
-  try {
-    const { token, device } = req.body;
-    const user = await User.findById(req.userId);
-    const exists = user.pushTokens.some((t) => t.token === token);
-    if (!exists) {
-      user.pushTokens.push({ token, device });
-      await user.save();
-    }
-    res.json({ message: "Token saved" });
-  } catch (error) {
-    res.status(500).json({ message: "Error saving token" });
-  }
-});
 
 module.exports = router;

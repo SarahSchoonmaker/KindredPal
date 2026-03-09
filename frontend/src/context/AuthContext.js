@@ -153,8 +153,12 @@ export const AuthProvider = ({ children }) => {
         setInterestedCount((prev) => prev + 1);
       }
     });
-    s.on("new-meetup-invite", () => {
-      if (window.location.pathname !== "/meetups") {
+    s.on("new-meetup-invite", ({ meetupId } = {}) => {
+      // If already on meetups page, immediately mark as seen
+      if (window.location.pathname === "/meetups") {
+        if (meetupId) markAllSeen(userId, "meetups", [meetupId]);
+      } else {
+        // Increment badge — will be cleared when user visits meetups page
         setMeetupsCount((prev) => prev + 1);
       }
     });
@@ -183,15 +187,9 @@ export const AuthProvider = ({ children }) => {
       const response = await api.post("/auth/signup", userData);
       if (response.data.token) {
         localStorage.setItem("token", response.data.token);
-        // ✅ Set user from signup response first, then fetch full profile
-        // This ensures state/city are populated before discover page loads
+        // ✅ Use signup response directly — auth.js returns all required fields.
+        // No separate profile fetch — avoids race with mount useEffect's fetchUser().
         setUser(response.data.user);
-        try {
-          const profileRes = await api.get("/auth/profile");
-          setUser(profileRes.data);
-        } catch (e) {
-          // keep signup user if profile fetch fails
-        }
         return { success: true };
       }
       return { success: false, error: "Signup failed" };
@@ -207,9 +205,24 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await api.post("/auth/login", { email, password });
       if (response.data.token) {
-        localStorage.removeItem("likedUserIds");
-        localStorage.removeItem("connectedInterestedIds");
+        // ✅ Wipe ALL per-user state from localStorage — prevents bleed between accounts
+        const keysToRemove = Object.keys(localStorage).filter(
+          (k) =>
+            k.startsWith("seen_") ||
+            k.startsWith("likedUserIds") ||
+            k.startsWith("connectedInterestedIds") ||
+            k.startsWith("removedMatchIds") ||
+            k.startsWith("seenMeetupIds") ||
+            k === "likedUserIds" ||
+            k === "connectedInterestedIds" ||
+            k === "removedMatchIds" ||
+            k === "seenMeetupIds",
+        );
+        keysToRemove.forEach((k) => localStorage.removeItem(k));
         localStorage.setItem("token", response.data.token);
+        // ✅ Use login response directly — auth.js now returns all required fields.
+        // Do NOT make a separate /auth/profile call here — it races with the
+        // mount useEffect's fetchUser() and causes wrong user data to appear.
         setUser(response.data.user);
         return { success: true };
       }
@@ -224,8 +237,20 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem("token");
-    localStorage.removeItem("likedUserIds");
-    localStorage.removeItem("connectedInterestedIds");
+    // ✅ Wipe ALL per-user state from localStorage — prevents bleed between accounts
+    const keysToRemove = Object.keys(localStorage).filter(
+      (k) =>
+        k.startsWith("seen_") ||
+        k.startsWith("likedUserIds") ||
+        k.startsWith("connectedInterestedIds") ||
+        k.startsWith("removedMatchIds") ||
+        k.startsWith("seenMeetupIds") ||
+        k === "likedUserIds" ||
+        k === "connectedInterestedIds" ||
+        k === "removedMatchIds" ||
+        k === "seenMeetupIds",
+    );
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
     setUser(null);
     setUnreadCount(0);
     setInterestedCount(0);

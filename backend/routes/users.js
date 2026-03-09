@@ -63,6 +63,60 @@ router.get("/test/databases", async (req, res) => {
   }
 });
 
+// ===== DEBUG: See exactly what's stored for current user + state mismatches =====
+router.get("/debug/discover", auth, async (req, res) => {
+  try {
+    const currentUser = await User.findById(req.userId)
+      .select("name email city state locationPreference")
+      .lean();
+
+    // Find all non-excluded users and show their raw state values
+    const allUsers = await User.find({
+      _id: { $ne: req.userId },
+      isDeleted: { $ne: true },
+    })
+      .select("name city state")
+      .lean();
+
+    // Show which ones match state exactly
+    const stateMatches = allUsers.filter(
+      (u) =>
+        u.state?.toLowerCase().trim() ===
+        currentUser.state?.toLowerCase().trim(),
+    );
+    const stateMismatches = allUsers.filter(
+      (u) =>
+        u.state?.toLowerCase().trim() !==
+        currentUser.state?.toLowerCase().trim(),
+    );
+
+    res.json({
+      currentUser: {
+        name: currentUser.name,
+        email: currentUser.email,
+        city: currentUser.city,
+        state: currentUser.state,
+        stateType: typeof currentUser.state,
+        stateLength: currentUser.state?.length,
+        locationPreference: currentUser.locationPreference,
+      },
+      stateMatchCount: stateMatches.length,
+      stateMatches: stateMatches.map((u) => ({
+        name: u.name,
+        city: u.city,
+        state: u.state,
+      })),
+      stateMismatches: stateMismatches.map((u) => ({
+        name: u.name,
+        city: u.city,
+        state: u.state,
+      })),
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ==========================================
 //  Discover Route
 // ==========================================
@@ -126,8 +180,13 @@ router.get("/discover", auth, async (req, res) => {
     if (!needsDistanceCalc) {
       if (locationPref === "Same city") {
         if (currentUser.city && currentUser.state) {
-          query.city = currentUser.city;
-          query.state = currentUser.state;
+          // ✅ Case-insensitive match for both city and state
+          query.city = {
+            $regex: new RegExp(`^${currentUser.city.trim()}$`, "i"),
+          };
+          query.state = {
+            $regex: new RegExp(`^${currentUser.state.trim()}$`, "i"),
+          };
           console.log(
             "🏙️ Filter: Same city -",
             currentUser.city,
@@ -140,7 +199,10 @@ router.get("/discover", auth, async (req, res) => {
         }
       } else if (locationPref === "Same state") {
         if (currentUser.state) {
-          query.state = currentUser.state;
+          // ✅ Case-insensitive match — handles "FL" vs "fl" vs "Florida" inconsistency
+          query.state = {
+            $regex: new RegExp(`^${currentUser.state.trim()}$`, "i"),
+          };
           console.log("🗺️ Filter: Same state -", currentUser.state);
         } else {
           console.log(
@@ -306,6 +368,16 @@ router.post("/pass/:userId", auth, async (req, res) => {
   } catch (error) {
     logger.error("Pass user error:", error);
     res.status(500).json({ message: "Error passing user" });
+  }
+});
+
+// ===== CLEAR PASSED (for testing / admin reset) =====
+router.delete("/passed", auth, async (req, res) => {
+  try {
+    await User.findByIdAndUpdate(req.userId, { $set: { passed: [] } });
+    res.json({ message: "Passed list cleared" });
+  } catch (error) {
+    res.status(500).json({ message: "Error clearing passed list" });
   }
 });
 

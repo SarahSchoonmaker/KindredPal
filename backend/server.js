@@ -155,7 +155,6 @@ const io = new Server(server, {
   pingTimeout: 60000,
   pingInterval: 25000,
 });
-app.set("io", io);
 
 app.use((req, res, next) => {
   if (req.method === "GET" && !req.path.includes("/messages")) {
@@ -176,6 +175,7 @@ io.on("connection", (socket) => {
       return;
     }
     userSockets.set(userId, socket.id);
+    socket.join(userId); // ✅ Join room named by userId so io.to(userId).emit() works
     logger.info(`👤 User ${userId} is now online (socket: ${socket.id})`);
     socket.broadcast.emit("user-status-change", { userId, status: "online" });
   });

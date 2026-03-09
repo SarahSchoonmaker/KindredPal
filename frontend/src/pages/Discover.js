@@ -17,11 +17,16 @@ function Discover() {
   const [totalUsers, setTotalUsers] = useState(0);
   const [showMatchModal, setShowMatchModal] = useState(false);
   const [matchedUser, setMatchedUser] = useState(null);
-  const [likedUsers, setLikedUsers] = useState(() => {
-    const stored = localStorage.getItem("likedUserIds");
-    return stored ? new Set(JSON.parse(stored)) : new Set();
-  });
+  const [likedUsers, setLikedUsers] = useState(new Set());
   const [actionLoading, setActionLoading] = useState({});
+
+  // ✅ Load per-user liked IDs once we know who's logged in
+  useEffect(() => {
+    if (!currentUser?._id) return;
+    const key = `likedUserIds_${currentUser._id}`;
+    const stored = localStorage.getItem(key);
+    setLikedUsers(stored ? new Set(JSON.parse(stored)) : new Set());
+  }, [currentUser?._id]);
 
   const fetchUsers = useCallback(
     async (preferences = null, pageNum = 1, append = false) => {
@@ -95,8 +100,10 @@ function Discover() {
   }, [fetchUsers]);
 
   useEffect(() => {
-    localStorage.setItem("likedUserIds", JSON.stringify([...likedUsers]));
-  }, [likedUsers]);
+    if (!currentUser?._id) return;
+    const key = `likedUserIds_${currentUser._id}`;
+    localStorage.setItem(key, JSON.stringify([...likedUsers]));
+  }, [likedUsers, currentUser?._id]);
 
   // Infinite scroll detection
   useEffect(() => {
@@ -173,7 +180,8 @@ function Discover() {
     updateUser({ ...currentUser, ...updatedPreferences });
 
     // Clear liked users from localStorage
-    localStorage.removeItem("likedUserIds");
+    if (currentUser?._id)
+      localStorage.removeItem(`likedUserIds_${currentUser._id}`);
     setLikedUsers(new Set());
 
     // Reset to page 1 with new filters
