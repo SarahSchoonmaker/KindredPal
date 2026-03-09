@@ -12,124 +12,7 @@ import {
 import { Button, Checkbox, Avatar } from "react-native-paper";
 import { X, Calendar, MapPin, Users, Tag } from "lucide-react-native";
 import api from "../services/api";
-
-// Pure JS date picker — no native modules needed
-function SimpleDateTimePicker({ value, onChange }) {
-  const pad = (n) => String(n).padStart(2, "0");
-  const d = value instanceof Date ? value : new Date();
-
-  const [month, setMonth] = useState(pad(d.getMonth() + 1));
-  const [day, setDay] = useState(pad(d.getDate()));
-  const [year, setYear] = useState(String(d.getFullYear()));
-  const [hour, setHour] = useState(pad(d.getHours()));
-  const [minute, setMinute] = useState(pad(d.getMinutes()));
-
-  const commit = (m, dy, y, h, mn) => {
-    const parsed = new Date(`${y}-${m}-${dy}T${h}:${mn}:00`);
-    if (!isNaN(parsed)) onChange(parsed);
-  };
-
-  return (
-    <View style={dtStyles.container}>
-      <Text style={dtStyles.hint}>Date (MM / DD / YYYY)</Text>
-      <View style={dtStyles.row}>
-        <TextInput
-          style={dtStyles.seg}
-          value={month}
-          onChangeText={(v) => {
-            setMonth(v);
-            commit(v, day, year, hour, minute);
-          }}
-          keyboardType="number-pad"
-          maxLength={2}
-          placeholder="MM"
-          placeholderTextColor="#999"
-        />
-        <Text style={dtStyles.sep}>/</Text>
-        <TextInput
-          style={dtStyles.seg}
-          value={day}
-          onChangeText={(v) => {
-            setDay(v);
-            commit(month, v, year, hour, minute);
-          }}
-          keyboardType="number-pad"
-          maxLength={2}
-          placeholder="DD"
-          placeholderTextColor="#999"
-        />
-        <Text style={dtStyles.sep}>/</Text>
-        <TextInput
-          style={[dtStyles.seg, dtStyles.yearSeg]}
-          value={year}
-          onChangeText={(v) => {
-            setYear(v);
-            commit(month, day, v, hour, minute);
-          }}
-          keyboardType="number-pad"
-          maxLength={4}
-          placeholder="YYYY"
-          placeholderTextColor="#999"
-        />
-      </View>
-      <Text style={[dtStyles.hint, { marginTop: 10 }]}>
-        Time (HH : MM, 24-hr)
-      </Text>
-      <View style={dtStyles.row}>
-        <TextInput
-          style={dtStyles.seg}
-          value={hour}
-          onChangeText={(v) => {
-            setHour(v);
-            commit(month, day, year, v, minute);
-          }}
-          keyboardType="number-pad"
-          maxLength={2}
-          placeholder="HH"
-          placeholderTextColor="#999"
-        />
-        <Text style={dtStyles.sep}>:</Text>
-        <TextInput
-          style={dtStyles.seg}
-          value={minute}
-          onChangeText={(v) => {
-            setMinute(v);
-            commit(month, day, year, hour, v);
-          }}
-          keyboardType="number-pad"
-          maxLength={2}
-          placeholder="MM"
-          placeholderTextColor="#999"
-        />
-      </View>
-    </View>
-  );
-}
-
-const dtStyles = StyleSheet.create({
-  container: {
-    backgroundColor: "#F7FAFC",
-    borderRadius: 8,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-  hint: { fontSize: 12, color: "#718096", marginBottom: 6 },
-  row: { flexDirection: "row", alignItems: "center", gap: 6 },
-  seg: {
-    backgroundColor: "white",
-    borderWidth: 1,
-    borderColor: "#CBD5E0",
-    borderRadius: 6,
-    padding: 10,
-    fontSize: 16,
-    color: "#2D3748",
-    textAlign: "center",
-    width: 56,
-  },
-  yearSeg: { width: 72 },
-  sep: { fontSize: 18, color: "#4A5568", fontWeight: "bold" },
-});
+import DateTimePicker from "./DateTimePicker";
 
 export default function CreateMeetupModal({ visible, onClose, onSuccess }) {
   const [matches, setMatches] = useState([]);
@@ -277,7 +160,7 @@ export default function CreateMeetupModal({ visible, onClose, onSuccess }) {
               <Calendar color="#2B6CB0" size={18} />
               <Text style={styles.label}>Date & Time *</Text>
             </View>
-            <SimpleDateTimePicker
+            <DateTimePicker
               value={formData.dateTime}
               onChange={(date) =>
                 setFormData((prev) => ({ ...prev, dateTime: date }))
