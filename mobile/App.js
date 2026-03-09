@@ -12,6 +12,7 @@ import {
   UserSearch,
 } from "lucide-react-native";
 import { AppState } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import {
   registerForPushNotifications,
@@ -77,21 +78,50 @@ function MainTabs() {
     try {
       const token = await SecureStore.getItemAsync("token");
       if (!token) return;
+
       const res = await api.get("/users/counts");
-      setCounts(res.data);
+      const {
+        unread,
+        interested,
+        matchIds = [],
+        meetupInviteIds = [],
+        matches,
+        meetups,
+      } = res.data;
+
+      // ✅ Filter meetups by unseen IDs
+      const seenRaw = await AsyncStorage.getItem("seenMeetupIds");
+      const seenIds = seenRaw ? JSON.parse(seenRaw) : [];
+      const unseenMeetups =
+        meetupInviteIds.length > 0
+          ? meetupInviteIds.filter((id) => !seenIds.includes(id)).length
+          : (meetups ?? 0);
+
+      // ✅ Filter matches by unseen IDs
+      const seenMatchRaw = await AsyncStorage.getItem("seenMatchIds");
+      const seenMatchIds = seenMatchRaw ? JSON.parse(seenMatchRaw) : [];
+      const unseenMatches =
+        matchIds.length > 0
+          ? matchIds.filter((id) => !seenMatchIds.includes(id)).length
+          : (matches ?? 0);
+
+      setCounts({
+        unread,
+        interested,
+        matches: unseenMatches,
+        meetups: unseenMeetups,
+      });
     } catch (err) {
-      // Silently fail — user may not be logged in yet
+      // Silently fail
     }
   }, []);
 
-  // Fetch on mount and every 30 seconds
   useEffect(() => {
     fetchCounts();
     const interval = setInterval(fetchCounts, 30000);
     return () => clearInterval(interval);
   }, [fetchCounts]);
 
-  // Also refresh when app comes back to foreground
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active") fetchCounts();
@@ -175,7 +205,13 @@ function MainTabs() {
       <Tab.Screen
         name="Meetups"
         component={MeetupsScreen}
-        listeners={{ tabPress: () => setCounts((c) => ({ ...c, meetups: 0 })) }}
+        listeners={{
+          tabPress: async () => {
+            // ✅ When tab is pressed, immediately clear badge in UI
+            // MeetupsScreen will update AsyncStorage when it loads
+            setCounts((c) => ({ ...c, meetups: 0 }));
+          },
+        }}
         options={{
           tabBarLabel: "Meetups",
           tabBarBadge: badge(counts.meetups),
@@ -256,9 +292,8 @@ export default function App() {
       );
     }
     return () => {
-      if (notificationSubscription.current) {
+      if (notificationSubscription.current)
         notificationSubscription.current.remove();
-      }
     };
   }, []);
 

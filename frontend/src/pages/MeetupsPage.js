@@ -1,8 +1,9 @@
 // frontend/src/pages/MeetupsPage.jsx
 import React, { useState, useEffect } from "react";
 import { Plus, Calendar, MapPin, Users, Clock } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
-import CreateMeetupModal from "../components/CreateMeetupModal"; // UNCOMMENT THIS
+import CreateMeetupModal from "../components/CreateMeetupModal";
 import "./MeetupsPage.css";
 
 function MeetupsPage() {
@@ -10,6 +11,7 @@ function MeetupsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const { setMeetupsCount } = useAuth();
 
   useEffect(() => {
     fetchMeetups();
@@ -19,15 +21,18 @@ function MeetupsPage() {
     try {
       setLoading(true);
       setError(null);
-      console.log("📥 Fetching meetups...");
-
       const response = await api.get("/meetups");
-      console.log("✅ Meetups response:", response.data);
+      const data = response.data || [];
+      setMeetups(data);
 
-      setMeetups(response.data || []);
+      // ✅ Mark all current meetup IDs as seen
+      const seenIds = data.map((m) => m._id);
+      localStorage.setItem("seenMeetupIds", JSON.stringify(seenIds));
+
+      // ✅ Clear the badge
+      if (setMeetupsCount) setMeetupsCount(0);
     } catch (error) {
       console.error("❌ Error fetching meetups:", error);
-      console.error("Error details:", error.response?.data);
       setError(error.response?.data?.message || "Failed to load meetups");
     } finally {
       setLoading(false);
@@ -36,7 +41,6 @@ function MeetupsPage() {
 
   const handleCreateMeetup = async (meetupData) => {
     try {
-      console.log("📤 Creating meetup:", meetupData);
       await api.post("/meetups", meetupData);
       setShowCreateModal(false);
       fetchMeetups();
@@ -64,15 +68,13 @@ function MeetupsPage() {
     });
   };
 
-  if (loading) {
+  if (loading)
     return (
       <div className="meetups-page">
         <div className="loading">Loading meetups...</div>
       </div>
     );
-  }
-
-  if (error) {
+  if (error)
     return (
       <div className="meetups-page">
         <div className="error-state">
@@ -84,7 +86,6 @@ function MeetupsPage() {
         </div>
       </div>
     );
-  }
 
   return (
     <div className="meetups-page">
@@ -124,7 +125,6 @@ function MeetupsPage() {
                   going
                 </span>
               </div>
-
               <div className="meetup-details">
                 <div className="detail">
                   <Calendar size={18} />
@@ -143,11 +143,9 @@ function MeetupsPage() {
                   </div>
                 )}
               </div>
-
               {meetup.description && (
                 <p className="meetup-description">{meetup.description}</p>
               )}
-
               <div className="meetup-footer">
                 <div className="creator">
                   <img
@@ -171,7 +169,6 @@ function MeetupsPage() {
         </div>
       )}
 
-      {/* ADD THIS MODAL */}
       {showCreateModal && (
         <CreateMeetupModal
           onClose={() => setShowCreateModal(false)}

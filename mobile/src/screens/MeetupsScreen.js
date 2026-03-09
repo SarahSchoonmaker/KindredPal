@@ -10,10 +10,11 @@ import {
 } from "react-native";
 import { FAB, Card, Avatar } from "react-native-paper";
 import { Calendar, MapPin, Users, Clock } from "lucide-react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import api from "../services/api";
 import CreateMeetupModal from "../components/CreateMeetupModal";
 
-export default function MeetupsScreen({ navigation }) {
+export default function MeetupsScreen({ navigation, route }) {
   const [meetups, setMeetups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -25,29 +26,22 @@ export default function MeetupsScreen({ navigation }) {
 
   const fetchMeetups = async () => {
     try {
-      console.log("📥 Fetching meetups...");
-
-      // Add a timeout
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error("Request timeout")), 10000),
       );
-
       const response = await Promise.race([
         api.get("/meetups"),
         timeoutPromise,
       ]);
+      const data = response.data || [];
+      setMeetups(data);
 
-      console.log("✅ Meetups response:", response.data);
-      console.log("📊 Number of meetups:", response.data?.length || 0);
-      setMeetups(response.data || []);
+      // ✅ Store all current meetup IDs as seen — clears the badge
+      const seenIds = data.map((m) => m._id);
+      await AsyncStorage.setItem("seenMeetupIds", JSON.stringify(seenIds));
     } catch (error) {
-      console.error("❌ Error fetching meetups:", error);
-      console.error("❌ Error message:", error.message);
-      console.error("❌ Error response:", error.response?.data);
-      console.error("❌ Error status:", error.response?.status);
       Alert.alert("Error", "Failed to load meetups: " + error.message);
     } finally {
-      console.log("🏁 Fetch meetups finally block");
       setLoading(false);
       setRefreshing(false);
     }
@@ -78,7 +72,6 @@ export default function MeetupsScreen({ navigation }) {
   const renderMeetup = ({ item }) => {
     const goingCount =
       item.rsvps?.filter((r) => r.status === "going").length || 0;
-
     return (
       <TouchableOpacity
         onPress={() =>
@@ -94,7 +87,6 @@ export default function MeetupsScreen({ navigation }) {
                 <Text style={styles.attendeeText}>{goingCount} going</Text>
               </View>
             </View>
-
             <View style={styles.details}>
               <View style={styles.detail}>
                 <Calendar color="#2B6CB0" size={18} />
@@ -102,14 +94,12 @@ export default function MeetupsScreen({ navigation }) {
                   {formatDate(item.dateTime)}
                 </Text>
               </View>
-
               <View style={styles.detail}>
                 <Clock color="#2B6CB0" size={18} />
                 <Text style={styles.detailText}>
                   {formatTime(item.dateTime)}
                 </Text>
               </View>
-
               {item.location && (
                 <View style={styles.detail}>
                   <MapPin color="#2B6CB0" size={18} />
@@ -119,13 +109,11 @@ export default function MeetupsScreen({ navigation }) {
                 </View>
               )}
             </View>
-
             {item.description && (
               <Text style={styles.description} numberOfLines={2}>
                 {item.description}
               </Text>
             )}
-
             <View style={styles.creator}>
               <Avatar.Image
                 size={32}
@@ -154,7 +142,7 @@ export default function MeetupsScreen({ navigation }) {
           <Calendar color="#CBD5E0" size={64} />
           <Text style={styles.emptyTitle}>No Meetups Yet</Text>
           <Text style={styles.emptyText}>
-            Create a meetup to Connect in person with your local community!
+            Create a meetup to connect in person with your local community!
           </Text>
         </View>
       ) : (
@@ -168,25 +156,16 @@ export default function MeetupsScreen({ navigation }) {
           }
         />
       )}
-
       <FAB
         icon="plus"
         style={styles.fab}
-        onPress={() => {
-          console.log("📝 Opening create modal");
-          setShowCreateModal(true);
-        }}
+        onPress={() => setShowCreateModal(true)}
         color="white"
       />
-
       <CreateMeetupModal
         visible={showCreateModal}
-        onClose={() => {
-          console.log("❌ Closing create modal");
-          setShowCreateModal(false);
-        }}
+        onClose={() => setShowCreateModal(false)}
         onSuccess={() => {
-          console.log("✅ Meetup created successfully");
           fetchMeetups();
         }}
       />
@@ -195,57 +174,22 @@ export default function MeetupsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F7FAFC",
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  list: {
-    padding: 16,
-  },
-  card: {
-    marginBottom: 16,
-    backgroundColor: "white",
-  },
+  container: { flex: 1, backgroundColor: "#F7FAFC" },
+  centerContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  list: { padding: 16 },
+  card: { marginBottom: 16, backgroundColor: "white" },
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
     marginBottom: 12,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#2D2D2D",
-    flex: 1,
-  },
-  attendeeCount: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  attendeeText: {
-    color: "#2B6CB0",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  details: {
-    gap: 8,
-    marginBottom: 12,
-  },
-  detail: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  detailText: {
-    color: "#666",
-    fontSize: 14,
-  },
+  title: { fontSize: 20, fontWeight: "bold", color: "#2D2D2D", flex: 1 },
+  attendeeCount: { flexDirection: "row", alignItems: "center", gap: 4 },
+  attendeeText: { color: "#2B6CB0", fontSize: 14, fontWeight: "600" },
+  details: { gap: 8, marginBottom: 12 },
+  detail: { flexDirection: "row", alignItems: "center", gap: 8 },
+  detailText: { color: "#666", fontSize: 14 },
   description: {
     color: "#666",
     fontSize: 14,
@@ -260,10 +204,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#E2E8F0",
   },
-  creatorText: {
-    color: "#666",
-    fontSize: 14,
-  },
+  creatorText: { color: "#666", fontSize: 14 },
   emptyState: {
     flex: 1,
     justifyContent: "center",
@@ -277,11 +218,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 8,
   },
-  emptyText: {
-    fontSize: 16,
-    color: "#666",
-    textAlign: "center",
-  },
+  emptyText: { fontSize: 16, color: "#666", textAlign: "center" },
   fab: {
     position: "absolute",
     right: 16,

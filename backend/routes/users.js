@@ -834,12 +834,10 @@ router.post("/push-token", auth, async (req, res) => {
 });
 
 // ===== GET ALL BADGE COUNTS =====
-// Add this route to backend/routes/users.js BEFORE module.exports
-// Also add to backend/routes/meetups.js or keep here — your choice
+// Replace the existing /counts route in backend/routes/users.js
 
-// @route   GET /api/users/counts
-// @desc    Get all unread/unseen counts for badge display
-// @access  Private
+// Replace the existing /counts route in backend/routes/users.js
+
 router.get("/counts", auth, async (req, res) => {
   try {
     const userId = req.userId;
@@ -851,7 +849,7 @@ router.get("/counts", auth, async (req, res) => {
       read: false,
     });
 
-    // 2. Interested (users who liked you, not yet matched/passed)
+    // 2. Interested — users who liked you, not yet matched/blocked
     const currentUser = await User.findById(userId)
       .select("matches blockedUsers")
       .lean();
@@ -869,23 +867,28 @@ router.get("/counts", auth, async (req, res) => {
       isActive: { $ne: false },
     });
 
-    // 3. New matches — count matches added since last seen
-    // We use a simple approach: total matches count
-    // The frontend clears this when user visits /matches
-    const matchesCount = (currentUser.matches || []).length;
+    // 3. Matches — return IDs so frontend can filter out already-seen ones
+    const matchIds = (currentUser.matches || []).map((id) => id.toString());
 
-    // 4. Pending meetup invites (invited but no RSVP yet)
+    // 4. Pending meetup invites — return IDs for seen-filtering
     const Meetup = require("../models/Meetup");
     const meetupInvites = await Meetup.find({
       invitedUsers: userId,
       isActive: true,
-    }).select("rsvps");
+    }).select("_id rsvps");
 
-    const meetups = meetupInvites.filter(
+    const pendingMeetups = meetupInvites.filter(
       (m) => !m.rsvps.some((r) => r.user.toString() === userId),
-    ).length;
+    );
 
-    res.json({ unread, interested, matches: matchesCount, meetups });
+    res.json({
+      unread,
+      interested,
+      matches: matchIds.length,
+      matchIds, // ✅ for seen-filtering
+      meetups: pendingMeetups.length,
+      meetupInviteIds: pendingMeetups.map((m) => m._id.toString()), // ✅ for seen-filtering
+    });
   } catch (error) {
     logger.error("❌ Get counts error:", error);
     res.status(500).json({ message: "Error fetching counts" });

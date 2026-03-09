@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { UserCircle, MapPin, MessageCircle } from "lucide-react";
 import { userAPI } from "../services/api";
+import { useAuth } from "../context/AuthContext";
 import UserActionsMenu from "../components/UserActionsMenu";
 import "./Matches.css";
 
@@ -9,13 +10,13 @@ const Matches = () => {
   const navigate = useNavigate();
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { setMatchesCount } = useAuth();
 
   const [removedUserIds, setRemovedUserIds] = useState(() => {
     const stored = localStorage.getItem("removedMatchIds");
     return stored ? new Set(JSON.parse(stored)) : new Set();
   });
 
-  // ✅ Fixed: wrapped in useCallback so it can be a useEffect dependency
   const loadMatches = useCallback(async () => {
     try {
       const response = await userAPI.getMatches();
@@ -25,7 +26,6 @@ const Matches = () => {
       const validRemovedIds = new Set(
         [...removedUserIds].filter((id) => backendMatchIds.has(id)),
       );
-
       if (validRemovedIds.size !== removedUserIds.size) {
         setRemovedUserIds(validRemovedIds);
       }
@@ -33,14 +33,18 @@ const Matches = () => {
       const filteredMatches = backendMatches.filter(
         (match) => !validRemovedIds.has(match._id),
       );
-
       setMatches(filteredMatches);
+
+      // ✅ Store all seen match IDs and clear the badge
+      const seenIds = backendMatches.map((m) => m._id);
+      localStorage.setItem("seenMatchIds", JSON.stringify(seenIds));
+      if (setMatchesCount) setMatchesCount(0);
     } catch (error) {
       console.error("Error loading matches:", error);
     } finally {
       setLoading(false);
     }
-  }, [removedUserIds]);
+  }, [removedUserIds, setMatchesCount]);
 
   useEffect(() => {
     loadMatches();
@@ -53,9 +57,7 @@ const Matches = () => {
     );
   }, [removedUserIds]);
 
-  const handleViewProfile = (matchId) => {
-    navigate(`/profile/${matchId}`);
-  };
+  const handleViewProfile = (matchId) => navigate(`/profile/${matchId}`);
 
   const handleMessage = (matchId, e) => {
     e.stopPropagation();
@@ -131,7 +133,6 @@ const Matches = () => {
                   />
                 </div>
               </div>
-
               <div className="match-info">
                 <h3>
                   {match.name}, {match.age}
@@ -142,7 +143,6 @@ const Matches = () => {
                     {match.city}, {match.state}
                   </span>
                 </div>
-
                 {match.lifeStage && match.lifeStage.length > 0 && (
                   <div className="match-tags">
                     {match.lifeStage.slice(0, 2).map((stage) => (
@@ -152,7 +152,6 @@ const Matches = () => {
                     ))}
                   </div>
                 )}
-
                 <button
                   className="btn-message"
                   onClick={(e) => handleMessage(match._id, e)}
