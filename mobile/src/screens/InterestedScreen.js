@@ -12,6 +12,9 @@ import { Users, MapPin } from "lucide-react-native";
 import { userAPI } from "../services/api";
 import { useFocusEffect } from "@react-navigation/native";
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
+
 export default function InterestedScreen({ navigation }) {
   const [likes, setLikes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,7 +38,7 @@ export default function InterestedScreen({ navigation }) {
       setLikes([]);
       setLoading(true);
       fetchLikes();
-    }, [fetchLikes])
+    }, [fetchLikes]),
   );
 
   const onRefresh = useCallback(() => {
@@ -61,43 +64,52 @@ export default function InterestedScreen({ navigation }) {
     }
   }, []);
 
-  const renderUser = useCallback(({ item }) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => navigation.navigate("UserProfile", { userId: item._id })}
-      activeOpacity={0.8}
-    >
-      <Image
-        source={{ uri: item.profilePhoto }}
-        style={styles.avatar}
-        resizeMode="cover"
-      />
-      <View style={styles.info}>
-        <Text style={styles.name}>{item.name}, {item.age}</Text>
-        <View style={styles.locationRow}>
-          <MapPin size={13} color="#718096" />
-          <Text style={styles.location}>{item.city}, {item.state}</Text>
+  const renderUser = useCallback(
+    ({ item }) => (
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => navigation.navigate("UserProfile", { userId: item._id })}
+        activeOpacity={0.8}
+      >
+        <Image
+          source={{ uri: item.profilePhoto }}
+          style={styles.avatar}
+          resizeMode="cover"
+        />
+        <View style={styles.info}>
+          <Text style={styles.name}>
+            {item.name}, {item.age}
+          </Text>
+          <View style={styles.locationRow}>
+            <MapPin size={13} color="#718096" />
+            <Text style={styles.location}>
+              {item.city}, {item.state}
+            </Text>
+          </View>
+          {item.bio && (
+            <Text style={styles.bio} numberOfLines={2}>
+              {item.bio}
+            </Text>
+          )}
         </View>
-        {item.bio && (
-          <Text style={styles.bio} numberOfLines={2}>{item.bio}</Text>
-        )}
-      </View>
-      <View style={styles.actions}>
-        <TouchableOpacity
-          style={styles.passButton}
-          onPress={() => handlePass(item._id)}
-        >
-          <Text style={styles.passLabel}>Pass</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.connectButton}
-          onPress={() => handleLike(item._id)}
-        >
-          <Text style={styles.connectLabel}>Connect</Text>
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
-  ), [navigation, handleLike, handlePass]);
+        <View style={styles.actions}>
+          <TouchableOpacity
+            style={styles.passButton}
+            onPress={() => handlePass(item._id)}
+          >
+            <Text style={styles.passLabel}>Pass</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.connectButton}
+            onPress={() => handleLike(item._id)}
+          >
+            <Text style={styles.connectLabel}>Connect</Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    ),
+    [navigation, handleLike, handlePass],
+  );
 
   const keyExtractor = useCallback((item) => item._id, []);
 

@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Users, UserPlus, MapPin, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 import "./LikesYou.css";
 
 function LikesYou() {
   const navigate = useNavigate();
+  const { markInterestedSeen } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dailyLikesRemaining, setDailyLikesRemaining] = useState(10);
@@ -15,27 +17,28 @@ function LikesYou() {
     return stored ? new Set(JSON.parse(stored)) : new Set();
   });
 
-  // ✅ Fixed: wrapped in useCallback so it can be a useEffect dependency
   const fetchLikesYou = useCallback(async () => {
     try {
       const response = await api.get("/users/likes-you");
+      const allUsers = response.data.users || [];
 
-      const filteredUsers = (response.data.users || []).filter(
+      const filteredUsers = allUsers.filter(
         (user) => !connectedUserIds.has(user._id),
-      );
-
-      console.log(
-        `📊 Loaded ${response.data.users?.length || 0} interested users, showing ${filteredUsers.length} after filtering`,
       );
 
       setUsers(filteredUsers);
       setDailyLikesRemaining(response.data.dailyLikesRemaining);
+
+      // ✅ Mark all current interested users as seen — persists per user across sessions
+      if (markInterestedSeen) {
+        markInterestedSeen(allUsers.map((u) => u._id));
+      }
     } catch (error) {
       console.error("Error fetching likes:", error);
     } finally {
       setLoading(false);
     }
-  }, [connectedUserIds]);
+  }, [connectedUserIds, markInterestedSeen]);
 
   useEffect(() => {
     fetchLikesYou();
@@ -50,20 +53,14 @@ function LikesYou() {
 
   const handleLike = async (userId, e) => {
     e.stopPropagation();
-    console.log("🎯 Connecting with interested user:", userId);
-
     try {
       const response = await api.post(`/users/like/${userId}`);
-
       setConnectedUserIds((prev) => new Set([...prev, userId]));
       setUsers((prev) => prev.filter((u) => u._id !== userId));
-
       if (response.data.isMatch) {
-        console.log("🎉 It's a match!");
         alert(`You matched with ${response.data.matchedUser.name}!`);
       }
     } catch (error) {
-      console.error("❌ Error liking user:", error);
       const errorMessage =
         error.response?.data?.message || error.message || "Error connecting";
       alert(`Error: ${errorMessage}`);
@@ -80,9 +77,7 @@ function LikesYou() {
     }
   };
 
-  const handleCardClick = (userId) => {
-    navigate(`/profile/${userId}`);
-  };
+  const handleCardClick = (userId) => navigate(`/profile/${userId}`);
 
   if (loading) {
     return (
@@ -135,7 +130,6 @@ function LikesYou() {
               <div className="card-image-small">
                 <img src={user.profilePhoto} alt={user.name} />
               </div>
-
               <div className="card-info-small">
                 <h3>
                   {user.name}, {user.age}
@@ -146,11 +140,9 @@ function LikesYou() {
                     {user.city}, {user.state}
                   </span>
                 </div>
-
                 {user.bio && (
                   <p className="bio-preview">{user.bio.substring(0, 100)}...</p>
                 )}
-
                 {user.causes && user.causes.length > 0 && (
                   <div className="tags-small">
                     {user.causes.slice(0, 2).map((cause, idx) => (
@@ -166,7 +158,6 @@ function LikesYou() {
                   </div>
                 )}
               </div>
-
               <div className="card-actions-small">
                 <button
                   className="action-btn-small pass-btn"

@@ -70,7 +70,6 @@ function MainTabs() {
   const [counts, setCounts] = useState({
     unread: 0,
     interested: 0,
-    matches: 0,
     meetups: 0,
   });
 
@@ -79,38 +78,23 @@ function MainTabs() {
       const token = await SecureStore.getItemAsync("token");
       if (!token) return;
 
-      const res = await api.get("/users/counts");
-      const {
-        unread,
-        interested,
-        matchIds = [],
-        meetupInviteIds = [],
-        matches,
-        meetups,
-      } = res.data;
+      // Get userId for per-user seen key scoping
+      const userId = await SecureStore.getItemAsync("userId");
 
-      // ✅ Filter meetups by unseen IDs
-      const seenRaw = await AsyncStorage.getItem("seenMeetupIds");
-      const seenIds = seenRaw ? JSON.parse(seenRaw) : [];
+      const res = await api.get("/users/counts");
+      const { unread, interested, meetupInviteIds = [], meetups } = res.data;
+
+      // ✅ Per-user seen keys — persist across logout/login for same user
+      const meetupKey = userId ? `seen_meetups_${userId}` : "seen_meetups";
+
+      const seenMeetupRaw = await AsyncStorage.getItem(meetupKey);
+      const seenMeetupIds = seenMeetupRaw ? JSON.parse(seenMeetupRaw) : [];
       const unseenMeetups =
         meetupInviteIds.length > 0
-          ? meetupInviteIds.filter((id) => !seenIds.includes(id)).length
+          ? meetupInviteIds.filter((id) => !seenMeetupIds.includes(id)).length
           : (meetups ?? 0);
 
-      // ✅ Filter matches by unseen IDs
-      const seenMatchRaw = await AsyncStorage.getItem("seenMatchIds");
-      const seenMatchIds = seenMatchRaw ? JSON.parse(seenMatchRaw) : [];
-      const unseenMatches =
-        matchIds.length > 0
-          ? matchIds.filter((id) => !seenMatchIds.includes(id)).length
-          : (matches ?? 0);
-
-      setCounts({
-        unread,
-        interested,
-        matches: unseenMatches,
-        meetups: unseenMeetups,
-      });
+      setCounts({ unread, interested, meetups: unseenMeetups });
     } catch (err) {
       // Silently fail
     }
@@ -178,12 +162,9 @@ function MainTabs() {
       <Tab.Screen
         name="Connections"
         component={ConnectionsScreen}
-        listeners={{ tabPress: () => setCounts((c) => ({ ...c, matches: 0 })) }}
         options={{
           tabBarLabel: "Connections",
           title: "My Connections",
-          tabBarBadge: badge(counts.matches),
-          tabBarBadgeStyle: BADGE_STYLE,
           tabBarIcon: ({ color, size }) => <Users color={color} size={size} />,
         }}
       />

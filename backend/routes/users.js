@@ -838,6 +838,8 @@ router.post("/push-token", auth, async (req, res) => {
 
 // Replace the existing /counts route in backend/routes/users.js
 
+// Replace the existing /counts route in backend/routes/users.js
+
 router.get("/counts", auth, async (req, res) => {
   try {
     const userId = req.userId;
@@ -860,17 +862,18 @@ router.get("/counts", auth, async (req, res) => {
       ...(currentUser.blockedUsers || []),
     ];
 
-    const interested = await User.countDocuments({
+    const interestedUsers = await User.find({
       likes: userId,
       _id: { $nin: excludedIds },
       isDeleted: { $ne: true },
       isActive: { $ne: false },
-    });
+    })
+      .select("_id")
+      .lean();
 
-    // 3. Matches — return IDs so frontend can filter out already-seen ones
-    const matchIds = (currentUser.matches || []).map((id) => id.toString());
+    const interestedIds = interestedUsers.map((u) => u._id.toString());
 
-    // 4. Pending meetup invites — return IDs for seen-filtering
+    // 3. Pending meetup invites — return IDs for seen-filtering
     const Meetup = require("../models/Meetup");
     const meetupInvites = await Meetup.find({
       invitedUsers: userId,
@@ -883,9 +886,8 @@ router.get("/counts", auth, async (req, res) => {
 
     res.json({
       unread,
-      interested,
-      matches: matchIds.length,
-      matchIds, // ✅ for seen-filtering
+      interested: interestedIds.length,
+      interestedIds, // ✅ for seen-filtering
       meetups: pendingMeetups.length,
       meetupInviteIds: pendingMeetups.map((m) => m._id.toString()), // ✅ for seen-filtering
     });

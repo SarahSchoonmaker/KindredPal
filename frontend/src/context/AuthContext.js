@@ -20,17 +20,46 @@ export const useAuth = () => {
 
 const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || "http://localhost:5000";
 
+// ── Per-user seen ID helpers ───────────────────────────────────────────────
+const seenKey = (userId, type) => `seen_${type}_${userId}`;
+
+const getSeenIds = (userId, type) => {
+  try {
+    const raw = localStorage.getItem(seenKey(userId, type));
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveSeenIds = (userId, type, ids) => {
+  try {
+    localStorage.setItem(seenKey(userId, type), JSON.stringify(ids));
+  } catch {}
+};
+
+const markAllSeen = (userId, type, ids) => {
+  const existing = new Set(getSeenIds(userId, type));
+  ids.forEach((id) => existing.add(id));
+  saveSeenIds(userId, type, [...existing]);
+};
+
+const countUnseen = (userId, type, allIds) => {
+  const seen = new Set(getSeenIds(userId, type));
+  return allIds.filter((id) => !seen.has(id)).length;
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
   const [interestedCount, setInterestedCount] = useState(0);
-  const [matchesCount, setMatchesCount] = useState(0);
   const [meetupsCount, setMeetupsCount] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
   const socketRef = useRef(null);
   const isAuthenticated = !!user;
+  const userId = user?.id || user?._id;
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -39,50 +68,41 @@ export const AuthProvider = ({ children }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Helper: compute unseen count from server IDs vs localStorage seen IDs ──
-  const unseenCount = (allIds, storageKey) => {
-    try {
-      const seenRaw = localStorage.getItem(storageKey);
-      const seenIds = seenRaw ? JSON.parse(seenRaw) : [];
-      return allIds.filter((id) => !seenIds.includes(id)).length;
-    } catch {
-      return allIds.length;
-    }
-  };
-
   // ── Fetch all badge counts ─────────────────────────────────────────────────
-  const fetchAllCounts = useCallback(async () => {
-    try {
-      const response = await api.get("/users/counts");
-      const {
-        unread,
-        interested,
-        matchIds = [],
-        meetupInviteIds = [],
-        matches,
-        meetups,
-      } = response.data;
+  const fetchAllCounts = useCallback(
+    async (currentUserId) => {
+      try {
+        const response = await api.get("/users/counts");
+        const {
+          unread,
+          interested,
+          interestedIds = [],
+          meetupInviteIds = [],
+          meetups,
+        } = response.data;
 
-      setUnreadCount(unread ?? 0);
-      setInterestedCount(interested ?? 0);
+        setUnreadCount(unread ?? 0);
 
-      // ✅ Only show badge for matches the user hasn't seen yet
-      const unseenMatches =
-        matchIds.length > 0
-          ? unseenCount(matchIds, "seenMatchIds")
-          : (matches ?? 0);
-      setMatchesCount(unseenMatches);
+        const uid = currentUserId || userId;
+        if (!uid) return;
 
-      // ✅ Only show badge for meetup invites the user hasn't seen yet
-      const unseenMeetups =
-        meetupInviteIds.length > 0
-          ? unseenCount(meetupInviteIds, "seenMeetupIds")
-          : (meetups ?? 0);
-      setMeetupsCount(unseenMeetups);
-    } catch (error) {
-      console.error("Error loading counts:", error);
-    }
-  }, []);
+        const unseenInterested =
+          interestedIds.length > 0
+            ? countUnseen(uid, "interested", interestedIds)
+            : (interested ?? 0);
+        setInterestedCount(unseenInterested);
+
+        const unseenMeetups =
+          meetupInviteIds.length > 0
+            ? countUnseen(uid, "meetups", meetupInviteIds)
+            : (meetups ?? 0);
+        setMeetupsCount(unseenMeetups);
+      } catch (error) {
+        console.error("Error loading counts:", error);
+      }
+    },
+    [userId],
+  );
 
   const fetchUnreadCount = useCallback(async () => {
     try {
@@ -93,34 +113,25 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // Fetch on login
   useEffect(() => {
-    const userId = user?.id || user?._id;
     if (!userId) return;
-    fetchAllCounts();
-  }, [user?.id, user?._id, fetchAllCounts]);
+    fetchAllCounts(userId);
+  }, [userId, fetchAllCounts]);
 
-  // Poll every 60s
   useEffect(() => {
-    const userId = user?.id || user?._id;
     if (!userId) return;
-    const interval = setInterval(fetchAllCounts, 60000);
+    const interval = setInterval(() => fetchAllCounts(userId), 60000);
     return () => clearInterval(interval);
-  }, [user?.id, user?._id, fetchAllCounts]);
+  }, [userId, fetchAllCounts]);
 
-  // ── Auto-clear badges when user visits the page ────────────────────────────
   useEffect(() => {
     const path = location.pathname;
-    if (path === "/likes-you") setInterestedCount(0);
     if (path.startsWith("/messages")) setUnreadCount(0);
-    // /matches and /meetups are cleared by their pages via setMatchesCount/setMeetupsCount
   }, [location.pathname]);
 
   // ── Socket setup ───────────────────────────────────────────────────────────
   useEffect(() => {
-    const userId = user?.id || user?._id;
     if (!userId) return;
-
     if (socketRef.current) {
       socketRef.current.disconnect();
       socketRef.current = null;
@@ -130,7 +141,6 @@ export const AuthProvider = ({ children }) => {
     socketRef.current = s;
 
     s.on("connect", () => s.emit("user-online", userId));
-
     s.on("new-message", () => {
       if (!window.location.pathname.startsWith("/messages")) {
         setUnreadCount((prev) => prev + 1);
@@ -138,31 +148,22 @@ export const AuthProvider = ({ children }) => {
         fetchUnreadCount();
       }
     });
-
     s.on("new-like", () => {
       if (window.location.pathname !== "/likes-you") {
         setInterestedCount((prev) => prev + 1);
       }
     });
-
-    s.on("new-match", () => {
-      if (window.location.pathname !== "/matches") {
-        setMatchesCount((prev) => prev + 1);
-      }
-    });
-
     s.on("new-meetup-invite", () => {
       if (window.location.pathname !== "/meetups") {
         setMeetupsCount((prev) => prev + 1);
       }
     });
-
     s.on("disconnect", () => console.log("🔌 Socket disconnected"));
     return () => {
       s.disconnect();
       socketRef.current = null;
     };
-  }, [user?.id, user?._id, fetchUnreadCount]);
+  }, [userId, fetchUnreadCount]);
 
   // ── Auth methods ───────────────────────────────────────────────────────────
   const fetchUser = async () => {
@@ -200,8 +201,6 @@ export const AuthProvider = ({ children }) => {
       if (response.data.token) {
         localStorage.removeItem("likedUserIds");
         localStorage.removeItem("connectedInterestedIds");
-        localStorage.removeItem("seenMeetupIds");
-        localStorage.removeItem("seenMatchIds");
         localStorage.setItem("token", response.data.token);
         setUser(response.data.user);
         return { success: true };
@@ -219,12 +218,9 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("token");
     localStorage.removeItem("likedUserIds");
     localStorage.removeItem("connectedInterestedIds");
-    localStorage.removeItem("seenMeetupIds");
-    localStorage.removeItem("seenMatchIds");
     setUser(null);
     setUnreadCount(0);
     setInterestedCount(0);
-    setMatchesCount(0);
     setMeetupsCount(0);
     if (socketRef.current) {
       socketRef.current.disconnect();
@@ -232,6 +228,25 @@ export const AuthProvider = ({ children }) => {
     }
     navigate("/login");
   };
+
+  // ── Helpers for pages to mark items seen ──────────────────────────────────
+  const markInterestedSeen = useCallback(
+    (userIds) => {
+      if (!userId) return;
+      markAllSeen(userId, "interested", userIds);
+      setInterestedCount(0);
+    },
+    [userId],
+  );
+
+  const markMeetupsSeen = useCallback(
+    (meetupIds) => {
+      if (!userId) return;
+      markAllSeen(userId, "meetups", meetupIds);
+      setMeetupsCount(0);
+    },
+    [userId],
+  );
 
   const updateUser = (updatedUser) => setUser(updatedUser);
   const incrementUnread = () => setUnreadCount((prev) => prev + 1);
@@ -248,16 +263,16 @@ export const AuthProvider = ({ children }) => {
     fetchUser,
     unreadCount,
     interestedCount,
-    matchesCount,
     meetupsCount,
     setUnreadCount,
     setInterestedCount,
-    setMatchesCount,
     setMeetupsCount,
     incrementUnread,
     clearUnread,
     fetchUnreadCount,
     fetchAllCounts,
+    markInterestedSeen,
+    markMeetupsSeen,
     socket: socketRef.current,
   };
 
