@@ -183,7 +183,15 @@ export const AuthProvider = ({ children }) => {
       const response = await api.post("/auth/signup", userData);
       if (response.data.token) {
         localStorage.setItem("token", response.data.token);
+        // ✅ Set user from signup response first, then fetch full profile
+        // This ensures state/city are populated before discover page loads
         setUser(response.data.user);
+        try {
+          const profileRes = await api.get("/auth/profile");
+          setUser(profileRes.data);
+        } catch (e) {
+          // keep signup user if profile fetch fails
+        }
         return { success: true };
       }
       return { success: false, error: "Signup failed" };

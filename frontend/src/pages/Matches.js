@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { UserCircle, MapPin, MessageCircle } from "lucide-react";
 import { userAPI } from "../services/api";
-import { useAuth } from "../context/AuthContext";
 import UserActionsMenu from "../components/UserActionsMenu";
 import "./Matches.css";
 
@@ -38,7 +37,7 @@ const Matches = () => {
     } finally {
       setLoading(false);
     }
-  }, [removedUserIds, setMatchesCount]);
+  }, [removedUserIds]);
 
   useEffect(() => {
     loadMatches();

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   Alert,
 } from "react-native";
-import { Avatar, Button, Chip, Divider } from "react-native-paper";
+import { Avatar, Button, Divider } from "react-native-paper";
 import {
   Calendar,
   MapPin,
@@ -16,30 +16,24 @@ import {
   Edit,
   Trash2,
 } from "lucide-react-native";
+import * as SecureStore from "expo-secure-store";
 import api from "../services/api";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function MeetupDetailsScreen({ route, navigation }) {
   const { meetupId } = route.params;
   const [meetup, setMeetup] = useState(null);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [rsvpLoading, setRsvpLoading] = useState(false);
 
   useEffect(() => {
-    fetchMeetupDetails();
-    fetchCurrentUser();
-  }, [meetupId]);
+    // ✅ Read userId from SecureStore (not AsyncStorage — that's where login saves it)
+    SecureStore.getItemAsync("userId").then((id) => {
+      if (id) setCurrentUserId(id);
+    });
+  }, []);
 
-  const fetchCurrentUser = async () => {
-    try {
-      const userId = await AsyncStorage.getItem("userId");
-      setCurrentUserId(userId);
-    } catch (error) {
-      console.error("Error fetching user ID:", error);
-    }
-  };
-
-  const fetchMeetupDetails = async () => {
+  const fetchMeetupDetails = useCallback(async () => {
     try {
       const response = await api.get(`/meetups/${meetupId}`);
       setMeetup(response.data);
@@ -49,16 +43,36 @@ export default function MeetupDetailsScreen({ route, navigation }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [meetupId]);
+
+  useEffect(() => {
+    fetchMeetupDetails();
+  }, [fetchMeetupDetails]);
+
+  // ✅ Fixed: use .toString() on both sides — ObjectId vs string comparison was always false
+  const getUserRSVP = useCallback(() => {
+    if (!meetup || !currentUserId) return null;
+    const rsvp = meetup.rsvps.find(
+      (r) => r.user._id?.toString() === currentUserId.toString(),
+    );
+    return rsvp ? rsvp.status : null;
+  }, [meetup, currentUserId]);
 
   const handleRSVP = async (status) => {
+    if (rsvpLoading) return;
+    const current = getUserRSVP();
+    if (current === status) return; // already this status
+    setRsvpLoading(true);
     try {
-      await api.post(`/meetups/${meetupId}/rsvp`, { status });
-      fetchMeetupDetails();
-      Alert.alert("Success", `RSVP updated to: ${status}`);
+      // ✅ Use response data to update state immediately — no re-fetch needed
+      const response = await api.post(`/meetups/${meetupId}/rsvp`, { status });
+      setMeetup(response.data);
+      // ✅ No Alert.alert on success — button highlight is enough feedback
     } catch (error) {
       console.error("Error updating RSVP:", error);
       Alert.alert("Error", "Failed to update RSVP");
+    } finally {
+      setRsvpLoading(false);
     }
   };
 
@@ -102,12 +116,6 @@ export default function MeetupDetailsScreen({ route, navigation }) {
     });
   };
 
-  const getUserRSVP = () => {
-    if (!meetup || !currentUserId) return null;
-    const rsvp = meetup.rsvps.find((r) => r.user._id === currentUserId);
-    return rsvp ? rsvp.status : null;
-  };
-
   if (loading) {
     return (
       <View style={styles.centerContainer}>
@@ -124,7 +132,9 @@ export default function MeetupDetailsScreen({ route, navigation }) {
     );
   }
 
-  const isCreator = currentUserId === meetup.creator._id;
+  // ✅ Fixed: .toString() on both sides for reliable comparison
+  const isCreator =
+    currentUserId?.toString() === meetup.creator._id?.toString();
   const userRSVP = getUserRSVP();
   const goingCount = meetup.rsvps.filter((r) => r.status === "going").length;
   const maybeCount = meetup.rsvps.filter((r) => r.status === "maybe").length;
@@ -143,7 +153,6 @@ export default function MeetupDetailsScreen({ route, navigation }) {
             <Text style={styles.hostedBy}>Hosted by {meetup.creator.name}</Text>
           </View>
         </View>
-
         {isCreator && (
           <View style={styles.creatorActions}>
             <TouchableOpacity
@@ -172,7 +181,6 @@ export default function MeetupDetailsScreen({ route, navigation }) {
             <Text style={styles.infoValue}>{formatDate(meetup.dateTime)}</Text>
           </View>
         </View>
-
         <View style={styles.infoCard}>
           <Clock color="#2B6CB0" size={24} />
           <View style={styles.infoText}>
@@ -180,7 +188,6 @@ export default function MeetupDetailsScreen({ route, navigation }) {
             <Text style={styles.infoValue}>{formatTime(meetup.dateTime)}</Text>
           </View>
         </View>
-
         {meetup.location && (
           <View style={styles.infoCard}>
             <MapPin color="#2B6CB0" size={24} />
@@ -195,14 +202,13 @@ export default function MeetupDetailsScreen({ route, navigation }) {
             </View>
           </View>
         )}
-
         <View style={styles.infoCard}>
           <Users color="#2B6CB0" size={24} />
           <View style={styles.infoText}>
             <Text style={styles.infoLabel}>Attendees</Text>
             <Text style={styles.infoValue}>
               {goingCount} going, {maybeCount} maybe
-              {meetup.maxAttendees && ` • Max: ${meetup.maxAttendees}`}
+              {meetup.maxAttendees ? ` • Max: ${meetup.maxAttendees}` : ""}
             </Text>
           </View>
         </View>
@@ -224,6 +230,7 @@ export default function MeetupDetailsScreen({ route, navigation }) {
             <Button
               mode={userRSVP === "going" ? "contained" : "outlined"}
               onPress={() => handleRSVP("going")}
+              disabled={rsvpLoading}
               style={[
                 styles.rsvpButton,
                 userRSVP === "going" && styles.rsvpButtonGoing,
@@ -235,6 +242,7 @@ export default function MeetupDetailsScreen({ route, navigation }) {
             <Button
               mode={userRSVP === "maybe" ? "contained" : "outlined"}
               onPress={() => handleRSVP("maybe")}
+              disabled={rsvpLoading}
               style={[
                 styles.rsvpButton,
                 userRSVP === "maybe" && styles.rsvpButtonMaybe,
@@ -246,6 +254,7 @@ export default function MeetupDetailsScreen({ route, navigation }) {
             <Button
               mode={userRSVP === "not-going" ? "contained" : "outlined"}
               onPress={() => handleRSVP("not-going")}
+              disabled={rsvpLoading}
               style={[
                 styles.rsvpButton,
                 userRSVP === "not-going" && styles.rsvpButtonNotGoing,
@@ -262,12 +271,11 @@ export default function MeetupDetailsScreen({ route, navigation }) {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Guest List</Text>
 
-        {/* Going */}
         {goingCount > 0 && (
           <View style={styles.guestCategory}>
             <Text style={styles.categoryTitle}>Going ({goingCount})</Text>
             {meetup.rsvps
-              .filter((rsvp) => rsvp.status === "going")
+              .filter((r) => r.status === "going")
               .map((rsvp) => (
                 <View key={rsvp.user._id} style={styles.guestItem}>
                   <Avatar.Image
@@ -280,12 +288,11 @@ export default function MeetupDetailsScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* Maybe */}
         {maybeCount > 0 && (
           <View style={styles.guestCategory}>
             <Text style={styles.categoryTitle}>Maybe ({maybeCount})</Text>
             {meetup.rsvps
-              .filter((rsvp) => rsvp.status === "maybe")
+              .filter((r) => r.status === "maybe")
               .map((rsvp) => (
                 <View key={rsvp.user._id} style={styles.guestItem}>
                   <Avatar.Image
@@ -298,18 +305,21 @@ export default function MeetupDetailsScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* Invited */}
         <View style={styles.guestCategory}>
           <Text style={styles.categoryTitle}>Invited</Text>
           {meetup.invitedUsers
+            // ✅ Fixed: .toString() comparison here too
             .filter(
-              (user) => !meetup.rsvps.some((r) => r.user._id === user._id),
+              (u) =>
+                !meetup.rsvps.some(
+                  (r) => r.user._id?.toString() === u._id?.toString(),
+                ),
             )
-            .map((user) => (
-              <View key={user._id} style={styles.guestItem}>
-                <Avatar.Image size={48} source={{ uri: user.profilePhoto }} />
+            .map((u) => (
+              <View key={u._id} style={styles.guestItem}>
+                <Avatar.Image size={48} source={{ uri: u.profilePhoto }} />
                 <View>
-                  <Text style={styles.guestName}>{user.name}</Text>
+                  <Text style={styles.guestName}>{u.name}</Text>
                   <Text style={styles.guestStatus}>Not responded</Text>
                 </View>
               </View>
@@ -321,58 +331,28 @@ export default function MeetupDetailsScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F7FAFC",
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  container: { flex: 1, backgroundColor: "#F7FAFC" },
+  centerContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     padding: 20,
     backgroundColor: "white",
   },
-  headerContent: {
-    flex: 1,
-  },
+  headerContent: { flex: 1 },
   title: {
     fontSize: 28,
     fontWeight: "bold",
     color: "#2D2D2D",
     marginBottom: 12,
   },
-  creatorInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  hostedBy: {
-    fontSize: 15,
-    color: "#666",
-  },
-  creatorActions: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  iconButton: {
-    padding: 8,
-  },
-  infoSection: {
-    padding: 20,
-    backgroundColor: "white",
-    gap: 16,
-  },
-  infoCard: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  infoText: {
-    flex: 1,
-  },
+  creatorInfo: { flexDirection: "row", alignItems: "center", gap: 10 },
+  hostedBy: { fontSize: 15, color: "#666" },
+  creatorActions: { flexDirection: "row", gap: 8 },
+  iconButton: { padding: 8 },
+  infoSection: { padding: 20, backgroundColor: "white", gap: 16 },
+  infoCard: { flexDirection: "row", gap: 12 },
+  infoText: { flex: 1 },
   infoLabel: {
     fontSize: 12,
     color: "#999",
@@ -380,54 +360,23 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 4,
   },
-  infoValue: {
-    fontSize: 15,
-    color: "#2D2D2D",
-    fontWeight: "500",
-  },
-  section: {
-    padding: 20,
-    backgroundColor: "white",
-    marginTop: 8,
-  },
+  infoValue: { fontSize: 15, color: "#2D2D2D", fontWeight: "500" },
+  section: { padding: 20, backgroundColor: "white", marginTop: 8 },
   sectionTitle: {
     fontSize: 20,
     fontWeight: "600",
     color: "#2D2D2D",
     marginBottom: 16,
   },
-  description: {
-    fontSize: 15,
-    color: "#666",
-    lineHeight: 22,
-  },
-  rsvpSection: {
-    padding: 20,
-    backgroundColor: "#F7FAFC",
-    marginTop: 8,
-  },
-  rsvpButtons: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  rsvpButton: {
-    flex: 1,
-  },
-  rsvpButtonGoing: {
-    backgroundColor: "#48BB78",
-  },
-  rsvpButtonMaybe: {
-    backgroundColor: "#ED64A6",
-  },
-  rsvpButtonNotGoing: {
-    backgroundColor: "#E53E3E",
-  },
-  rsvpButtonLabel: {
-    fontSize: 13,
-  },
-  guestCategory: {
-    marginBottom: 24,
-  },
+  description: { fontSize: 15, color: "#666", lineHeight: 22 },
+  rsvpSection: { padding: 20, backgroundColor: "#F7FAFC", marginTop: 8 },
+  rsvpButtons: { flexDirection: "row", gap: 8 },
+  rsvpButton: { flex: 1 },
+  rsvpButtonGoing: { backgroundColor: "#48BB78" },
+  rsvpButtonMaybe: { backgroundColor: "#ED64A6" },
+  rsvpButtonNotGoing: { backgroundColor: "#E53E3E" },
+  rsvpButtonLabel: { fontSize: 13 },
+  guestCategory: { marginBottom: 24 },
   categoryTitle: {
     fontSize: 16,
     fontWeight: "600",
@@ -443,13 +392,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 8,
   },
-  guestName: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#2D2D2D",
-  },
-  guestStatus: {
-    fontSize: 13,
-    color: "#999",
-  },
+  guestName: { fontSize: 15, fontWeight: "600", color: "#2D2D2D" },
+  guestStatus: { fontSize: 13, color: "#999" },
 });

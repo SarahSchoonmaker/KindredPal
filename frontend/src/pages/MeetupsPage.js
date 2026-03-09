@@ -1,23 +1,21 @@
 // frontend/src/pages/MeetupsPage.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Plus, Calendar, MapPin, Users, Clock } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 import CreateMeetupModal from "../components/CreateMeetupModal";
 import "./MeetupsPage.css";
 
 function MeetupsPage() {
+  const navigate = useNavigate();
   const [meetups, setMeetups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const { setMeetupsCount } = useAuth();
+  const { markMeetupsSeen } = useAuth();
 
-  useEffect(() => {
-    fetchMeetups();
-  }, []);
-
-  const fetchMeetups = async () => {
+  const fetchMeetups = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -25,19 +23,21 @@ function MeetupsPage() {
       const data = response.data || [];
       setMeetups(data);
 
-      // ✅ Mark all current meetup IDs as seen
-      const seenIds = data.map((m) => m._id);
-      localStorage.setItem("seenMeetupIds", JSON.stringify(seenIds));
-
-      // ✅ Clear the badge
-      if (setMeetupsCount) setMeetupsCount(0);
+      // ✅ Mark all meetup IDs as seen — clears badge, won't reappear unless new invite
+      if (markMeetupsSeen) {
+        markMeetupsSeen(data.map((m) => m._id));
+      }
     } catch (error) {
       console.error("❌ Error fetching meetups:", error);
       setError(error.response?.data?.message || "Failed to load meetups");
     } finally {
       setLoading(false);
     }
-  };
+  }, [markMeetupsSeen]);
+
+  useEffect(() => {
+    fetchMeetups();
+  }, [fetchMeetups]);
 
   const handleCreateMeetup = async (meetupData) => {
     try {
@@ -155,11 +155,10 @@ function MeetupsPage() {
                   />
                   <span>by {meetup.creator?.name}</span>
                 </div>
+                {/* ✅ Use navigate instead of window.location.href — no full page reload */}
                 <button
                   className="btn-secondary"
-                  onClick={() =>
-                    (window.location.href = `/meetups/${meetup._id}`)
-                  }
+                  onClick={() => navigate(`/meetups/${meetup._id}`)}
                 >
                   View Details
                 </button>
