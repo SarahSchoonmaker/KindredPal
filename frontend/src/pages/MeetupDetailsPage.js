@@ -10,6 +10,7 @@ import {
   Trash2,
   UserMinus,
 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 import EditMeetupModal from "../components/EditMeetupModal";
 import "./MeetupDetailsPage.css";
@@ -17,12 +18,15 @@ import "./MeetupDetailsPage.css";
 function MeetupDetailsPage() {
   const { meetupId } = useParams();
   const navigate = useNavigate();
+  // ✅ Get current user from AuthContext — single source of truth, no separate fetch
+  const { user } = useAuth();
+  const currentUserId = user?.id || user?._id;
+
   const [meetup, setMeetup] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [currentUserId, setCurrentUserId] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [rsvpLoading, setRsvpLoading] = useState(false);
 
-  // ✅ Fixed: wrapped in useCallback so it can be a useEffect dependency
   const fetchMeetupDetails = useCallback(async () => {
     try {
       const response = await api.get(`/meetups/${meetupId}`);
@@ -34,71 +38,59 @@ function MeetupDetailsPage() {
     }
   }, [meetupId]);
 
-  const fetchCurrentUser = useCallback(async () => {
-    try {
-      const response = await api.get("/auth/profile");
-      setCurrentUserId(response.data._id);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-    }
-  }, []);
-
   useEffect(() => {
     fetchMeetupDetails();
-    fetchCurrentUser();
-  }, [fetchMeetupDetails, fetchCurrentUser]);
+  }, [fetchMeetupDetails]);
 
+  // ✅ getUserRSVP uses currentUserId from useAuth — always current user
+  const getUserRSVP = useCallback(
+    (currentMeetup) => {
+      const m = currentMeetup || meetup;
+      if (!m || !currentUserId) return null;
+      const rsvp = m.rsvps.find(
+        (r) => r.user._id?.toString() === currentUserId?.toString(),
+      );
+      return rsvp ? rsvp.status : null;
+    },
+    [meetup, currentUserId],
+  );
+
+  // ✅ Fixed: no early-return bug — status passed directly, compared inline
   const handleRSVP = async (status) => {
+    if (rsvpLoading) return;
+    const currentStatus = getUserRSVP();
+    if (currentStatus === status) return;
+    setRsvpLoading(true);
     try {
-      await api.post(`/meetups/${meetupId}/rsvp`, { status });
-      fetchMeetupDetails();
+      const response = await api.post(`/meetups/${meetupId}/rsvp`, { status });
+      // ✅ Use response data directly to update state — no re-fetch needed
+      setMeetup(response.data);
     } catch (error) {
       console.error("Error updating RSVP:", error);
-      alert("Failed to update RSVP");
+    } finally {
+      setRsvpLoading(false);
     }
   };
 
-  const handleUnmatch = async (userId, userName) => {
-    if (
-      !window.confirm(
-        `Are you sure you want to unmatch with ${userName}? This cannot be undone.`,
-      )
-    ) {
+  const handleUnmatch = async (unmatchUserId, userName) => {
+    if (!window.confirm(`Are you sure you want to unmatch with ${userName}?`))
       return;
-    }
-
     try {
-      await api.post(`/users/unmatch/${userId}`);
-      alert(`Unmatched with ${userName}`);
+      await api.post(`/users/unmatch/${unmatchUserId}`);
       fetchMeetupDetails();
     } catch (error) {
       console.error("Error unmatching:", error);
-      alert("Failed to unmatch");
     }
-  };
-
-  const handleEdit = () => {
-    setShowEditModal(true);
   };
 
   const handleDelete = async () => {
-    if (!window.confirm("Are you sure you want to delete this meetup?")) {
-      return;
-    }
-
+    if (!window.confirm("Are you sure you want to delete this meetup?")) return;
     try {
       await api.delete(`/meetups/${meetupId}`);
       navigate("/meetups");
     } catch (error) {
       console.error("Error deleting meetup:", error);
-      alert("Failed to delete meetup");
     }
-  };
-
-  const getUserRSVP = () => {
-    if (!meetup || !currentUserId) return null;
-    const rsvp = meetup.rsvps.find((r) => r.user._id === currentUserId);
-    return rsvp ? rsvp.status : null;
   };
 
   const formatDate = (dateString) => {
@@ -119,23 +111,21 @@ function MeetupDetailsPage() {
     });
   };
 
-  if (loading) {
+  if (loading)
     return (
       <div className="meetup-details-page">
         <div className="loading">Loading...</div>
       </div>
     );
-  }
-
-  if (!meetup) {
+  if (!meetup)
     return (
       <div className="meetup-details-page">
         <div className="error">Meetup not found</div>
       </div>
     );
-  }
 
-  const isCreator = currentUserId === meetup.creator._id;
+  const isCreator =
+    currentUserId?.toString() === meetup.creator._id?.toString();
   const userRSVP = getUserRSVP();
   const goingCount = meetup.rsvps.filter((r) => r.status === "going").length;
   const maybeCount = meetup.rsvps.filter((r) => r.status === "maybe").length;
@@ -143,8 +133,7 @@ function MeetupDetailsPage() {
   return (
     <div className="meetup-details-page">
       <button className="back-btn" onClick={() => navigate("/meetups")}>
-        <ArrowLeft size={20} />
-        Back to Meetups
+        <ArrowLeft size={20} /> Back to Meetups
       </button>
 
       <div className="meetup-details-container">
@@ -160,10 +149,13 @@ function MeetupDetailsPage() {
               <span>Hosted by {meetup.creator.name}</span>
             </div>
           </div>
-
           {isCreator && (
             <div className="creator-actions">
-              <button className="btn-icon" title="Edit" onClick={handleEdit}>
+              <button
+                className="btn-icon"
+                title="Edit"
+                onClick={() => setShowEditModal(true)}
+              >
                 <Edit size={20} />
               </button>
               <button
@@ -185,7 +177,6 @@ function MeetupDetailsPage() {
               <div className="info-value">{formatDate(meetup.dateTime)}</div>
             </div>
           </div>
-
           <div className="info-item">
             <Clock size={24} />
             <div>
@@ -193,7 +184,6 @@ function MeetupDetailsPage() {
               <div className="info-value">{formatTime(meetup.dateTime)}</div>
             </div>
           </div>
-
           {meetup.location && (
             <div className="info-item">
               <MapPin size={24} />
@@ -210,7 +200,6 @@ function MeetupDetailsPage() {
               </div>
             </div>
           )}
-
           <div className="info-item">
             <Users size={24} />
             <div>
@@ -237,18 +226,21 @@ function MeetupDetailsPage() {
               <button
                 className={`rsvp-btn ${userRSVP === "going" ? "active going" : ""}`}
                 onClick={() => handleRSVP("going")}
+                disabled={rsvpLoading}
               >
                 ✓ Going
               </button>
               <button
                 className={`rsvp-btn ${userRSVP === "maybe" ? "active maybe" : ""}`}
                 onClick={() => handleRSVP("maybe")}
+                disabled={rsvpLoading}
               >
                 ? Maybe
               </button>
               <button
                 className={`rsvp-btn ${userRSVP === "not-going" ? "active not-going" : ""}`}
                 onClick={() => handleRSVP("not-going")}
+                disabled={rsvpLoading}
               >
                 ✗ Can't Go
               </button>
@@ -264,7 +256,7 @@ function MeetupDetailsPage() {
               <h4>Going ({goingCount})</h4>
               <div className="guest-list">
                 {meetup.rsvps
-                  .filter((rsvp) => rsvp.status === "going")
+                  .filter((r) => r.status === "going")
                   .map((rsvp) => (
                     <div key={rsvp.user._id} className="guest-item">
                       <img
@@ -276,17 +268,19 @@ function MeetupDetailsPage() {
                       <div className="guest-info">
                         <div className="guest-name">{rsvp.user.name}</div>
                       </div>
-                      {isCreator && rsvp.user._id !== currentUserId && (
-                        <button
-                          className="unmatch-btn"
-                          onClick={() =>
-                            handleUnmatch(rsvp.user._id, rsvp.user.name)
-                          }
-                          title="Unmatch"
-                        >
-                          <UserMinus size={18} />
-                        </button>
-                      )}
+                      {isCreator &&
+                        rsvp.user._id?.toString() !==
+                          currentUserId?.toString() && (
+                          <button
+                            className="unmatch-btn"
+                            onClick={() =>
+                              handleUnmatch(rsvp.user._id, rsvp.user.name)
+                            }
+                            title="Unmatch"
+                          >
+                            <UserMinus size={18} />
+                          </button>
+                        )}
                     </div>
                   ))}
               </div>
@@ -298,7 +292,7 @@ function MeetupDetailsPage() {
               <h4>Maybe ({maybeCount})</h4>
               <div className="guest-list">
                 {meetup.rsvps
-                  .filter((rsvp) => rsvp.status === "maybe")
+                  .filter((r) => r.status === "maybe")
                   .map((rsvp) => (
                     <div key={rsvp.user._id} className="guest-item">
                       <img
@@ -310,17 +304,19 @@ function MeetupDetailsPage() {
                       <div className="guest-info">
                         <div className="guest-name">{rsvp.user.name}</div>
                       </div>
-                      {isCreator && rsvp.user._id !== currentUserId && (
-                        <button
-                          className="unmatch-btn"
-                          onClick={() =>
-                            handleUnmatch(rsvp.user._id, rsvp.user.name)
-                          }
-                          title="Unmatch"
-                        >
-                          <UserMinus size={18} />
-                        </button>
-                      )}
+                      {isCreator &&
+                        rsvp.user._id?.toString() !==
+                          currentUserId?.toString() && (
+                          <button
+                            className="unmatch-btn"
+                            onClick={() =>
+                              handleUnmatch(rsvp.user._id, rsvp.user.name)
+                            }
+                            title="Unmatch"
+                          >
+                            <UserMinus size={18} />
+                          </button>
+                        )}
                     </div>
                   ))}
               </div>
@@ -332,24 +328,27 @@ function MeetupDetailsPage() {
             <div className="guest-list">
               {meetup.invitedUsers
                 .filter(
-                  (user) => !meetup.rsvps.some((r) => r.user._id === user._id),
+                  (u) =>
+                    !meetup.rsvps.some(
+                      (r) => r.user._id?.toString() === u._id?.toString(),
+                    ),
                 )
-                .map((user) => (
-                  <div key={user._id} className="guest-item">
+                .map((u) => (
+                  <div key={u._id} className="guest-item">
                     <img
-                      src={user.profilePhoto}
-                      alt={user.name}
+                      src={u.profilePhoto}
+                      alt={u.name}
                       className="guest-avatar"
-                      onClick={() => navigate(`/profile/${user._id}`)}
+                      onClick={() => navigate(`/profile/${u._id}`)}
                     />
                     <div className="guest-info">
-                      <div className="guest-name">{user.name}</div>
+                      <div className="guest-name">{u.name}</div>
                       <div className="guest-status">Not responded</div>
                     </div>
                     {isCreator && (
                       <button
                         className="unmatch-btn"
-                        onClick={() => handleUnmatch(user._id, user.name)}
+                        onClick={() => handleUnmatch(u._id, u.name)}
                         title="Unmatch"
                       >
                         <UserMinus size={18} />

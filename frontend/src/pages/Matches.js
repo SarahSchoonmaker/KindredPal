@@ -10,7 +10,6 @@ const Matches = () => {
   const navigate = useNavigate();
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { setMatchesCount } = useAuth();
 
   const [removedUserIds, setRemovedUserIds] = useState(() => {
     const stored = localStorage.getItem("removedMatchIds");
@@ -34,11 +33,6 @@ const Matches = () => {
         (match) => !validRemovedIds.has(match._id),
       );
       setMatches(filteredMatches);
-
-      // ✅ Store all seen match IDs and clear the badge
-      const seenIds = backendMatches.map((m) => m._id);
-      localStorage.setItem("seenMatchIds", JSON.stringify(seenIds));
-      if (setMatchesCount) setMatchesCount(0);
     } catch (error) {
       console.error("Error loading matches:", error);
     } finally {
