@@ -11,35 +11,36 @@ const api = axios.create({
   timeout: 30000,
 });
 
-// ✅ Read token fresh from SecureStore on every request
-// This ensures that after logout/login, the new user's token is always used
-api.interceptors.request.use(
-  async (config) => {
-    try {
-      const token = await SecureStore.getItemAsync("token");
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      } else {
-        // ✅ Explicitly remove Authorization if no token (prevents stale header)
+savePushToken: ((data) => api.post("/auth/push-token", data),
+  // ✅ Read token fresh from SecureStore on every request
+  // This ensures that after logout/login, the new user's token is always used
+  api.interceptors.request.use(
+    async (config) => {
+      try {
+        const token = await SecureStore.getItemAsync("token");
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        } else {
+          // ✅ Explicitly remove Authorization if no token (prevents stale header)
+          delete config.headers.Authorization;
+        }
+      } catch (error) {
+        console.error("Error reading token:", error);
         delete config.headers.Authorization;
       }
-    } catch (error) {
-      console.error("Error reading token:", error);
-      delete config.headers.Authorization;
-    }
 
-    // ✅ Prevent axios from caching GET requests between users
-    if (config.method === "get") {
-      config.params = {
-        ...config.params,
-        _t: Date.now(),
-      };
-    }
+      // ✅ Prevent axios from caching GET requests between users
+      if (config.method === "get") {
+        config.params = {
+          ...config.params,
+          _t: Date.now(),
+        };
+      }
 
-    return config;
-  },
-  (error) => Promise.reject(error),
-);
+      return config;
+    },
+    (error) => Promise.reject(error),
+  ));
 
 // Response interceptor
 api.interceptors.response.use(

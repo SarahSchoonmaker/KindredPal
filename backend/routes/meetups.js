@@ -1,8 +1,13 @@
 const express = require("express");
 const router = express.Router();
 const Meetup = require("../models/Meetup");
+const User = require("../models/User");
 const auth = require("../middleware/auth");
 const logger = require("../utils/logger");
+const {
+  sendMeetupInviteEmail,
+  sendMeetupInvitePush,
+} = require("../services/notificationService");
 
 router.get("/", auth, async (req, res) => {
   try {
@@ -73,6 +78,31 @@ router.post("/", auth, async (req, res) => {
     await meetup.populate("rsvps.user", "name profilePhoto");
 
     logger.info("Created meetup:", meetup.title);
+
+    // ✅ Send notifications to all invited users
+    if (invitedUsers && invitedUsers.length > 0) {
+      const creator = await User.findById(req.userId).select(
+        "name email pushTokens",
+      );
+      const invitees = await User.find({ _id: { $in: invitedUsers } }).select(
+        "name email pushTokens emailNotifications",
+      );
+
+      // Send in background — don't block the response
+      Promise.all(
+        invitees.map(async (invitee) => {
+          try {
+            // Email notification
+            await sendMeetupInviteEmail({ invitee, creator, meetup });
+            // Push notification
+            await sendMeetupInvitePush({ invitee, creator, meetup });
+          } catch (err) {
+            logger.error("Failed to notify invitee:", invitee._id, err);
+          }
+        }),
+      ).catch((err) => logger.error("Notification batch error:", err));
+    }
+
     res.status(201).json(meetup);
   } catch (error) {
     logger.error("Error creating meetup:", error);
