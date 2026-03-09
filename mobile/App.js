@@ -11,7 +11,8 @@ import {
   Users,
   UserSearch,
 } from "lucide-react-native";
-import { useFocusEffect } from "@react-navigation/native";
+import { AppState } from "react-native";
+import * as SecureStore from "expo-secure-store";
 import {
   registerForPushNotifications,
   setupNotificationListeners,
@@ -58,48 +59,47 @@ const headerStyle = {
   headerTitleStyle: { fontWeight: "bold" },
 };
 
-function MainTabs() {
-  const [pendingMeetups, setPendingMeetups] = useState(0);
-  const [currentUserId, setCurrentUserId] = useState(null);
+const BADGE_STYLE = {
+  backgroundColor: "#E53E3E",
+  color: "white",
+  fontSize: 11,
+};
 
-  // Fetch current user ID once
-  useEffect(() => {
-    api
-      .get("/auth/profile")
-      .then((res) => setCurrentUserId(res.data._id))
-      .catch(() => {});
+function MainTabs() {
+  const [counts, setCounts] = useState({
+    unread: 0,
+    interested: 0,
+    matches: 0,
+    meetups: 0,
+  });
+
+  const fetchCounts = useCallback(async () => {
+    try {
+      const token = await SecureStore.getItemAsync("token");
+      if (!token) return;
+      const res = await api.get("/users/counts");
+      setCounts(res.data);
+    } catch (err) {
+      // Silently fail — user may not be logged in yet
+    }
   }, []);
 
-  // Poll for pending meetup invites every 30 seconds
+  // Fetch on mount and every 30 seconds
   useEffect(() => {
-    if (!currentUserId) return;
-
-    const fetchPendingMeetups = async () => {
-      try {
-        const res = await api.get("/meetups");
-        const meetups = res.data || [];
-        // Count meetups where user is invited but hasn't RSVP'd
-        const pending = meetups.filter((meetup) => {
-          const isCreator = meetup.creator?._id === currentUserId;
-          if (isCreator) return false;
-          const hasRsvp = meetup.rsvps?.some(
-            (r) => r.user?._id === currentUserId,
-          );
-          const isInvited = meetup.invitedUsers?.some(
-            (u) => u._id === currentUserId,
-          );
-          return isInvited && !hasRsvp;
-        });
-        setPendingMeetups(pending.length);
-      } catch (err) {
-        // Silently fail
-      }
-    };
-
-    fetchPendingMeetups();
-    const interval = setInterval(fetchPendingMeetups, 30000);
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 30000);
     return () => clearInterval(interval);
-  }, [currentUserId]);
+  }, [fetchCounts]);
+
+  // Also refresh when app comes back to foreground
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") fetchCounts();
+    });
+    return () => sub.remove();
+  }, [fetchCounts]);
+
+  const badge = (n) => (n > 0 ? (n > 99 ? "99+" : n) : undefined);
 
   return (
     <Tab.Navigator
@@ -128,51 +128,64 @@ function MainTabs() {
           ),
         }}
       />
+
       <Tab.Screen
         name="Interested"
         component={LikesYouScreen}
+        listeners={{
+          tabPress: () => setCounts((c) => ({ ...c, interested: 0 })),
+        }}
         options={{
           tabBarLabel: "Interested",
+          tabBarBadge: badge(counts.interested),
+          tabBarBadgeStyle: BADGE_STYLE,
           tabBarIcon: ({ color, size }) => (
             <UserSearch color={color} size={size} />
           ),
         }}
       />
+
       <Tab.Screen
         name="Connections"
         component={ConnectionsScreen}
+        listeners={{ tabPress: () => setCounts((c) => ({ ...c, matches: 0 })) }}
         options={{
           tabBarLabel: "Connections",
           title: "My Connections",
+          tabBarBadge: badge(counts.matches),
+          tabBarBadgeStyle: BADGE_STYLE,
           tabBarIcon: ({ color, size }) => <Users color={color} size={size} />,
         }}
       />
+
       <Tab.Screen
         name="Messages"
         component={MessagesScreen}
+        listeners={{ tabPress: () => setCounts((c) => ({ ...c, unread: 0 })) }}
         options={{
           tabBarLabel: "Messages",
+          tabBarBadge: badge(counts.unread),
+          tabBarBadgeStyle: BADGE_STYLE,
           tabBarIcon: ({ color, size }) => (
             <MessageCircle color={color} size={size} />
           ),
         }}
       />
+
       <Tab.Screen
         name="Meetups"
         component={MeetupsScreen}
+        listeners={{ tabPress: () => setCounts((c) => ({ ...c, meetups: 0 })) }}
         options={{
           tabBarLabel: "Meetups",
-          tabBarBadge: pendingMeetups > 0 ? pendingMeetups : undefined,
-          tabBarBadgeStyle: {
-            backgroundColor: "#E53E3E",
-            color: "white",
-            fontSize: 11,
-          },
+          tabBarBadge: badge(counts.meetups),
+          tabBarBadgeStyle: BADGE_STYLE,
           tabBarIcon: ({ color, size }) => (
             <Calendar color={color} size={size} />
           ),
         }}
       />
+
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
