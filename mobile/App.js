@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -11,10 +11,12 @@ import {
   Users,
   UserSearch,
 } from "lucide-react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   registerForPushNotifications,
   setupNotificationListeners,
 } from "./src/services/pushNotifications";
+import api from "./src/services/api";
 
 // Auth Screens
 import LoginScreen from "./src/screens/LoginScreen";
@@ -57,6 +59,48 @@ const headerStyle = {
 };
 
 function MainTabs() {
+  const [pendingMeetups, setPendingMeetups] = useState(0);
+  const [currentUserId, setCurrentUserId] = useState(null);
+
+  // Fetch current user ID once
+  useEffect(() => {
+    api
+      .get("/auth/profile")
+      .then((res) => setCurrentUserId(res.data._id))
+      .catch(() => {});
+  }, []);
+
+  // Poll for pending meetup invites every 30 seconds
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const fetchPendingMeetups = async () => {
+      try {
+        const res = await api.get("/meetups");
+        const meetups = res.data || [];
+        // Count meetups where user is invited but hasn't RSVP'd
+        const pending = meetups.filter((meetup) => {
+          const isCreator = meetup.creator?._id === currentUserId;
+          if (isCreator) return false;
+          const hasRsvp = meetup.rsvps?.some(
+            (r) => r.user?._id === currentUserId,
+          );
+          const isInvited = meetup.invitedUsers?.some(
+            (u) => u._id === currentUserId,
+          );
+          return isInvited && !hasRsvp;
+        });
+        setPendingMeetups(pending.length);
+      } catch (err) {
+        // Silently fail
+      }
+    };
+
+    fetchPendingMeetups();
+    const interval = setInterval(fetchPendingMeetups, 30000);
+    return () => clearInterval(interval);
+  }, [currentUserId]);
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -118,6 +162,12 @@ function MainTabs() {
         component={MeetupsScreen}
         options={{
           tabBarLabel: "Meetups",
+          tabBarBadge: pendingMeetups > 0 ? pendingMeetups : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: "#E53E3E",
+            color: "white",
+            fontSize: 11,
+          },
           tabBarIcon: ({ color, size }) => (
             <Calendar color={color} size={size} />
           ),
