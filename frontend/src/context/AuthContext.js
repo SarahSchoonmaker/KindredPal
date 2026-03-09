@@ -7,7 +7,7 @@ import React, {
   useCallback,
 } from "react";
 import { io } from "socket.io-client";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import api from "../services/api";
 
 const AuthContext = createContext();
@@ -26,10 +26,13 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
-  const navigate = useNavigate(); // ✅ Added - was missing, caused logout crash
+  const [interestedCount, setInterestedCount] = useState(0);
+  const [matchesCount, setMatchesCount] = useState(0);
+  const [meetupsCount, setMeetupsCount] = useState(0);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const socketRef = useRef(null);
-
   const isAuthenticated = !!user;
 
   useEffect(() => {
@@ -42,23 +45,55 @@ export const AuthProvider = ({ children }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── Fetch all badge counts in one call ──────────────────────────────────────
+  const fetchAllCounts = useCallback(async () => {
+    try {
+      const response = await api.get("/users/counts");
+      const { unread, interested, matches, meetups } = response.data;
+      setUnreadCount(unread ?? 0);
+      setInterestedCount(interested ?? 0);
+      setMatchesCount(matches ?? 0);
+      setMeetupsCount(meetups ?? 0);
+    } catch (error) {
+      console.error("Error loading counts:", error);
+    }
+  }, []);
+
+  // Keep for backwards compatibility (messages badge)
   const fetchUnreadCount = useCallback(async () => {
     try {
       const response = await api.get("/messages/unread/count");
-      console.log("📊 Unread count:", response.data.count);
-      setUnreadCount(response.data.count);
+      setUnreadCount(response.data.count ?? 0);
     } catch (error) {
-      console.error("Error loading unread count:", error);
       setUnreadCount(0);
     }
   }, []);
 
+  // Fetch counts when user logs in
   useEffect(() => {
     const userId = user?.id || user?._id;
     if (!userId) return;
-    fetchUnreadCount();
-  }, [user?.id, user?._id, fetchUnreadCount]);
+    fetchAllCounts();
+  }, [user?.id, user?._id, fetchAllCounts]);
 
+  // Poll every 60 seconds while logged in
+  useEffect(() => {
+    const userId = user?.id || user?._id;
+    if (!userId) return;
+    const interval = setInterval(fetchAllCounts, 60000);
+    return () => clearInterval(interval);
+  }, [user?.id, user?._id, fetchAllCounts]);
+
+  // ── Auto-clear badges when user visits the relevant page ───────────────────
+  useEffect(() => {
+    const path = location.pathname;
+    if (path === "/likes-you") setInterestedCount(0);
+    if (path === "/matches") setMatchesCount(0);
+    if (path.startsWith("/messages")) setUnreadCount(0);
+    if (path === "/meetups") setMeetupsCount(0);
+  }, [location.pathname]);
+
+  // ── Socket setup ───────────────────────────────────────────────────────────
   useEffect(() => {
     const userId = user?.id || user?._id;
     if (!userId) return;
@@ -68,25 +103,40 @@ export const AuthProvider = ({ children }) => {
       socketRef.current = null;
     }
 
-    console.log("🔌 Connecting to socket...");
-    const s = io(SOCKET_URL, {
-      transports: ["websocket"],
-    });
-
+    const s = io(SOCKET_URL, { transports: ["websocket"] });
     socketRef.current = s;
 
     s.on("connect", () => {
-      console.log("✅ Socket connected!");
       s.emit("user-online", userId);
     });
 
     s.on("new-message", () => {
-      console.log("📨 NEW MESSAGE EVENT RECEIVED!");
       const onMessagesPage = window.location.pathname.startsWith("/messages");
       if (!onMessagesPage) {
         setUnreadCount((prev) => prev + 1);
       } else {
         fetchUnreadCount();
+      }
+    });
+
+    s.on("new-like", () => {
+      const onInterestedPage = window.location.pathname === "/likes-you";
+      if (!onInterestedPage) {
+        setInterestedCount((prev) => prev + 1);
+      }
+    });
+
+    s.on("new-match", () => {
+      const onMatchesPage = window.location.pathname === "/matches";
+      if (!onMatchesPage) {
+        setMatchesCount((prev) => prev + 1);
+      }
+    });
+
+    s.on("new-meetup-invite", () => {
+      const onMeetupsPage = window.location.pathname === "/meetups";
+      if (!onMeetupsPage) {
+        setMeetupsCount((prev) => prev + 1);
       }
     });
 
@@ -100,10 +150,10 @@ export const AuthProvider = ({ children }) => {
     };
   }, [user?.id, user?._id, fetchUnreadCount]);
 
+  // ── Auth methods ───────────────────────────────────────────────────────────
   const fetchUser = async () => {
     try {
       const response = await api.get("/auth/profile");
-      console.log("👤 Fetched user:", response.data);
       setUser(response.data);
     } catch (error) {
       console.error("Error fetching user:", error);
@@ -135,7 +185,6 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await api.post("/auth/login", { email, password });
       if (response.data.token) {
-        // ✅ Clear previous user's cached localStorage data
         localStorage.removeItem("likedUserIds");
         localStorage.removeItem("connectedInterestedIds");
         localStorage.setItem("token", response.data.token);
@@ -152,36 +201,24 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    // ✅ Clear all localStorage
     localStorage.removeItem("token");
     localStorage.removeItem("likedUserIds");
     localStorage.removeItem("connectedInterestedIds");
-
-    // ✅ Reset all in-memory state
     setUser(null);
     setUnreadCount(0);
-
-    // ✅ Disconnect socket cleanly
+    setInterestedCount(0);
+    setMatchesCount(0);
+    setMeetupsCount(0);
     if (socketRef.current) {
       socketRef.current.disconnect();
       socketRef.current = null;
     }
-
-    // ✅ Navigate to login - fixed, was calling undefined setToken() and navigate()
     navigate("/login");
   };
 
-  const updateUser = (updatedUser) => {
-    setUser(updatedUser);
-  };
-
-  const incrementUnread = () => {
-    setUnreadCount((prev) => prev + 1);
-  };
-
-  const clearUnread = () => {
-    setUnreadCount(0);
-  };
+  const updateUser = (updatedUser) => setUser(updatedUser);
+  const incrementUnread = () => setUnreadCount((prev) => prev + 1);
+  const clearUnread = () => setUnreadCount(0);
 
   const value = {
     user,
@@ -193,9 +230,13 @@ export const AuthProvider = ({ children }) => {
     updateUser,
     fetchUser,
     unreadCount,
+    interestedCount,
+    matchesCount,
+    meetupsCount,
     incrementUnread,
     clearUnread,
     fetchUnreadCount,
+    fetchAllCounts,
     socket: socketRef.current,
   };
 

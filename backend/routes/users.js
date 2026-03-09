@@ -833,4 +833,63 @@ router.post("/push-token", auth, async (req, res) => {
   }
 });
 
+// ===== GET ALL BADGE COUNTS =====
+// Add this route to backend/routes/users.js BEFORE module.exports
+// Also add to backend/routes/meetups.js or keep here — your choice
+
+// @route   GET /api/users/counts
+// @desc    Get all unread/unseen counts for badge display
+// @access  Private
+router.get("/counts", auth, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    // 1. Unread messages
+    const Message = require("../models/Message");
+    const unread = await Message.countDocuments({
+      recipient: userId,
+      read: false,
+    });
+
+    // 2. Interested (users who liked you, not yet matched/passed)
+    const currentUser = await User.findById(userId)
+      .select("matches blockedUsers")
+      .lean();
+
+    const excludedIds = [
+      userId,
+      ...(currentUser.matches || []),
+      ...(currentUser.blockedUsers || []),
+    ];
+
+    const interested = await User.countDocuments({
+      likes: userId,
+      _id: { $nin: excludedIds },
+      isDeleted: { $ne: true },
+      isActive: { $ne: false },
+    });
+
+    // 3. New matches — count matches added since last seen
+    // We use a simple approach: total matches count
+    // The frontend clears this when user visits /matches
+    const matchesCount = (currentUser.matches || []).length;
+
+    // 4. Pending meetup invites (invited but no RSVP yet)
+    const Meetup = require("../models/Meetup");
+    const meetupInvites = await Meetup.find({
+      invitedUsers: userId,
+      isActive: true,
+    }).select("rsvps");
+
+    const meetups = meetupInvites.filter(
+      (m) => !m.rsvps.some((r) => r.user.toString() === userId),
+    ).length;
+
+    res.json({ unread, interested, matches: matchesCount, meetups });
+  } catch (error) {
+    logger.error("❌ Get counts error:", error);
+    res.status(500).json({ message: "Error fetching counts" });
+  }
+});
+
 module.exports = router;

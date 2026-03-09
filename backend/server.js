@@ -155,6 +155,7 @@ const io = new Server(server, {
   pingTimeout: 60000,
   pingInterval: 25000,
 });
+app.set("io", io);
 
 app.use((req, res, next) => {
   if (req.method === "GET" && !req.path.includes("/messages")) {

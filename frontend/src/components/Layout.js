@@ -13,10 +13,41 @@ import { useAuth } from "../context/AuthContext";
 import Footer from "./Footer";
 import "./Layout.css";
 
+const BadgeIcon = ({ children, count }) => (
+  <div style={{ position: "relative", display: "inline-flex" }}>
+    {children}
+    {count > 0 && (
+      <span
+        style={{
+          position: "absolute",
+          top: -6,
+          right: -8,
+          backgroundColor: "#E53E3E",
+          color: "white",
+          borderRadius: "50%",
+          minWidth: 18,
+          height: 18,
+          fontSize: 11,
+          fontWeight: "bold",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "0 4px",
+          lineHeight: 1,
+          pointerEvents: "none",
+        }}
+      >
+        {count > 99 ? "99+" : count}
+      </span>
+    )}
+  </div>
+);
+
 const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout, unreadCount } = useAuth();
+  const { logout, unreadCount, interestedCount, matchesCount, meetupsCount } =
+    useAuth();
 
   const hideFooter = location.pathname.startsWith("/messages");
 
@@ -67,7 +98,9 @@ const Layout = () => {
               className={`nav-link ${location.pathname === "/likes-you" ? "active" : ""}`}
               onClick={() => navigate("/likes-you")}
             >
-              <Users size={20} />
+              <BadgeIcon count={interestedCount}>
+                <Users size={20} />
+              </BadgeIcon>
               <span>Interested</span>
             </button>
 
@@ -75,23 +108,19 @@ const Layout = () => {
               className={`nav-link ${location.pathname === "/matches" ? "active" : ""}`}
               onClick={() => navigate("/matches")}
             >
-              <Home size={20} />
+              <BadgeIcon count={matchesCount}>
+                <Home size={20} />
+              </BadgeIcon>
               <span>Matches</span>
             </button>
 
-            {/* ✅ Messages button with unread badge */}
             <button
               className={`nav-link ${location.pathname.startsWith("/messages") ? "active" : ""}`}
               onClick={() => navigate("/messages")}
             >
-              <div style={{ position: "relative", display: "inline-flex" }}>
+              <BadgeIcon count={unreadCount}>
                 <MessageCircle size={20} />
-                {unreadCount > 0 && (
-                  <span className="nav-unread-badge">
-                    {unreadCount > 99 ? "99+" : unreadCount}
-                  </span>
-                )}
-              </div>
+              </BadgeIcon>
               <span>Messages</span>
             </button>
 
@@ -99,7 +128,9 @@ const Layout = () => {
               className={`nav-link ${location.pathname === "/meetups" ? "active" : ""}`}
               onClick={() => navigate("/meetups")}
             >
-              <Calendar size={20} />
+              <BadgeIcon count={meetupsCount}>
+                <Calendar size={20} />
+              </BadgeIcon>
               <span>Meetups</span>
             </button>
 
