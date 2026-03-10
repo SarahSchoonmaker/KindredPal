@@ -11,36 +11,33 @@ const api = axios.create({
   timeout: 30000,
 });
 
-savePushToken: ((data) => api.post("/auth/push-token", data),
-  // ✅ Read token fresh from SecureStore on every request
-  // This ensures that after logout/login, the new user's token is always used
-  api.interceptors.request.use(
-    async (config) => {
-      try {
-        const token = await SecureStore.getItemAsync("token");
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        } else {
-          // ✅ Explicitly remove Authorization if no token (prevents stale header)
-          delete config.headers.Authorization;
-        }
-      } catch (error) {
-        console.error("Error reading token:", error);
+// ✅ Read token fresh from SecureStore on every request
+api.interceptors.request.use(
+  async (config) => {
+    try {
+      const token = await SecureStore.getItemAsync("token");
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      } else {
         delete config.headers.Authorization;
       }
+    } catch (error) {
+      console.error("Error reading token:", error);
+      delete config.headers.Authorization;
+    }
 
-      // ✅ Prevent axios from caching GET requests between users
-      if (config.method === "get") {
-        config.params = {
-          ...config.params,
-          _t: Date.now(),
-        };
-      }
+    // ✅ Cache-bust all GET requests — prevents stale data between user switches
+    if (config.method === "get") {
+      config.params = {
+        ...config.params,
+        _t: Date.now(),
+      };
+    }
 
-      return config;
-    },
-    (error) => Promise.reject(error),
-  ));
+    return config;
+  },
+  (error) => Promise.reject(error),
+);
 
 // Response interceptor
 api.interceptors.response.use(
@@ -63,7 +60,7 @@ api.interceptors.response.use(
   },
 );
 
-// Auth API
+// ===== AUTH =====
 export const authAPI = {
   login: (email, password) => api.post("/auth/login", { email, password }),
   signup: (userData) => api.post("/auth/signup", userData),
@@ -71,16 +68,24 @@ export const authAPI = {
   forgotPassword: (email) => api.post("/auth/forgot-password", { email }),
   resetPassword: (token, newPassword) =>
     api.post("/auth/reset-password", { token, newPassword }),
+  savePushToken: (data) => api.post("/auth/push-token", data),
 };
 
-// User API
+// ===== USERS =====
 export const userAPI = {
-  getDiscover: (params) => api.get("/users/discover", { params }),
+  // ✅ Both names provided — DiscoverScreen uses getDiscoverUsers/likeUser/passUser
+  getDiscoverUsers: (params) => api.get("/users/discover", { params }),
+  getDiscover: (params) => api.get("/users/discover", { params }), // alias
+  likeUser: (userId) => api.post(`/users/like/${userId}`),
+  like: (userId) => api.post(`/users/like/${userId}`),           // alias
+  passUser: (userId) => api.post(`/users/pass/${userId}`),
+  pass: (userId) => api.post(`/users/pass/${userId}`),           // alias
   getProfile: (userId) => api.get(`/users/profile/${userId}`),
   getMatches: () => api.get("/users/matches"),
   updateProfile: (data) => api.put("/users/profile", data),
   deleteAccount: () => api.delete("/users/account"),
   getLikesYou: () => api.get("/users/likes-you"),
+  getCounts: () => api.get("/users/counts"),
   updateNotificationSettings: (settings) =>
     api.put("/users/notification-settings", settings),
   reportUser: (userId, reason) =>
@@ -89,11 +94,10 @@ export const userAPI = {
   unblockUser: (userId) => api.delete(`/users/${userId}/block`),
   getBlockedUsers: () => api.get("/users/blocked"),
   unmatch: (userId) => api.post(`/users/unmatch/${userId}`),
-  like: (userId) => api.post(`/users/like/${userId}`),
-  pass: (userId) => api.post(`/users/pass/${userId}`),
+  clearPassed: () => api.delete("/users/passed"),
 };
 
-// Message API
+// ===== MESSAGES =====
 export const messageAPI = {
   getConversations: () => api.get("/messages/conversations"),
   getMessages: (userId) => api.get(`/messages/${userId}`),
@@ -105,7 +109,7 @@ export const messageAPI = {
     api.get(`/messages/unread/count/${userId}`),
 };
 
-// Meetups API
+// ===== MEETUPS =====
 export const meetupsAPI = {
   getMeetups: () => api.get("/meetups"),
   getMeetup: (meetupId) => api.get(`/meetups/${meetupId}`),
