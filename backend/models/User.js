@@ -62,7 +62,7 @@ const userSchema = new mongoose.Schema(
       },
     },
 
-    // PASSWORD RESET FIELDS - MOVED HERE (outside additionalPhotos)
+    // PASSWORD RESET FIELDS
     resetPasswordToken: {
       type: String,
     },
@@ -166,7 +166,6 @@ const userSchema = new mongoose.Schema(
         type: String,
         required: true,
         enum: [
-          // Relationship Status
           "Single",
           "In a Relationship",
           "Engaged",
@@ -174,8 +173,6 @@ const userSchema = new mongoose.Schema(
           "Divorced",
           "Widowed",
           "It's Complicated",
-
-          // Family Status
           "Single Parent",
           "Have Children",
           "Child-free by Choice",
@@ -183,13 +180,9 @@ const userSchema = new mongoose.Schema(
           "Empty Nester",
           "Stay-at-Home Parent",
           "Caregiver",
-
-          // Education
           "College Student",
           "Graduate Student",
           "Recent Graduate",
-
-          // Career
           "Working Professional",
           "Career Focused",
           "Entrepreneur",
@@ -280,31 +273,14 @@ const userSchema = new mongoose.Schema(
       },
     ],
 
-    // Email Notification Settings
     emailNotifications: {
-      newMatch: {
-        type: Boolean,
-        default: true,
-      },
-      newMessage: {
-        type: Boolean,
-        default: true,
-      },
-      weeklyDigest: {
-        type: Boolean,
-        default: false,
-      },
+      newMatch: { type: Boolean, default: true },
+      newMessage: { type: Boolean, default: true },
+      weeklyDigest: { type: Boolean, default: false },
     },
 
-    // Account Deletion (Soft Delete)
-    isDeleted: {
-      type: Boolean,
-      default: false,
-    },
-    deletedAt: {
-      type: Date,
-      default: null,
-    },
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date, default: null },
 
     subscription: {
       tier: {
@@ -335,10 +311,7 @@ const userSchema = new mongoose.Schema(
             ],
           },
           description: String,
-          priority: {
-            type: String,
-            enum: ["High", "Medium", "Low"],
-          },
+          priority: { type: String, enum: ["High", "Medium", "Low"] },
           status: {
             type: String,
             enum: ["Active", "Completed", "Paused"],
@@ -350,32 +323,13 @@ const userSchema = new mongoose.Schema(
       ],
     },
 
-    likes: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
-    matches: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
-    passed: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
+    likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    matches: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    passed: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    blockedUsers: [
+      { type: mongoose.Schema.Types.ObjectId, ref: "User", default: [] },
     ],
 
-    blockedUsers: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-        default: [],
-      },
-    ],
     pushTokens: [
       {
         token: { type: String, required: true },
@@ -383,10 +337,12 @@ const userSchema = new mongoose.Schema(
         createdAt: { type: Date, default: Date.now },
       },
     ],
+
     dailyLikes: {
       count: { type: Number, default: 10 },
       lastReset: { type: Date, default: Date.now },
     },
+
     eventsAttended: [
       {
         eventId: String,
@@ -395,24 +351,16 @@ const userSchema = new mongoose.Schema(
         location: String,
       },
     ],
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
-    lastSeen: {
-      type: Date,
-      default: Date.now,
-    },
+
+    isActive: { type: Boolean, default: true },
+    lastSeen: { type: Date, default: Date.now },
   },
-  {
-    timestamps: true,
-  },
+  { timestamps: true },
 );
 
 // Hash password before saving
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
-
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
@@ -422,12 +370,10 @@ userSchema.pre("save", async function (next) {
   }
 });
 
-// Compare password method
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// Soft delete method
 userSchema.methods.softDelete = function () {
   this.isDeleted = true;
   this.deletedAt = new Date();
@@ -435,7 +381,6 @@ userSchema.methods.softDelete = function () {
   return this.save();
 };
 
-// Check if user is premium
 userSchema.methods.isPremium = function () {
   if (this.subscription.tier === "lifetime") return true;
   if (this.subscription.tier === "free") return false;
@@ -447,27 +392,22 @@ userSchema.methods.isPremium = function () {
 userSchema.methods.hasUnlimitedLikes = function () {
   return this.isPremium();
 };
-
 userSchema.methods.canAccessEvents = function () {
   return (
     ["annual", "lifetime"].includes(this.subscription.tier) && this.isPremium()
   );
 };
-
 userSchema.methods.canRequestMatchmaking = function () {
   if (this.subscription.tier !== "lifetime") return false;
   const sessions = this.subscription.manualMatchmakingSessions;
   return sessions.used < sessions.total;
 };
-
 userSchema.methods.useMatchmakingSession = function () {
-  if (!this.canRequestMatchmaking()) {
+  if (!this.canRequestMatchmaking())
     throw new Error("No matchmaking sessions available");
-  }
   this.subscription.manualMatchmakingSessions.used += 1;
   this.subscription.manualMatchmakingSessions.lastSessionDate = new Date();
 };
-
 userSchema.methods.resetMatchmakingSessions = function () {
   if (this.subscription.tier === "lifetime") {
     this.subscription.manualMatchmakingSessions.total = 2;
@@ -475,34 +415,22 @@ userSchema.methods.resetMatchmakingSessions = function () {
   }
 };
 
-// Check if user matches location preference
 userSchema.methods.meetsLocationPreference = function (otherUser) {
   const pref = this.locationPreference;
-
   if (pref === "Anywhere") return true;
   if (pref === "Same city")
     return this.city.toLowerCase() === otherUser.city.toLowerCase();
   if (pref === "Same state" || pref === "Home state")
-    // ← Handle both
     return this.state === otherUser.state;
-
-  // For mile-based preferences, would need geocoding (future feature)
   if (pref.includes("miles")) return this.state === otherUser.state;
-
   return true;
 };
 
-// Calculate match score with location preference
 userSchema.methods.calculateMatchScore = function (otherUser) {
-  // First check location preference
-  if (!this.meetsLocationPreference(otherUser)) {
-    return 0;
-  }
+  if (!this.meetsLocationPreference(otherUser)) return 0;
 
   let score = 0;
   let totalWeight = 0;
-
-  // Weight distribution
   const weights = {
     lifeStage: 35,
     location: 25,
@@ -512,57 +440,51 @@ userSchema.methods.calculateMatchScore = function (otherUser) {
     religion: 5,
   };
 
-  // 1. Life Stage Matching (35%)
   const commonLifeStages = this.lifeStage.filter((stage) =>
     otherUser.lifeStage.includes(stage),
   );
   if (this.lifeStage.length > 0 && otherUser.lifeStage.length > 0) {
-    const lifeStageScore =
-      commonLifeStages.length /
-      Math.max(this.lifeStage.length, otherUser.lifeStage.length);
-    score += lifeStageScore * weights.lifeStage;
+    score +=
+      (commonLifeStages.length /
+        Math.max(this.lifeStage.length, otherUser.lifeStage.length)) *
+      weights.lifeStage;
     totalWeight += weights.lifeStage;
   }
 
-  // 2. Location Matching (25%)
   if (this.state === otherUser.state) {
     score += weights.location;
-    if (this.city.toLowerCase() === otherUser.city.toLowerCase()) {
-      score += 5;
-    }
+    if (this.city.toLowerCase() === otherUser.city.toLowerCase()) score += 5;
     totalWeight += weights.location;
   }
 
-  // 3. Age Compatibility (15%)
   const ageDiff = Math.abs(this.age - otherUser.age);
-  if (ageDiff <= 5) {
-    score += weights.age;
-  } else if (ageDiff <= 10) {
-    score += weights.age * 0.7;
-  } else if (ageDiff <= 15) {
-    score += weights.age * 0.4;
-  }
+  score +=
+    ageDiff <= 5
+      ? weights.age
+      : ageDiff <= 10
+        ? weights.age * 0.7
+        : ageDiff <= 15
+          ? weights.age * 0.4
+          : 0;
   totalWeight += weights.age;
 
-  // 4. Causes/Interests Matching (10%)
   if (this.causes.length > 0 && otherUser.causes.length > 0) {
     const commonCauses = this.causes.filter((cause) =>
       otherUser.causes.includes(cause),
     );
-    const causesScore =
-      commonCauses.length /
-      Math.max(this.causes.length, otherUser.causes.length);
-    score += causesScore * weights.causes;
+    score +=
+      (commonCauses.length /
+        Math.max(this.causes.length, otherUser.causes.length)) *
+      weights.causes;
     totalWeight += weights.causes;
   }
 
-  // 5. Political Beliefs (10%)
   if (
     this.politicalBeliefs.length > 0 &&
     otherUser.politicalBeliefs.length > 0
   ) {
-    const commonPolitics = this.politicalBeliefs.filter((belief) =>
-      otherUser.politicalBeliefs.includes(belief),
+    const commonPolitics = this.politicalBeliefs.filter((b) =>
+      otherUser.politicalBeliefs.includes(b),
     );
     if (commonPolitics.length > 0) {
       score += weights.politicalBeliefs;
@@ -571,84 +493,49 @@ userSchema.methods.calculateMatchScore = function (otherUser) {
       const hasModerate =
         this.politicalBeliefs.some((b) => moderateBeliefs.includes(b)) ||
         otherUser.politicalBeliefs.some((b) => moderateBeliefs.includes(b));
-      if (hasModerate) {
-        score += weights.politicalBeliefs * 0.5;
-      }
+      if (hasModerate) score += weights.politicalBeliefs * 0.5;
     }
     totalWeight += weights.politicalBeliefs;
   }
 
-  // 6. Religion (5%)
   if (this.religion && otherUser.religion) {
     if (this.religion === otherUser.religion) {
       score += weights.religion;
     } else {
       const openMinded = ["Seeking/Undecided", "Agnostic", "Prefer not to say"];
-      const eitherOpenMinded =
+      if (
         openMinded.includes(this.religion) ||
-        openMinded.includes(otherUser.religion);
-      if (eitherOpenMinded) {
+        openMinded.includes(otherUser.religion)
+      )
         score += weights.religion * 0.5;
-      }
     }
     totalWeight += weights.religion;
   }
 
-  // Normalize score to 0-100
   return totalWeight > 0 ? Math.round((score / totalWeight) * 100) : 0;
 };
 
-// Remove sensitive data from JSON response
 userSchema.methods.toJSON = function () {
   const user = this.toObject();
   delete user.password;
-
   if (user.subscription) {
     delete user.subscription.stripeCustomerId;
     delete user.subscription.stripeSubscriptionId;
   }
-
   return user;
 };
 
-// ===== PERFORMANCE INDEXES =====
-
-// Basic indexes
+// Indexes
 userSchema.index({ email: 1 }, { unique: true });
 userSchema.index({ isDeleted: 1 });
-
-// Location-based compound indexes
-userSchema.index({ state: 1, isDeleted: 1 }); // Same state queries
-userSchema.index({ state: 1, city: 1, isDeleted: 1 }); // Same city queries
-
-// Filter-based indexes
+userSchema.index({ state: 1, isDeleted: 1 });
+userSchema.index({ state: 1, city: 1, isDeleted: 1 });
 userSchema.index({ politicalBeliefs: 1, isDeleted: 1 });
 userSchema.index({ religion: 1, isDeleted: 1 });
 userSchema.index({ lifeStage: 1, isDeleted: 1 });
-
-// Compound indexes for common filter combinations
-userSchema.index({
-  state: 1,
-  politicalBeliefs: 1,
-  isDeleted: 1,
-}); // Location + politics
-
-userSchema.index({
-  state: 1,
-  religion: 1,
-  isDeleted: 1,
-}); // Location + religion
-
-userSchema.index({
-  state: 1,
-  lifeStage: 1,
-  isDeleted: 1,
-}); // Location + life stage
-
-// Text search index for future name/bio search
-userSchema.index({
-  name: "text",
-  bio: "text",
-});
+userSchema.index({ state: 1, politicalBeliefs: 1, isDeleted: 1 });
+userSchema.index({ state: 1, religion: 1, isDeleted: 1 });
+userSchema.index({ state: 1, lifeStage: 1, isDeleted: 1 });
+userSchema.index({ name: "text", bio: "text" });
 
 module.exports = mongoose.model("User", userSchema);
