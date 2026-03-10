@@ -8,29 +8,40 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-
   timeout: 30000,
 });
 
-// Add token to requests
+// ✅ Read token fresh from localStorage on every request
+// CRITICAL: Never cache token in a closure/variable — must read fresh each time
+// so switching users always sends the correct token immediately
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    } else {
+      delete config.headers.Authorization;
     }
+
+    // ✅ Cache-bust all GET requests — prevents browser returning stale data
+    // from a previous user's session after switching accounts
+    if (config.method === "get") {
+      config.params = {
+        ...config.params,
+        _t: Date.now(),
+      };
+    }
+
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  },
+  (error) => Promise.reject(error),
 );
 
-// Add response interceptor for better error handling
+// Response interceptor for error handling
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Log CORS errors specifically
+    // Log CORS/network errors
     if (error.message === "Network Error" && !error.response) {
       console.error("❌ CORS or Network Error:", {
         url: error.config?.url,
@@ -39,25 +50,19 @@ api.interceptors.response.use(
       });
     }
 
-    // Handle auth errors (401 = unauthorized)
+    // Handle 401 — clear token but let AuthContext handle navigation
+    // Do NOT use window.location.href here — it causes full reloads and
+    // can interfere with the login flow when switching users
     if (error.response?.status === 401) {
       console.warn("⚠️ Unauthorized - clearing token");
       localStorage.removeItem("token");
-      localStorage.removeItem("userId");
-      // Only redirect if not already on login page
-      if (
-        window.location.pathname !== "/login" &&
-        window.location.pathname !== "/"
-      ) {
-        window.location.href = "/login";
-      }
     }
 
     return Promise.reject(error);
   },
 );
 
-// Auth API endpoints
+// ===== AUTH =====
 export const authAPI = {
   login: (email, password) => api.post("/auth/login", { email, password }),
   signup: (userData) => api.post("/auth/signup", userData),
@@ -67,7 +72,7 @@ export const authAPI = {
     api.post("/auth/reset-password", { token, newPassword }),
 };
 
-// User API endpoints
+// ===== USERS =====
 export const userAPI = {
   getDiscoverUsers: () => api.get("/users/discover"),
   likeUser: (userId) => api.post(`/users/like/${userId}`),
@@ -76,6 +81,7 @@ export const userAPI = {
   getMatches: () => api.get("/users/matches"),
   getUserProfile: (userId) => api.get(`/users/profile/${userId}`),
   getLikesYou: () => api.get("/users/likes-you"),
+  getCounts: () => api.get("/users/counts"),
   updateNotificationSettings: (settings) =>
     api.put("/users/notification-settings", settings),
   deleteAccount: () => api.delete("/users/account"),
@@ -85,9 +91,10 @@ export const userAPI = {
   unblockUser: (userId) => api.delete(`/users/${userId}/block`),
   getBlockedUsers: () => api.get("/users/blocked"),
   unmatchUser: (userId) => api.post(`/users/unmatch/${userId}`),
+  clearPassed: () => api.delete("/users/passed"),
 };
 
-// Message API endpoints
+// ===== MESSAGES =====
 export const messageAPI = {
   getConversations: () => api.get("/messages/conversations"),
   getMessages: (userId) => api.get(`/messages/${userId}`),
@@ -99,7 +106,7 @@ export const messageAPI = {
     api.get(`/messages/unread/count/${userId}`),
 };
 
-// Meetups API endpoints
+// ===== MEETUPS =====
 export const meetupsAPI = {
   getMeetups: () => api.get("/meetups"),
   getMeetup: (meetupId) => api.get(`/meetups/${meetupId}`),
