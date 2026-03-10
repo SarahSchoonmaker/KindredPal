@@ -39,18 +39,25 @@ export default function SignupScreen({ navigation }) {
     "Moderate",
     "Conservative",
     "Libertarian",
+    "Independent",
+    "Progressive",
     "Prefer not to say",
   ];
 
+  // ✅ Fixed: matches User.js schema enum exactly
   const religionOptions = [
     "Christian",
+    "Catholic",
+    "Protestant",
     "Jewish",
     "Muslim",
     "Hindu",
     "Buddhist",
-    "Spiritual",
+    "Sikh",
+    "Seeking/Undecided",
     "Agnostic",
     "Atheist",
+    "Other",
     "Prefer not to say",
   ];
 
@@ -85,6 +92,7 @@ export default function SignupScreen({ navigation }) {
     "Outdoor Activities",
   ];
 
+  // ✅ Fixed: matches User.js schema enum exactly — removed "Separated", reordered to match
   const lifeStageOptions = [
     "Single",
     "In a Relationship",
@@ -92,7 +100,7 @@ export default function SignupScreen({ navigation }) {
     "Married",
     "Divorced",
     "Widowed",
-    "Separated",
+    "It's Complicated",
     "Single Parent",
     "Have Children",
     "Child-free by Choice",
@@ -109,16 +117,15 @@ export default function SignupScreen({ navigation }) {
     "Career Transition",
     "Retired",
     "Semi-Retired",
-    "It's Complicated",
   ];
 
+  // ✅ Fixed: matches User.js schema enum exactly — removed "Support Group", "Activity Group"
   const lookingForOptions = [
     "Friendship",
     "Networking",
     "Activity Partner",
     "Mentor",
-    "Support Group",
-    "Activity Group",
+    "Community",
   ];
 
   const pickImage = async () => {
@@ -148,10 +155,7 @@ export default function SignupScreen({ navigation }) {
         [field]: array.filter((item) => item !== value),
       });
     } else {
-      setFormData({
-        ...formData,
-        [field]: [...array, value],
-      });
+      setFormData({ ...formData, [field]: [...array, value] });
     }
   };
 
@@ -233,21 +237,16 @@ export default function SignupScreen({ navigation }) {
   };
 
   const handleNext = () => {
-    if (validateStep()) {
-      setStep(step + 1);
-    }
+    if (validateStep()) setStep(step + 1);
   };
 
   const handleSubmit = async () => {
     if (!validateStep()) return;
-
     setLoading(true);
     try {
       const { confirmPassword, ...signupData } = formData;
       signupData.age = parseInt(signupData.age);
-
       const response = await authAPI.signup(signupData);
-
       if (response.data.token) {
         Alert.alert("Success", "Account created! Please log in.");
         navigation.navigate("Login");
@@ -280,7 +279,6 @@ export default function SignupScreen({ navigation }) {
             <Text variant="headlineSmall" style={styles.title}>
               Create Account
             </Text>
-
             <TextInput
               mode="outlined"
               label="Email"
@@ -290,7 +288,6 @@ export default function SignupScreen({ navigation }) {
               autoCapitalize="none"
               style={styles.input}
             />
-
             <TextInput
               mode="outlined"
               label="Password"
@@ -301,7 +298,6 @@ export default function SignupScreen({ navigation }) {
               secureTextEntry
               style={styles.input}
             />
-
             <TextInput
               mode="outlined"
               label="Confirm Password"
@@ -321,7 +317,6 @@ export default function SignupScreen({ navigation }) {
             <Text variant="headlineSmall" style={styles.title}>
               About You
             </Text>
-
             <TextInput
               mode="outlined"
               label="Full Name"
@@ -329,7 +324,6 @@ export default function SignupScreen({ navigation }) {
               onChangeText={(text) => setFormData({ ...formData, name: text })}
               style={styles.input}
             />
-
             <TextInput
               mode="outlined"
               label="Age"
@@ -338,12 +332,17 @@ export default function SignupScreen({ navigation }) {
               keyboardType="numeric"
               style={styles.input}
             />
-
             <Text variant="bodyMedium" style={styles.label}>
               Gender
             </Text>
             <View style={styles.chipContainer}>
-              {["Male", "Female", "Non-binary", "Other"].map((g) => (
+              {[
+                "Male",
+                "Female",
+                "Non-binary",
+                "Other",
+                "Prefer not to say",
+              ].map((g) => (
                 <Chip
                   key={g}
                   selected={formData.gender === g}
@@ -354,7 +353,6 @@ export default function SignupScreen({ navigation }) {
                 </Chip>
               ))}
             </View>
-
             <TextInput
               mode="outlined"
               label="City"
@@ -362,7 +360,6 @@ export default function SignupScreen({ navigation }) {
               onChangeText={(text) => setFormData({ ...formData, city: text })}
               style={styles.input}
             />
-
             <TextInput
               mode="outlined"
               label="State (e.g., CA)"
@@ -374,7 +371,6 @@ export default function SignupScreen({ navigation }) {
               autoCapitalize="characters"
               style={styles.input}
             />
-
             <TextInput
               mode="outlined"
               label="Bio"
@@ -393,12 +389,9 @@ export default function SignupScreen({ navigation }) {
             <Text variant="headlineSmall" style={styles.title}>
               Life Stage & Goals
             </Text>
-
-            {/* ADD THIS - Section Description */}
             <Text variant="bodyMedium" style={styles.sectionDescription}>
               Connect with people navigating similar life experiences
             </Text>
-
             <Text variant="bodyMedium" style={styles.label}>
               Life Stage (select all that apply)
             </Text>
@@ -414,7 +407,6 @@ export default function SignupScreen({ navigation }) {
                 </Chip>
               ))}
             </View>
-
             <Text variant="bodyMedium" style={styles.label}>
               Looking For
             </Text>
@@ -432,13 +424,13 @@ export default function SignupScreen({ navigation }) {
             </View>
           </View>
         )}
+
         {/* Step 4: Values */}
         {step === 4 && (
           <View style={styles.stepContainer}>
             <Text variant="headlineSmall" style={styles.title}>
               Your Values
             </Text>
-
             <Text variant="bodyMedium" style={styles.label}>
               Political Beliefs
             </Text>
@@ -454,7 +446,6 @@ export default function SignupScreen({ navigation }) {
                 </Chip>
               ))}
             </View>
-
             <Text variant="bodyMedium" style={styles.label}>
               Religion/Spirituality
             </Text>
@@ -470,9 +461,8 @@ export default function SignupScreen({ navigation }) {
                 </Chip>
               ))}
             </View>
-
             <Text variant="bodyMedium" style={styles.label}>
-              Causes (select at least 3) - {formData.causes.length} selected
+              Causes (select at least 3) — {formData.causes.length} selected
             </Text>
             <View style={styles.chipContainer}>
               {causesOptions.map((cause) => (
@@ -495,7 +485,6 @@ export default function SignupScreen({ navigation }) {
             <Text variant="headlineSmall" style={styles.title}>
               Add Your Photo
             </Text>
-
             <TouchableOpacity onPress={pickImage} style={styles.photoContainer}>
               {formData.profilePhoto ? (
                 <Image
@@ -513,7 +502,6 @@ export default function SignupScreen({ navigation }) {
         )}
       </ScrollView>
 
-      {/* Navigation Buttons */}
       <View style={styles.buttonContainer}>
         {step > 1 && (
           <Button
@@ -558,18 +546,9 @@ export default function SignupScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F7FAFC",
-  },
-  progress: {
-    height: 4,
-  },
-  stepText: {
-    textAlign: "center",
-    marginVertical: 12,
-    color: "#666",
-  },
+  container: { flex: 1, backgroundColor: "#F7FAFC" },
+  progress: { height: 4 },
+  stepText: { textAlign: "center", marginVertical: 12, color: "#666" },
   sectionDescription: {
     textAlign: "center",
     color: "#666",
@@ -577,22 +556,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     fontStyle: "italic",
   },
-  scrollView: {
-    flex: 1,
-  },
-  stepContainer: {
-    padding: 20,
-  },
+  scrollView: { flex: 1 },
+  stepContainer: { padding: 20 },
   title: {
     marginBottom: 20,
     textAlign: "center",
     color: "#2B6CB0",
     fontWeight: "600",
   },
-  input: {
-    marginBottom: 12,
-    backgroundColor: "white",
-  },
+  input: { marginBottom: 12, backgroundColor: "white" },
   label: {
     marginTop: 16,
     marginBottom: 8,
@@ -605,13 +577,8 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 16,
   },
-  chip: {
-    marginBottom: 4,
-  },
-  photoContainer: {
-    alignItems: "center",
-    marginTop: 20,
-  },
+  chip: { marginBottom: 4 },
+  photoContainer: { alignItems: "center", marginTop: 20 },
   photoPlaceholder: {
     width: 150,
     height: 150,
@@ -620,28 +587,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  photo: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-  },
-  photoText: {
-    marginTop: 8,
-    color: "#666",
-  },
-  buttonContainer: {
-    flexDirection: "row",
-    padding: 20,
-    gap: 12,
-  },
-  backButton: {
-    flex: 1,
-  },
-  nextButton: {
-    flex: 2,
-    backgroundColor: "#2B6CB0",
-  },
-  loginButton: {
-    marginBottom: 20,
-  },
+  photo: { width: 150, height: 150, borderRadius: 75 },
+  photoText: { marginTop: 8, color: "#666" },
+  buttonContainer: { flexDirection: "row", padding: 20, gap: 12 },
+  backButton: { flex: 1 },
+  nextButton: { flex: 2, backgroundColor: "#2B6CB0" },
+  loginButton: { marginBottom: 20 },
 });

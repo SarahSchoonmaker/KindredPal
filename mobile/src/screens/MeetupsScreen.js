@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { FAB, Card, Avatar } from "react-native-paper";
 import { Calendar, MapPin, Users, Clock } from "lucide-react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 import api from "../services/api";
 import CreateMeetupModal from "../components/CreateMeetupModal";
 
@@ -20,11 +20,7 @@ export default function MeetupsScreen({ navigation, route }) {
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  useEffect(() => {
-    fetchMeetups();
-  }, []);
-
-  const fetchMeetups = async () => {
+  const fetchMeetups = useCallback(async () => {
     try {
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error("Request timeout")), 10000),
@@ -36,16 +32,24 @@ export default function MeetupsScreen({ navigation, route }) {
       const data = response.data || [];
       setMeetups(data);
 
-      // ✅ Store all current meetup IDs as seen — clears the badge
-      const seenIds = data.map((m) => m._id);
-      await AsyncStorage.setItem("seenMeetupIds", JSON.stringify(seenIds));
+      // ✅ Per-user scoped seen tracking — prevents cross-user bleed on shared devices
+      const userId = await SecureStore.getItemAsync("userId");
+      if (userId) {
+        const seenKey = `seen_meetups_${userId}`;
+        const seenIds = data.map((m) => m._id);
+        await SecureStore.setItemAsync(seenKey, JSON.stringify(seenIds));
+      }
     } catch (error) {
       Alert.alert("Error", "Failed to load meetups: " + error.message);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchMeetups();
+  }, [fetchMeetups]);
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -64,10 +68,10 @@ export default function MeetupsScreen({ navigation, route }) {
     });
   };
 
-  const onRefresh = () => {
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchMeetups();
-  };
+  }, [fetchMeetups]);
 
   const renderMeetup = ({ item }) => {
     const goingCount =
@@ -165,9 +169,7 @@ export default function MeetupsScreen({ navigation, route }) {
       <CreateMeetupModal
         visible={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        onSuccess={() => {
-          fetchMeetups();
-        }}
+        onSuccess={fetchMeetups}
       />
     </View>
   );

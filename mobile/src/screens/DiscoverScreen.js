@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, memo } from "react";
+import React, { useState, useCallback, memo } from "react";
 import {
   View,
   Image,
@@ -11,41 +11,76 @@ import {
 } from "react-native";
 import { Text, ActivityIndicator, Chip } from "react-native-paper";
 import { MapPin, Heart, X } from "lucide-react-native";
-import { userAPI, authAPI } from "../services/api";
+import api, { userAPI, authAPI } from "../services/api";
 import { useFocusEffect } from "@react-navigation/native";
 import DiscoverFilters from "../components/DiscoverFilters";
 
 const { width } = Dimensions.get("window");
 
 const ProfileCard = memo(({ user, onPress, onLike, onPass }) => (
-  <TouchableOpacity style={styles.card} activeOpacity={0.9} onPress={() => onPress(user._id)}>
+  <TouchableOpacity
+    style={styles.card}
+    activeOpacity={0.9}
+    onPress={() => onPress(user._id)}
+  >
     <View style={styles.imageContainer}>
-      <Image source={{ uri: user.profilePhoto }} style={styles.image} resizeMode="cover" />
+      <Image
+        source={{ uri: user.profilePhoto }}
+        style={styles.image}
+        resizeMode="cover"
+      />
     </View>
     <View style={styles.cardContent}>
-      <Text style={styles.cardName}>{user.name}, {user.age}</Text>
+      <Text style={styles.cardName}>
+        {user.name}, {user.age}
+      </Text>
       <View style={styles.locationRow}>
         <MapPin size={16} color="#2B6CB0" />
-        <Text style={styles.locationText}>{user.city}, {user.state}</Text>
+        <Text style={styles.locationText}>
+          {user.city}, {user.state}
+        </Text>
       </View>
-      {user.bio && <Text style={styles.bioText} numberOfLines={3}>{user.bio}</Text>}
+      {user.bio && (
+        <Text style={styles.bioText} numberOfLines={3}>
+          {user.bio}
+        </Text>
+      )}
       {user.causes && user.causes.length > 0 && (
         <View style={styles.tagsContainer}>
           {user.causes.slice(0, 3).map((cause, idx) => (
-            <Chip key={idx} style={styles.chip} textStyle={styles.chipText} compact>{cause}</Chip>
+            <Chip
+              key={idx}
+              style={styles.chip}
+              textStyle={styles.chipText}
+              compact
+            >
+              {cause}
+            </Chip>
           ))}
           {user.causes.length > 3 && (
-            <Chip style={styles.chipMore} textStyle={styles.chipTextMore} compact>+{user.causes.length - 3} more</Chip>
+            <Chip
+              style={styles.chipMore}
+              textStyle={styles.chipTextMore}
+              compact
+            >
+              +{user.causes.length - 3} more
+            </Chip>
           )}
         </View>
       )}
     </View>
     <View style={styles.actions}>
-      <TouchableOpacity style={styles.passButton} onPress={() => onPass(user._id)}>
+      <TouchableOpacity
+        style={styles.passButton}
+        onPress={() => onPass(user._id)}
+      >
         <X size={24} color="#718096" />
         <Text style={styles.passButtonText}>Pass</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.likeButton} onPress={() => onLike(user._id)}>
+      <TouchableOpacity
+        style={styles.likeButton}
+        onPress={() => onLike(user._id)}
+      >
         <Heart size={24} color="white" />
         <Text style={styles.likeButtonText}>Connect</Text>
       </TouchableOpacity>
@@ -63,10 +98,11 @@ export default function DiscoverScreen({ navigation }) {
     try {
       const [profileRes, discoverRes] = await Promise.all([
         authAPI.getProfile(),
-        userAPI.getDiscover(),
+        // ✅ Fixed: use getDiscoverUsers() to match api.js method name
+        userAPI.getDiscoverUsers(),
       ]);
       setCurrentUser(profileRes.data);
-      setUsers(discoverRes.data.users || []);
+      setUsers(discoverRes.data.users || discoverRes.data || []);
     } catch (error) {
       console.error("Error fetching discover:", error);
     } finally {
@@ -81,7 +117,7 @@ export default function DiscoverScreen({ navigation }) {
       setUsers([]);
       setCurrentUser(null);
       fetchAll();
-    }, [fetchAll])
+    }, [fetchAll]),
   );
 
   const onRefresh = useCallback(() => {
@@ -89,37 +125,51 @@ export default function DiscoverScreen({ navigation }) {
     fetchAll();
   }, [fetchAll]);
 
-  const handleLike = useCallback(async (userId) => {
-    try {
-      const response = await userAPI.like(userId);
-      setUsers((prev) => prev.filter((u) => u._id !== userId));
-      if (response.data.isMatch) {
-        Alert.alert(
-          "🎉 It's a Match!",
-          `You and ${response.data.matchedUser?.name} connected!`,
-          [
-            { text: "Send Message", onPress: () => navigation.navigate("Chat", { match: response.data.matchedUser }) },
-            { text: "Keep Discovering", style: "cancel" },
-          ]
-        );
+  const handleLike = useCallback(
+    async (userId) => {
+      try {
+        // ✅ Fixed: use likeUser() to match api.js method name
+        const response = await userAPI.likeUser(userId);
+        setUsers((prev) => prev.filter((u) => u._id !== userId));
+        if (response.data.isMatch) {
+          Alert.alert(
+            "🎉 It's a Match!",
+            `You and ${response.data.matchedUser?.name} connected!`,
+            [
+              {
+                text: "Send Message",
+                onPress: () =>
+                  navigation.navigate("Chat", {
+                    match: response.data.matchedUser,
+                  }),
+              },
+              { text: "Keep Discovering", style: "cancel" },
+            ],
+          );
+        }
+      } catch (error) {
+        console.error("Error liking user:", error);
       }
-    } catch (error) {
-      console.error("Error liking user:", error);
-    }
-  }, [navigation]);
+    },
+    [navigation],
+  );
 
   const handlePass = useCallback(async (userId) => {
     try {
-      await userAPI.pass(userId);
+      // ✅ Fixed: use passUser() to match api.js method name
+      await userAPI.passUser(userId);
       setUsers((prev) => prev.filter((u) => u._id !== userId));
     } catch (error) {
       console.error("Error passing user:", error);
     }
   }, []);
 
-  const handleCardPress = useCallback((userId) => {
-    navigation.navigate("UserProfile", { userId });
-  }, [navigation]);
+  const handleCardPress = useCallback(
+    (userId) => {
+      navigation.navigate("UserProfile", { userId });
+    },
+    [navigation],
+  );
 
   if (loading) {
     return (
@@ -134,12 +184,19 @@ export default function DiscoverScreen({ navigation }) {
     return (
       <ScrollView
         contentContainerStyle={styles.emptyContainer}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         <Text style={styles.emptyIcon}>🔍</Text>
         <Text style={styles.emptyTitle}>No More Users Right Now</Text>
-        <Text style={styles.emptyText}>We've shown you everyone in your area!</Text>
-        <TouchableOpacity style={styles.emptyButton} onPress={() => navigation.navigate("Connections")}>
+        <Text style={styles.emptyText}>
+          We've shown you everyone in your area!
+        </Text>
+        <TouchableOpacity
+          style={styles.emptyButton}
+          onPress={() => navigation.navigate("Connections")}
+        >
           <Text style={styles.emptyButtonText}>View Your Connections</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -153,7 +210,8 @@ export default function DiscoverScreen({ navigation }) {
           <View style={styles.searchInfo}>
             <MapPin size={14} color="#2B6CB0" />
             <Text style={styles.searchInfoText}>
-              {currentUser.city}, {currentUser.state} • {currentUser.locationPreference || "Home state"}
+              {currentUser.city}, {currentUser.state} •{" "}
+              {currentUser.locationPreference || "Home state"}
             </Text>
           </View>
           <DiscoverFilters
@@ -168,7 +226,9 @@ export default function DiscoverScreen({ navigation }) {
         </View>
       )}
       <ScrollView
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
         contentContainerStyle={styles.scrollContent}
         removeClippedSubviews={true}
       >
@@ -201,7 +261,12 @@ const styles = StyleSheet.create({
   },
   searchInfo: { flexDirection: "row", alignItems: "center", gap: 6, flex: 1 },
   searchInfoText: { fontSize: 13, color: "#4A5568", fontWeight: "500" },
-  centerContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#F7FAFC" },
+  centerContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F7FAFC",
+  },
   loadingText: { marginTop: 16, fontSize: 16, color: "#718096" },
   scrollContent: { padding: 16, paddingBottom: 32 },
   card: {
@@ -220,8 +285,18 @@ const styles = StyleSheet.create({
   imageContainer: { height: 320, backgroundColor: "#E2E8F0" },
   image: { width: "100%", height: "100%" },
   cardContent: { padding: 16 },
-  cardName: { fontSize: 20, fontWeight: "700", color: "#2D3748", marginBottom: 8 },
-  locationRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 12 },
+  cardName: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#2D3748",
+    marginBottom: 8,
+  },
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 12,
+  },
   locationText: { fontSize: 14, color: "#718096" },
   bioText: { fontSize: 14, color: "#4A5568", lineHeight: 20, marginBottom: 12 },
   tagsContainer: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
@@ -238,20 +313,54 @@ const styles = StyleSheet.create({
     backgroundColor: "#FAFAFA",
   },
   passButton: {
-    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 8, height: 48, backgroundColor: "white", borderWidth: 2,
-    borderColor: "#E2E8F0", borderRadius: 8,
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    height: 48,
+    backgroundColor: "white",
+    borderWidth: 2,
+    borderColor: "#E2E8F0",
+    borderRadius: 8,
   },
   passButtonText: { fontSize: 14, fontWeight: "600", color: "#718096" },
   likeButton: {
-    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 8, height: 48, backgroundColor: "#2B6CB0", borderRadius: 8,
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    height: 48,
+    backgroundColor: "#2B6CB0",
+    borderRadius: 8,
   },
   likeButtonText: { fontSize: 14, fontWeight: "600", color: "white" },
-  emptyContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: 40 },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 40,
+  },
   emptyIcon: { fontSize: 64, marginBottom: 24 },
-  emptyTitle: { fontSize: 24, fontWeight: "700", color: "#2D3748", marginBottom: 12, textAlign: "center" },
-  emptyText: { fontSize: 16, color: "#718096", textAlign: "center", marginBottom: 24 },
-  emptyButton: { backgroundColor: "#2B6CB0", paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#2D3748",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  emptyText: {
+    fontSize: 16,
+    color: "#718096",
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  emptyButton: {
+    backgroundColor: "#2B6CB0",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
   emptyButtonText: { color: "white", fontSize: 16, fontWeight: "600" },
 });
