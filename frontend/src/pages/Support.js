@@ -24,7 +24,7 @@ const Support = () => {
             <strong>Email:</strong>{" "}
             <a href="mailto:support@kindredpal.com">support@kindredpal.com</a>
             <br />
-            <strong>Response Time:</strong> We typically respond within 24-48
+            <strong>Response Time:</strong> We typically respond within 24–48
             hours
           </p>
         </section>
@@ -36,56 +36,87 @@ const Support = () => {
             <h3>What is KindredPal?</h3>
             <p>
               KindredPal is a{" "}
-              <strong>life stage support and community platform</strong>{" "}
-              designed to help people find peer support during major life
-              transitions. Whether you're navigating new parenthood, career
-              changes, retirement, or any other life stage—KindredPal connects
-              you with people who understand your journey.
+              <strong>peer support and community connection platform</strong>{" "}
+              for adults navigating major life transitions. Whether you're a new
+              parent, going through a career change, recently retired, or facing
+              any other life stage challenge — KindredPal connects you with
+              people who truly understand your journey.
             </p>
             <p>
-              We are <strong>not a dating app</strong>. Our focus is on building
-              supportive communities based on shared life experiences and
-              values.
+              <strong>KindredPal is not a dating app.</strong> Our platform is
+              focused exclusively on building supportive peer communities based
+              on shared life experiences, values, and local connection goals
+              such as friendship, mentorship, activity partners, support groups,
+              and networking.
             </p>
           </div>
 
           <div className="faq-item">
+            <h3>What kinds of connections can I make?</h3>
+            <p>
+              KindredPal supports meaningful, platonic community connections:
+            </p>
+            <ul>
+              <li>
+                <strong>Friendship:</strong> Build friendships with people who
+                share your values and life stage
+              </li>
+              <li>
+                <strong>Peer Support:</strong> Connect with others navigating
+                similar transitions
+              </li>
+              <li>
+                <strong>Mentorship:</strong> Find guidance from those who've
+                been through similar experiences
+              </li>
+              <li>
+                <strong>Networking:</strong> Connect professionally with
+                like-minded community members
+              </li>
+              <li>
+                <strong>Activity Partners:</strong> Find people to pursue
+                hobbies and interests together
+              </li>
+              <li>
+                <strong>Community Groups:</strong> Join local support groups and
+                neighborhood events
+              </li>
+            </ul>
+          </div>
+
+          <div className="faq-item">
             <h3>How do I reset my password?</h3>
-            <p>To reset your password:</p>
             <ol>
-              <li>Go to the login page and click "Forgot password?"</li>
+              <li>Go to the login page and tap "Forgot password?"</li>
               <li>Enter your email address</li>
-              <li>Check your email for a password reset link</li>
+              <li>Check your email for a reset link (expires in 1 hour)</li>
               <li>Click the link and enter your new password</li>
-              <li>You can now log in with your new password</li>
             </ol>
             <p>
-              <strong>Note:</strong> The reset link expires after 1 hour for
-              security. If you don't receive the email, check your spam folder.
+              If you don't receive the email, check your spam folder or contact
+              support.
             </p>
           </div>
 
           <div className="faq-item">
             <h3>How do I delete my account?</h3>
-            <p>To delete your account:</p>
             <ol>
               <li>Go to your Profile page</li>
-              <li>Scroll down to the "Danger Zone" section</li>
-              <li>Click "Delete Account"</li>
-              <li>Confirm your decision</li>
+              <li>Scroll down to "Danger Zone"</li>
+              <li>Tap "Delete Account" and confirm</li>
             </ol>
             <p>
-              <strong>Warning:</strong> Account deletion is permanent. All your
-              connections, messages, and profile data will be permanently
-              deleted and cannot be recovered.
+              <strong>Warning:</strong> Deletion is permanent. All connections,
+              messages, and profile data will be deleted and cannot be
+              recovered.
             </p>
           </div>
 
           <div className="faq-item">
-            <h3>How does the connection algorithm work?</h3>
+            <h3>How does the community matching algorithm work?</h3>
             <p>
-              Our connection algorithm connects you with people who share
-              similar life experiences and values:
+              Our algorithm connects you with people who share your life
+              experiences and values:
             </p>
             <ul>
               <li>
@@ -101,171 +132,76 @@ const Support = () => {
                 activities
               </li>
               <li>
-                <strong>Looking For (10%):</strong> Type of support or
-                connection sought (friendship, mentorship, networking, etc.)
+                <strong>Connection Goals (10%):</strong> Type of support or
+                connection sought
               </li>
               <li>
                 <strong>Location (20%):</strong> Geographic proximity based on
                 your preferences
               </li>
             </ul>
-            <p>
-              This helps ensure you connect with people who can provide
-              meaningful peer support during your life transitions.
-            </p>
           </div>
 
           <div className="faq-item">
-            <h3>How do I change my search preferences?</h3>
-            <p>To adjust your location search preferences:</p>
+            <h3>How do I adjust my search preferences?</h3>
             <ol>
-              <li>Go to the Find Community page</li>
-              <li>Click "Search Preferences"</li>
+              <li>Go to the Discover page</li>
+              <li>Tap the "Filters" button</li>
               <li>
-                Choose your preferred search distance (same city, same state,
-                within miles, or anywhere)
+                Set your preferred location range, and optionally filter by
+                values, religion, or life stage
               </li>
-              <li>Click "Save Preferences"</li>
+              <li>Tap "Save Preferences"</li>
             </ol>
-            <p>
-              Your new preferences will take effect immediately and you'll see
-              community members based on your updated settings.
-            </p>
           </div>
 
           <div className="faq-item">
             <h3>How do I report or block someone?</h3>
-            <p>To report or block a user:</p>
             <ol>
-              <li>Go to the conversation with that person in Messages</li>
-              <li>Click the three-dot menu (⋮) in the chat header</li>
+              <li>
+                Go to the user's profile or your Messages conversation with them
+              </li>
+              <li>Tap the three-dot menu (⋮)</li>
               <li>Select "Report User" or "Block User"</li>
-              <li>If reporting, select a reason and submit</li>
             </ol>
             <p>
-              <strong>Report:</strong> Our team will review the report within
-              24-48 hours. Your report is confidential.
+              Reports are reviewed within 24–48 hours and are completely
+              confidential.
             </p>
             <p>
-              <strong>Block:</strong> The user will immediately be unable to see
-              your profile or contact you. They won't be notified that you
-              blocked them.
+              Blocked users cannot see your profile, message you, or appear in
+              your discover feed.
             </p>
           </div>
 
           <div className="faq-item">
-            <h3>How do I unblock someone?</h3>
-            <p>To unblock a user:</p>
-            <ol>
-              <li>Go to your Profile page</li>
-              <li>Click "Blocked Users" under Privacy & Safety</li>
-              <li>Find the user you want to unblock</li>
-              <li>Click the "Unblock" button</li>
-            </ol>
+            <h3>How do Meetups work?</h3>
+            <p>Meetups are community events you can create or join:</p>
+            <ul>
+              <li>
+                Create a meetup with event details and invite your connections
+              </li>
+              <li>RSVP to meetups created by others in your community</li>
+              <li>Meet new people in a comfortable group setting</li>
+            </ul>
             <p>
-              Once unblocked, they may appear in your discovery feed again if
-              they meet your search preferences.
+              Examples include support group gatherings, hobby meetups, coffee
+              chats, volunteer activities, or neighborhood events.
             </p>
           </div>
 
           <div className="faq-item">
             <h3>Is my data safe?</h3>
-            <p>Yes! We take your privacy and security seriously:</p>
             <ul>
-              <li>
-                All passwords are encrypted and never stored in plain text
-              </li>
+              <li>All passwords are encrypted — never stored in plain text</li>
               <li>Your personal information is never sold to third parties</li>
-              <li>
-                We use industry-standard security measures to protect your data
-              </li>
+              <li>Industry-standard security protects all data</li>
               <li>You can delete your account and all data at any time</li>
-              <li>Password reset links expire after 1 hour for security</li>
             </ul>
             <p>
-              For more details, see our{" "}
-              <a href="/privacy-policy">Privacy Policy</a>.
+              See our <a href="/privacy-policy">Privacy Policy</a> for full
+              details.
             </p>
-          </div>
-
-          <div className="faq-item">
-            <h3>What types of connections can I make on KindredPal?</h3>
-            <p>KindredPal supports multiple types of meaningful connections:</p>
-            <ul>
-              <li>
-                <strong>Friendship:</strong> Build platonic friendships with
-                people who share your values
-              </li>
-              <li>
-                <strong>Peer Support:</strong> Connect with others navigating
-                similar life transitions
-              </li>
-              <li>
-                <strong>Mentorship:</strong> Find guidance from those who've
-                been through similar experiences
-              </li>
-              <li>
-                <strong>Networking:</strong> Connect professionally with
-                like-minded individuals
-              </li>
-              <li>
-                <strong>Activity Partners:</strong> Find people to pursue
-                hobbies and interests together
-              </li>
-              <li>
-                <strong>Community:</strong> Join local groups and support
-                networks
-              </li>
-            </ul>
-          </div>
-
-          <div className="faq-item">
-            <h3>How do Meetups work?</h3>
-            <p>
-              Meetups allow you to organize or join group events with your
-              community:
-            </p>
-            <ul>
-              <li>Create a meetup with details about the event</li>
-              <li>Invite your connections to attend</li>
-              <li>RSVP to meetups created by others</li>
-              <li>Meet new people in a group setting</li>
-            </ul>
-            <p>
-              Meetups are a great way to build community and make connections in
-              a comfortable, social environment. Examples include support
-              groups, hobby gatherings, coffee meetups, or volunteer activities.
-            </p>
-          </div>
-
-          <div className="faq-item">
-            <h3>I'm not receiving email notifications</h3>
-            <p>If you're not getting emails from KindredPal:</p>
-            <ol>
-              <li>Check your spam/junk folder</li>
-              <li>Add support@kindredpal.com to your contacts</li>
-              <li>
-                Go to Profile → Email Notifications to verify they're enabled
-              </li>
-              <li>Make sure the email address on your account is correct</li>
-            </ol>
-            <p>
-              If you're still having issues, contact us at{" "}
-              <a href="mailto:support@kindredpal.com">support@kindredpal.com</a>
-            </p>
-          </div>
-
-          <div className="faq-item">
-            <h3>Can I change my email address?</h3>
-            <p>
-              Currently, email addresses cannot be changed directly. If you need
-              to update your email:
-            </p>
-            <ol>
-              <li>Contact support at support@kindredpal.com</li>
-              <li>Include your current email and desired new email</li>
-              <li>We'll verify your identity and update your account</li>
-            </ol>
           </div>
 
           <div className="faq-item">
@@ -276,53 +212,40 @@ const Support = () => {
             <p>
               <strong>No.</strong> KindredPal is a peer support community
               platform, not a mental health service or substitute for
-              professional care.
-            </p>
-            <p>
-              While peer support can be incredibly valuable during life
-              transitions, we strongly encourage seeking professional help for
-              mental health concerns. KindredPal complements—but does not
-              replace—therapy, counseling, or medical treatment.
+              professional care. We strongly encourage seeking professional help
+              for mental health concerns.
             </p>
             <p>
               <strong>Crisis Resources:</strong>
             </p>
             <ul>
               <li>
-                <strong>US:</strong> Call or text 988 (Suicide & Crisis
-                Lifeline)
+                <strong>988 Suicide & Crisis Lifeline:</strong> Call or text 988
               </li>
               <li>
                 <strong>Crisis Text Line:</strong> Text "HELLO" to 741741
               </li>
               <li>
-                <strong>Emergency:</strong> Call 911 or go to your nearest
-                emergency room
+                <strong>Emergency:</strong> Call 911
               </li>
             </ul>
           </div>
-        </section>
 
-        <section>
-          <h2>
-            <Shield
-              size={24}
-              style={{ display: "inline", marginRight: "8px" }}
-            />
-            Safety & Privacy
-          </h2>
-          <p>
-            Your safety is our priority. For comprehensive safety guidelines,
-            please visit our <a href="/safety">Safety Tips</a> page.
-          </p>
-          <p>Key safety reminders:</p>
-          <ul>
-            <li>Never share financial information with connections</li>
-            <li>Meet in public places for first in-person meetings</li>
-            <li>Tell someone where you're going</li>
-            <li>Trust your instincts - report suspicious behavior</li>
-            <li>Use the block feature if someone makes you uncomfortable</li>
-          </ul>
+          <div className="faq-item">
+            <h3>I'm not receiving email notifications</h3>
+            <ol>
+              <li>Check your spam/junk folder</li>
+              <li>Add support@kindredpal.com to your contacts</li>
+              <li>
+                Go to Profile → Email Notifications to verify they're enabled
+              </li>
+              <li>Confirm your account email address is correct</li>
+            </ol>
+            <p>
+              Still having issues? Email{" "}
+              <a href="mailto:support@kindredpal.com">support@kindredpal.com</a>
+            </p>
+          </div>
         </section>
 
         <section>
@@ -336,52 +259,41 @@ const Support = () => {
 
           <div className="faq-item">
             <h3>I can't log in to my account</h3>
-            <p>If you're having trouble logging in:</p>
             <ol>
-              <li>Make sure you're using the correct email address</li>
+              <li>Confirm you're using the correct email address</li>
               <li>Try resetting your password using "Forgot password?"</li>
-              <li>Check that Caps Lock is off when entering your password</li>
+              <li>Check that Caps Lock is off</li>
               <li>Clear your browser cache and cookies</li>
               <li>Try a different browser or device</li>
             </ol>
             <p>
-              If you still can't log in, contact{" "}
+              Still locked out? Email{" "}
               <a href="mailto:support@kindredpal.com">support@kindredpal.com</a>
             </p>
           </div>
 
           <div className="faq-item">
-            <h3>My account was locked or suspended</h3>
+            <h3>My account was suspended</h3>
             <p>
-              Accounts may be locked if they violate our{" "}
-              <a href="/community-guidelines">Community Guidelines</a>. If you
-              believe your account was locked in error, please contact us at{" "}
+              Accounts may be suspended for violating our Community Guidelines.
+              If you believe this was an error, email{" "}
               <a href="mailto:support@kindredpal.com">support@kindredpal.com</a>{" "}
-              with:
+              with your account email and a brief explanation.
             </p>
-            <ul>
-              <li>Your account email address</li>
-              <li>A brief explanation of the situation</li>
-              <li>Any relevant context</li>
-            </ul>
           </div>
         </section>
 
         <section>
           <h2>Still Need Help?</h2>
-          <p>
-            If you couldn't find the answer to your question, we're here to
-            help!
-          </p>
           <p className="contact-info">
             <strong>Email:</strong>{" "}
             <a href="mailto:support@kindredpal.com">support@kindredpal.com</a>
             <br />
-            <strong>Response Time:</strong> 24-48 hours
+            <strong>Response Time:</strong> 24–48 hours
           </p>
           <p>
-            When contacting support, please include as much detail as possible
-            about your issue to help us assist you quickly.
+            Please include as much detail as possible about your issue to help
+            us assist you quickly.
           </p>
         </section>
       </div>
