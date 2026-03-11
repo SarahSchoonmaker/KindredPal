@@ -15,6 +15,10 @@ import { AppState } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import {
+  SafeAreaProvider,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import {
   registerForPushNotifications,
   setupNotificationListeners,
 } from "./src/services/pushNotifications";
@@ -67,6 +71,7 @@ const BADGE_STYLE = {
 };
 
 function MainTabs() {
+  const insets = useSafeAreaInsets();
   const [counts, setCounts] = useState({
     unread: 0,
     interested: 0,
@@ -122,8 +127,8 @@ function MainTabs() {
           backgroundColor: "white",
           borderTopColor: "#E2E8F0",
           paddingTop: 8,
-          // ✅ Removed hardcoded paddingBottom/height — React Navigation
-          // handles safe area insets automatically for iPhone home indicator
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 10,
+          height: 60 + (insets.bottom > 0 ? insets.bottom : 10),
         },
         headerStyle: { backgroundColor: "#2B6CB0" },
         headerTintColor: "#fff",
@@ -271,65 +276,67 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <PaperProvider theme={theme}>
-        <NavigationContainer ref={navigationRef}>
-          <Stack.Navigator>
-            <Stack.Screen
-              name="Login"
-              component={LoginScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="Signup"
-              component={SignupScreen}
-              options={{ title: "Create Account", ...headerStyle }}
-            />
-            <Stack.Screen
-              name="MainTabs"
-              component={MainTabs}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="Chat"
-              component={ChatScreen}
-              options={{ title: "Chat", ...headerStyle }}
-            />
-            <Stack.Screen
-              name="Preferences"
-              component={PreferencesScreen}
-              options={{ title: "Search Preferences", ...headerStyle }}
-            />
-            <Stack.Screen
-              name="EditProfile"
-              component={EditProfileScreen}
-              options={{ title: "Edit Profile", ...headerStyle }}
-            />
-            <Stack.Screen
-              name="MeetupDetails"
-              component={MeetupDetailsScreen}
-              options={{ title: "Meetup Details", ...headerStyle }}
-            />
-            <Stack.Screen
-              name="UserProfile"
-              component={UserProfileScreen}
-              options={{ title: "Profile", ...headerStyle }}
-            />
-            <Stack.Screen
-              name="BlockedUsers"
-              component={BlockedUsersScreen}
-              options={{ title: "Blocked Users", ...headerStyle }}
-            />
-            <Stack.Screen
-              name="WebView"
-              component={WebViewScreen}
-              options={({ route }) => ({
-                title: route.params?.title || "KindredPal",
-                ...headerStyle,
-              })}
-            />
-          </Stack.Navigator>
-        </NavigationContainer>
-      </PaperProvider>
+      <SafeAreaProvider>
+        <PaperProvider theme={theme}>
+          <NavigationContainer ref={navigationRef}>
+            <Stack.Navigator>
+              <Stack.Screen
+                name="Login"
+                component={LoginScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="Signup"
+                component={SignupScreen}
+                options={{ title: "Create Account", ...headerStyle }}
+              />
+              <Stack.Screen
+                name="MainTabs"
+                component={MainTabs}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="Chat"
+                component={ChatScreen}
+                options={{ title: "Chat", ...headerStyle }}
+              />
+              <Stack.Screen
+                name="Preferences"
+                component={PreferencesScreen}
+                options={{ title: "Search Preferences", ...headerStyle }}
+              />
+              <Stack.Screen
+                name="EditProfile"
+                component={EditProfileScreen}
+                options={{ title: "Edit Profile", ...headerStyle }}
+              />
+              <Stack.Screen
+                name="MeetupDetails"
+                component={MeetupDetailsScreen}
+                options={{ title: "Meetup Details", ...headerStyle }}
+              />
+              <Stack.Screen
+                name="UserProfile"
+                component={UserProfileScreen}
+                options={{ title: "Profile", ...headerStyle }}
+              />
+              <Stack.Screen
+                name="BlockedUsers"
+                component={BlockedUsersScreen}
+                options={{ title: "Blocked Users", ...headerStyle }}
+              />
+              <Stack.Screen
+                name="WebView"
+                component={WebViewScreen}
+                options={({ route }) => ({
+                  title: route.params?.title || "KindredPal",
+                  ...headerStyle,
+                })}
+              />
+            </Stack.Navigator>
+          </NavigationContainer>
+        </PaperProvider>
+      </SafeAreaProvider>
     </ErrorBoundary>
   );
 }
