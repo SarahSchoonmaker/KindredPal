@@ -78,13 +78,11 @@ function MainTabs() {
       const token = await SecureStore.getItemAsync("token");
       if (!token) return;
 
-      // Get userId for per-user seen key scoping
       const userId = await SecureStore.getItemAsync("userId");
 
       const res = await api.get("/users/counts");
       const { unread, interested, meetupInviteIds = [], meetups } = res.data;
 
-      // ✅ Per-user seen keys — persist across logout/login for same user
       const meetupKey = userId ? `seen_meetups_${userId}` : "seen_meetups";
 
       const seenMeetupRaw = await AsyncStorage.getItem(meetupKey);
@@ -123,9 +121,9 @@ function MainTabs() {
         tabBarStyle: {
           backgroundColor: "white",
           borderTopColor: "#E2E8F0",
-          paddingBottom: 20,
           paddingTop: 8,
-          height: 70,
+          // ✅ Removed hardcoded paddingBottom/height — React Navigation
+          // handles safe area insets automatically for iPhone home indicator
         },
         headerStyle: { backgroundColor: "#2B6CB0" },
         headerTintColor: "#fff",
@@ -142,7 +140,6 @@ function MainTabs() {
           ),
         }}
       />
-
       <Tab.Screen
         name="Interested"
         component={LikesYouScreen}
@@ -158,7 +155,6 @@ function MainTabs() {
           ),
         }}
       />
-
       <Tab.Screen
         name="Connections"
         component={ConnectionsScreen}
@@ -168,7 +164,6 @@ function MainTabs() {
           tabBarIcon: ({ color, size }) => <Users color={color} size={size} />,
         }}
       />
-
       <Tab.Screen
         name="Messages"
         component={MessagesScreen}
@@ -182,14 +177,11 @@ function MainTabs() {
           ),
         }}
       />
-
       <Tab.Screen
         name="Meetups"
         component={MeetupsScreen}
         listeners={{
           tabPress: async () => {
-            // ✅ When tab is pressed, immediately clear badge in UI
-            // MeetupsScreen will update AsyncStorage when it loads
             setCounts((c) => ({ ...c, meetups: 0 }));
           },
         }}
@@ -202,7 +194,6 @@ function MainTabs() {
           ),
         }}
       />
-
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
