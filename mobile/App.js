@@ -4,12 +4,11 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { PaperProvider, MD3LightTheme } from "react-native-paper";
 import {
-  Compass,
   MessageCircle,
   User,
   Calendar,
   Users,
-  UserSearch,
+  LayoutGrid,
 } from "lucide-react-native";
 import { AppState } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -24,20 +23,22 @@ import {
 } from "./src/services/pushNotifications";
 import api from "./src/services/api";
 
-// Auth Screens
+// Auth
 import LoginScreen from "./src/screens/LoginScreen";
 import SignupScreen from "./src/screens/SignupScreen";
 
-// Main Screens
-import DiscoverScreen from "./src/screens/DiscoverScreen";
-import LikesYouScreen from "./src/screens/InterestedScreen";
+// Main Tabs
+import GroupsScreen from "./src/screens/GroupsScreen";
 import ConnectionsScreen from "./src/screens/ConnectionsScreen";
 import MessagesScreen from "./src/screens/MessagesScreen";
 import MeetupsScreen from "./src/screens/MeetupsScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
 
-// Stack Screens
+// Stack screens
 import ChatScreen from "./src/screens/ChatScreen";
+import GroupDetailScreen from "./src/screens/GroupDetailScreen";
+import CreateGroupScreen from "./src/screens/CreateGroupScreen";
+import MemberProfileScreen from "./src/screens/MemberProfileScreen";
 import PreferencesScreen from "./src/screens/PreferencesScreen";
 import EditProfileScreen from "./src/screens/EditProfileScreen";
 import MeetupDetailsScreen from "./src/screens/MeetupsDetailScreen";
@@ -72,35 +73,24 @@ const BADGE_STYLE = {
 
 function MainTabs() {
   const insets = useSafeAreaInsets();
-  const [counts, setCounts] = useState({
-    unread: 0,
-    interested: 0,
-    meetups: 0,
-  });
+  const [counts, setCounts] = useState({ unread: 0, meetups: 0 });
 
   const fetchCounts = useCallback(async () => {
     try {
       const token = await SecureStore.getItemAsync("token");
       if (!token) return;
-
       const userId = await SecureStore.getItemAsync("userId");
-
       const res = await api.get("/users/counts");
-      const { unread, interested, meetupInviteIds = [], meetups } = res.data;
-
+      const { unread, meetupInviteIds = [], meetups } = res.data;
       const meetupKey = userId ? `seen_meetups_${userId}` : "seen_meetups";
-
       const seenMeetupRaw = await AsyncStorage.getItem(meetupKey);
       const seenMeetupIds = seenMeetupRaw ? JSON.parse(seenMeetupRaw) : [];
       const unseenMeetups =
         meetupInviteIds.length > 0
           ? meetupInviteIds.filter((id) => !seenMeetupIds.includes(id)).length
           : (meetups ?? 0);
-
-      setCounts({ unread, interested, meetups: unseenMeetups });
-    } catch (err) {
-      // Silently fail
-    }
+      setCounts({ unread, meetups: unseenMeetups });
+    } catch (err) {}
   }, []);
 
   useEffect(() => {
@@ -135,31 +125,19 @@ function MainTabs() {
         headerTitleStyle: { fontWeight: "bold" },
       }}
     >
+      {/* ✅ Groups replaces Discover as main entry point */}
       <Tab.Screen
-        name="Discover"
-        component={DiscoverScreen}
+        name="Groups"
+        component={GroupsScreen}
         options={{
-          tabBarLabel: "Discover",
+          tabBarLabel: "Groups",
+          title: "Community Groups",
           tabBarIcon: ({ color, size }) => (
-            <Compass color={color} size={size} />
+            <LayoutGrid color={color} size={size} />
           ),
         }}
       />
-      <Tab.Screen
-        name="Interested"
-        component={LikesYouScreen}
-        listeners={{
-          tabPress: () => setCounts((c) => ({ ...c, interested: 0 })),
-        }}
-        options={{
-          tabBarLabel: "Interested",
-          tabBarBadge: badge(counts.interested),
-          tabBarBadgeStyle: BADGE_STYLE,
-          tabBarIcon: ({ color, size }) => (
-            <UserSearch color={color} size={size} />
-          ),
-        }}
-      />
+
       <Tab.Screen
         name="Connections"
         component={ConnectionsScreen}
@@ -169,6 +147,7 @@ function MainTabs() {
           tabBarIcon: ({ color, size }) => <Users color={color} size={size} />,
         }}
       />
+
       <Tab.Screen
         name="Messages"
         component={MessagesScreen}
@@ -182,13 +161,12 @@ function MainTabs() {
           ),
         }}
       />
+
       <Tab.Screen
         name="Meetups"
         component={MeetupsScreen}
         listeners={{
-          tabPress: async () => {
-            setCounts((c) => ({ ...c, meetups: 0 }));
-          },
+          tabPress: async () => setCounts((c) => ({ ...c, meetups: 0 })),
         }}
         options={{
           tabBarLabel: "Meetups",
@@ -199,6 +177,7 @@ function MainTabs() {
           ),
         }}
       />
+
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
@@ -295,6 +274,25 @@ export default function App() {
                 component={MainTabs}
                 options={{ headerShown: false }}
               />
+
+              {/* Group screens */}
+              <Stack.Screen
+                name="GroupDetail"
+                component={GroupDetailScreen}
+                options={{ title: "Group", ...headerStyle }}
+              />
+              <Stack.Screen
+                name="CreateGroup"
+                component={CreateGroupScreen}
+                options={{ title: "Create Group", ...headerStyle }}
+              />
+              <Stack.Screen
+                name="MemberProfile"
+                component={MemberProfileScreen}
+                options={{ title: "Profile", ...headerStyle }}
+              />
+
+              {/* Other screens */}
               <Stack.Screen
                 name="Chat"
                 component={ChatScreen}

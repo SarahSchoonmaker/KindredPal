@@ -23,10 +23,14 @@ const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const mongoSanitize = require("express-mongo-sanitize");
 const logger = require("./utils/logger");
+
+// ===== ROUTES =====
 const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/users");
 const messageRoutes = require("./routes/messages");
 const meetupRoutes = require("./routes/meetups");
+const groupRoutes = require("./routes/groups");
+const connectionRoutes = require("./routes/connections");
 
 const app = express();
 
@@ -45,10 +49,8 @@ const allowedOrigins = [
   "http://localhost:19006",
 ];
 
-// Handle preflight explicitly before everything else
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-
   if (!origin || allowedOrigins.includes(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin || "*");
     res.setHeader(
@@ -61,19 +63,13 @@ app.use((req, res, next) => {
     );
     res.setHeader("Access-Control-Allow-Credentials", "true");
   }
-
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
-
+  if (req.method === "OPTIONS") return res.status(200).end();
   next();
 });
 
 const corsOptions = {
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
     logger.error("🚫 Blocked origin:", origin);
     callback(
       new Error(`CORS policy does not allow access from origin: ${origin}`),
@@ -115,11 +111,8 @@ app.use(
   }),
 );
 
-// Body parser with size limits
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
-
-// MongoDB injection protection
 app.use(mongoSanitize());
 
 // ===== RATE LIMITING =====
@@ -134,7 +127,7 @@ app.use("/api/", limiter);
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: process.env.NODE_ENV === "production" ? 10 : 100, // Relaxed in dev
+  max: process.env.NODE_ENV === "production" ? 10 : 100,
   message: "Too many login attempts, please try again later.",
   skipSuccessfulRequests: true,
 });
@@ -175,7 +168,7 @@ io.on("connection", (socket) => {
       return;
     }
     userSockets.set(userId, socket.id);
-    socket.join(userId); // ✅ Join room named by userId so io.to(userId).emit() works
+    socket.join(userId);
     logger.info(`👤 User ${userId} is now online (socket: ${socket.id})`);
     socket.broadcast.emit("user-status-change", { userId, status: "online" });
   });
@@ -203,11 +196,13 @@ io.on("connection", (socket) => {
 app.set("io", io);
 app.set("userSockets", userSockets);
 
-// ===== ROUTES =====
+// ===== API ROUTES =====
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/meetups", meetupRoutes);
+app.use("/api/groups", groupRoutes);
+app.use("/api/connections", connectionRoutes);
 
 // Health check
 app.get("/", (req, res) => {
@@ -228,6 +223,8 @@ app.get("/api", (req, res) => {
       users: "/api/users",
       messages: "/api/messages",
       meetups: "/api/meetups",
+      groups: "/api/groups",
+      connections: "/api/connections",
     },
   });
 });
@@ -272,11 +269,9 @@ mongoose
 mongoose.connection.on("disconnected", () => {
   logger.info("⚠️ MongoDB disconnected - attempting reconnect...");
 });
-
 mongoose.connection.on("error", (err) => {
   logger.error("❌ MongoDB error:", err);
 });
-
 mongoose.connection.on("reconnected", () => {
   logger.info("✅ MongoDB reconnected successfully");
 });

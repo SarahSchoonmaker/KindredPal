@@ -1,19 +1,13 @@
 import axios from "axios";
 
-// Use environment variable in production, localhost in development
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
 
 const api = axios.create({
   baseURL: API_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
+  headers: { "Content-Type": "application/json" },
   timeout: 30000,
 });
 
-// ✅ Read token fresh from localStorage on every request
-// CRITICAL: Never cache token in a closure/variable — must read fresh each time
-// so switching users always sends the correct token immediately
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
@@ -22,26 +16,17 @@ api.interceptors.request.use(
     } else {
       delete config.headers.Authorization;
     }
-
-    // ✅ Cache-bust all GET requests — prevents browser returning stale data
-    // from a previous user's session after switching accounts
     if (config.method === "get") {
-      config.params = {
-        ...config.params,
-        _t: Date.now(),
-      };
+      config.params = { ...config.params, _t: Date.now() };
     }
-
     return config;
   },
   (error) => Promise.reject(error),
 );
 
-// Response interceptor for error handling
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Log CORS/network errors
     if (error.message === "Network Error" && !error.response) {
       console.error("❌ CORS or Network Error:", {
         url: error.config?.url,
@@ -49,15 +34,10 @@ api.interceptors.response.use(
         baseURL: error.config?.baseURL,
       });
     }
-
-    // Handle 401 — clear token but let AuthContext handle navigation
-    // Do NOT use window.location.href here — it causes full reloads and
-    // can interfere with the login flow when switching users
     if (error.response?.status === 401) {
       console.warn("⚠️ Unauthorized - clearing token");
       localStorage.removeItem("token");
     }
-
     return Promise.reject(error);
   },
 );
@@ -114,6 +94,40 @@ export const meetupsAPI = {
   updateMeetup: (meetupId, data) => api.put(`/meetups/${meetupId}`, data),
   deleteMeetup: (meetupId) => api.delete(`/meetups/${meetupId}`),
   rsvp: (meetupId, status) => api.post(`/meetups/${meetupId}/rsvp`, { status }),
+};
+
+// ===== GROUPS =====
+export const groupsAPI = {
+  getGroups: (params) => api.get("/groups", { params }),
+  getMyGroups: () => api.get("/groups/my"),
+  getGroup: (groupId) => api.get(`/groups/${groupId}`),
+  createGroup: (data) => api.post("/groups", data),
+  joinGroup: (groupId) => api.post(`/groups/${groupId}/join`),
+  leaveGroup: (groupId) => api.post(`/groups/${groupId}/leave`),
+  approveRequest: (groupId, userId) =>
+    api.post(`/groups/${groupId}/approve/${userId}`),
+  rejectRequest: (groupId, userId) =>
+    api.post(`/groups/${groupId}/reject/${userId}`),
+  updateGroup: (groupId, data) => api.put(`/groups/${groupId}`, data),
+  deleteGroup: (groupId) => api.delete(`/groups/${groupId}`),
+  getMembers: (groupId) => api.get(`/groups/${groupId}/members`),
+  seedGroups: (city, state) => api.post("/groups/seed", { city, state }),
+};
+
+// ===== CONNECTIONS =====
+export const connectionsAPI = {
+  getConnections: () => api.get("/connections"),
+  getRequests: () => api.get("/connections/requests"),
+  getSent: () => api.get("/connections/sent"),
+  sendRequest: (userId, message = "") =>
+    api.post(`/connections/request/${userId}`, { message }),
+  acceptRequest: (connectionId) =>
+    api.post(`/connections/accept/${connectionId}`),
+  declineRequest: (connectionId) =>
+    api.post(`/connections/decline/${connectionId}`),
+  removeConnection: (connectionId) =>
+    api.delete(`/connections/${connectionId}`),
+  getStatus: (userId) => api.get(`/connections/status/${userId}`),
 };
 
 export default api;

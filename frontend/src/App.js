@@ -9,50 +9,51 @@ import {
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Layout from "./components/Layout";
 import ScrollToTop from "./components/ScrollToTop";
-import SafetyTips from "./pages/SafetyTips";
+
+// Public pages
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
-import Discover from "./pages/Discover";
-import Matches from "./pages/Matches";
+
+// Legal / info pages
+import SafetyTips from "./pages/SafetyTips";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
+import Support from "./pages/Support";
+import CommunityGuidelines from "./pages/CommunityGuidelines";
+import CookiePolicy from "./pages/CookiePolicy";
+import AboutUs from "./pages/AboutUs";
+import BlockedUsers from "./pages/BlockedUsers";
+
+// Protected pages — existing
 import Messages from "./pages/Messages";
 import Profile from "./pages/Profile";
-import LikesYou from "./pages/LikesYou";
 import UserProfile from "./pages/UserProfile";
 import MeetupsPage from "./pages/MeetupsPage";
 import MeetupDetailsPage from "./pages/MeetupDetailsPage";
-import PrivacyPolicy from "./pages/PrivacyPolicy";
-import TermsOfService from "./pages/TermsOfService";
-import CommunityGuidelines from "./pages/CommunityGuidelines";
-import AboutUs from "./pages/AboutUs";
-import CookiePolicy from "./pages/CookiePolicy";
-import Support from "./pages/Support";
-import BlockedUsers from "./pages/BlockedUsers";
+
+// Protected pages — new Groups + Connections
+import GroupsPage from "./pages/GroupsPage";
+import GroupDetailPage from "./pages/GroupDetailPage";
+import CreateGroupPage from "./pages/CreateGroupPage";
+import ConnectionsPage from "./pages/ConnectionsPage";
 
 import "./App.css";
 
 // Protected Route wrapper
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
-
-  if (loading) {
-    return <div className="loading-screen">Loading...</div>;
-  }
-
+  if (loading) return <div className="loading-screen">Loading...</div>;
   return isAuthenticated ? children : <Navigate to="/login" />;
 };
 
-// Public Route wrapper (redirect to discover if already authenticated)
+// Public Route wrapper (redirect to groups if already authenticated)
 const PublicRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
-
-  if (loading) {
-    return <div className="loading-screen">Loading...</div>;
-  }
-
-  return !isAuthenticated ? children : <Navigate to="/discover" />;
+  if (loading) return <div className="loading-screen">Loading...</div>;
+  return !isAuthenticated ? children : <Navigate to="/groups" />;
 };
 
 function AppRoutes() {
@@ -88,7 +89,7 @@ function AppRoutes() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-        {/* Legal/Compliance Pages - PUBLIC */}
+        {/* Legal / info — public */}
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/support" element={<Support />} />
@@ -106,18 +107,29 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         >
-          <Route path="discover" element={<Discover />} />
-          <Route path="likes-you" element={<LikesYou />} />
-          <Route path="matches" element={<Matches />} />
+          {/* Groups — new home */}
+          <Route path="groups" element={<GroupsPage />} />
+          <Route path="groups/create" element={<CreateGroupPage />} />
+          <Route path="groups/:groupId" element={<GroupDetailPage />} />
+
+          {/* Connections — replaces Matches + LikesYou */}
+          <Route path="connections" element={<ConnectionsPage />} />
+
+          {/* Existing pages kept intact */}
           <Route path="messages" element={<Messages />} />
           <Route path="messages/:userId" element={<Messages />} />
           <Route path="meetups" element={<MeetupsPage />} />
           <Route path="meetups/:meetupId" element={<MeetupDetailsPage />} />
           <Route path="profile" element={<Profile />} />
           <Route path="profile/:userId" element={<UserProfile />} />
+
+          {/* Old routes kept as redirects so bookmarks don't break */}
+          <Route path="discover" element={<Navigate to="/groups" />} />
+          <Route path="matches" element={<Navigate to="/connections" />} />
+          <Route path="likes-you" element={<Navigate to="/connections" />} />
         </Route>
 
-        {/* Catch-all redirect */}
+        {/* Catch-all */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </>

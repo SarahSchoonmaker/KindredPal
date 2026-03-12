@@ -4,7 +4,7 @@
   flex-direction: column;
 }
 
-/* Navbar Styles */
+/* Navbar */
 .navbar {
   background: #2b6cb0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -31,14 +31,17 @@
   color: white;
 }
 
-.brand-icon {
-  font-size: 28px;
-}
-
-.brand-text {
+/* Covers both .brand-text and .navbar-title */
+.brand-text,
+.navbar-title {
   font-size: 24px;
   font-weight: 700;
   letter-spacing: -0.5px;
+  color: white;
+}
+
+.brand-icon {
+  font-size: 30px;
 }
 
 .navbar-links {
@@ -58,7 +61,7 @@
   cursor: pointer;
   border-radius: 8px;
   transition: all 0.2s;
-  font-size: 14px;
+  font-size: 17px;
   font-weight: 500;
 }
 
@@ -88,25 +91,23 @@
   background: #f7fafc;
 }
 
-/* Mobile Responsive */
+/* Mobile */
 @media (max-width: 768px) {
   .navbar-container {
     padding: 0 16px;
   }
-
   .nav-link span {
     display: none;
   }
-
   .navbar-links {
     gap: 4px;
   }
-
   .nav-link {
     padding: 8px 12px;
+    font-size: 15px;
   }
-
-  .brand-text {
+  .brand-text,
+  .navbar-title {
     display: none;
   }
 }
