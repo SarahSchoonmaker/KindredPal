@@ -1,438 +1,519 @@
 const express = require("express");
 const router = express.Router();
-const mongoose = require("mongoose");
-const auth = require("../middleware/auth");
-const Group = require("../models/Group");
 const User = require("../models/User");
-const multer = require("multer");
-const cloudinary = require("cloudinary").v2;
+const auth = require("../middleware/auth");
+const { sendPushNotification } = require("../utils/pushNotifications");
+const logger = require("../utils/logger");
+const Message = require("../models/Message");
+const mongoose = require("mongoose");
 
-// Cloudinary config (uses env vars CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET)
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
-
-// Multer — memory storage, 5MB limit, images only
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) cb(null, true);
-    else cb(new Error("Only image files are allowed"), false);
-  },
-});
-
-// ─── GET /api/groups ─────────────────────────────────────────────────────────
-// List groups near user + nationwide groups
-// Optional query: ?category=Faith&search=tennis&city=Poughkeepsie&state=NY
-router.get("/", auth, async (req, res) => {
+// ===== TEST ENDPOINTS =====
+router.get("/test/db", async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("city state");
-    const { category, search, page = 1, limit = 20 } = req.query;
+    const dbState = mongoose.connection.readyState;
+    const stateMap = { 0: "disconnected", 1: "connected", 2: "connecting", 3: "disconnecting" };
+    const userCount = await User.countDocuments();
+    const oneUser = await User.findOne().select("name email").lean();
+    res.json({ mongooseState: stateMap[dbState], database: mongoose.connection.name, host: mongoose.connection.host, totalUsers: userCount, sampleUser: oneUser, success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
-    const query = { isActive: { $ne: false } }; // treat missing/undefined as active
+router.get("/test/databases", async (req, res) => {
+  try {
+    const admin = mongoose.connection.db.admin();
+    const { databases } = await admin.listDatabases();
+    const currentDB = mongoose.connection.db.databaseName;
+    const collections = await mongoose.connection.db.listCollections().toArray();
+    const userCount = await User.countDocuments();
+    const allUsers = await User.find().select("name email city state").lean();
+    res.json({
+      currentConnection: { database: currentDB, host: mongoose.connection.host },
+      allDatabases: databases,
+      collectionsInCurrentDB: collections.map((c) => c.name),
+      usersInCurrentDB: { count: userCount, users: allUsers.map((u) => ({ name: u.name, email: u.email, location: `${u.city}, ${u.state}` })) },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
-    // Location: show groups in user's city/state OR nationwide
-    // Guard: if user not found or has no state, show all groups
-    if (!search) {
-      if (user?.state) {
-        query.$or = [
-          { state: user.state },
-          { isNationwide: true },
-        ];
-      }
-      // else: no location filter — show all groups
-    }
 
-    if (category) query.category = category;
-
-    if (search) {
-      query.$text = { $search: search };
-    }
-
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-
-    const groups = await Group.find(query)
-      .populate("createdBy", "name profilePhoto")
-      .sort({ memberCount: -1, createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit))
+// ===== DEBUG: See exactly what's stored for current user + state mismatches =====
+router.get("/debug/discover", auth, async (req, res) => {
+  try {
+    const currentUser = await User.findById(req.userId)
+      .select("name email city state locationPreference likes passed matches blockedUsers")
       .lean();
 
-    // Add isMember flag for each group
-    const userId = req.user.id;
-    const groupsWithMembership = groups.map((g) => ({
-      ...g,
-      isMember: g.members.some((m) => m.toString() === userId),
-      isPending: g.pendingRequests?.some((r) => r.userId?.toString() === userId),
-    }));
+    const allUsers = await User.find({
+      _id: { $ne: req.userId },
+      isDeleted: { $ne: true },
+    }).select("name city state _id").lean();
 
-    const total = await Group.countDocuments(query);
+    const likedIds = (currentUser.likes || []).map(id => id.toString());
+    const passedIds = (currentUser.passed || []).map(id => id.toString());
+    const matchedIds = (currentUser.matches || []).map(id => id.toString());
+    const blockedIds = (currentUser.blockedUsers || []).map(id => id.toString());
+
+    const breakdown = allUsers.map(u => {
+      const id = u._id.toString();
+      let excludedReason = null;
+      if (likedIds.includes(id)) excludedReason = "liked";
+      else if (passedIds.includes(id)) excludedReason = "passed";
+      else if (matchedIds.includes(id)) excludedReason = "matched";
+      else if (blockedIds.includes(id)) excludedReason = "blocked";
+      return {
+        name: u.name,
+        city: u.city,
+        state: u.state,
+        excluded: !!excludedReason,
+        reason: excludedReason || "visible",
+        stateMatch: u.state?.toLowerCase().trim() === currentUser.state?.toLowerCase().trim(),
+      };
+    });
 
     res.json({
-      groups: groupsWithMembership,
-      total,
-      page: parseInt(page),
-      pages: Math.ceil(total / parseInt(limit)),
+      currentUser: {
+        name: currentUser.name,
+        city: currentUser.city,
+        state: currentUser.state,
+        locationPreference: currentUser.locationPreference,
+        likedCount: likedIds.length,
+        passedCount: passedIds.length,
+        matchedCount: matchedIds.length,
+        blockedCount: blockedIds.length,
+      },
+      totalOtherUsers: allUsers.length,
+      visibleToYou: breakdown.filter(u => !u.excluded).length,
+      excludedFromDiscover: breakdown.filter(u => u.excluded).length,
+      breakdown,
     });
-  } catch (err) {
-    console.error("GET /groups error:", err);
-    res.status(500).json({ message: "Server error" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
-// ─── GET /api/groups/my ───────────────────────────────────────────────────────
-// Groups the current user has joined
-router.get("/my", auth, async (req, res) => {
+// ==========================================
+//  Discover Route
+// ==========================================
+
+router.get("/discover", auth, async (req, res) => {
   try {
-    const groups = await Group.find({
-      members: req.user.id,
-      isActive: true,
-    })
-      .populate("createdBy", "name profilePhoto")
-      .sort({ updatedAt: -1 })
+    console.log("\n===== DISCOVER CALLED =====");
+    console.log("User ID:", req.userId);
+    console.log("Query params:", req.query);
+
+    const currentUser = await User.findById(req.userId)
+      .select("_id email city state latitude longitude locationPreference filterPoliticalBeliefs filterReligions filterLifeStages matches likes passed blockedUsers")
       .lean();
 
-    const userId = req.user.id;
-    const result = groups.map((g) => ({ ...g, isMember: true }));
-    res.json({ groups: result });
-  } catch (err) {
-    console.error("GET /groups/my error:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
+    console.log("Current user found:", currentUser ? currentUser.email : "NOT FOUND");
 
-// ─── GET /api/groups/:id ──────────────────────────────────────────────────────
-// Get single group with members
-router.get("/:id", auth, async (req, res) => {
-  try {
-    const group = await Group.findById(req.params.id)
-      .populate("createdBy", "name profilePhoto")
-      .populate("members", "name profilePhoto city state lifeStage bio")
-      .lean();
-
-    if (!group) return res.status(404).json({ message: "Group not found" });
-
-    const userId = req.user.id;
-    group.isMember = group.members.some((m) => m._id.toString() === userId);
-    group.isAdmin = group.admins.some((a) => a.toString() === userId);
-    group.isPending = group.pendingRequests?.some(
-      (r) => r.userId?.toString() === userId
-    );
-
-    // Hide pending requests from non-admins
-    if (!group.isAdmin) delete group.pendingRequests;
-
-    res.json(group);
-  } catch (err) {
-    console.error("GET /groups/:id error:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// ─── POST /api/groups ─────────────────────────────────────────────────────────
-// Create a new group
-router.post("/", auth, async (req, res) => {
-  try {
-    const { name, description, category, city, state, isNationwide, isPrivate, coverPhoto, tags } = req.body;
-
-    if (!name || !description || !category) {
-      return res.status(400).json({ message: "Name, description, and category are required" });
+    if (!currentUser) {
+      return res.status(404).json({ message: "User not found" });
     }
 
-    const group = new Group({
-      name,
-      description,
-      category,
-      city: city || "",
-      state: state || "",
-      isNationwide: isNationwide || false,
-      isPrivate: isPrivate || false,
-      coverPhoto: coverPhoto || "",
-      tags: tags || [],
-      address: req.body.address || "",
-      zipCode: req.body.zipCode || "",
-      createdBy: req.user.id,
-      members: [req.user.id],
-      admins: [req.user.id],
-      memberCount: 1,
-      isActive: true,
-    });
+    const locationPref = req.query.locationPreference || currentUser.locationPreference || "Same state";
 
-    await group.save();
-    await group.populate("createdBy", "name profilePhoto");
+    const filterPolitical = req.query.filterPoliticalBeliefs
+      ? JSON.parse(req.query.filterPoliticalBeliefs)
+      : currentUser.filterPoliticalBeliefs || [];
+    const filterReligions = req.query.filterReligions
+      ? JSON.parse(req.query.filterReligions)
+      : currentUser.filterReligions || [];
+    const filterLifeStages = req.query.filterLifeStages
+      ? JSON.parse(req.query.filterLifeStages)
+      : currentUser.filterLifeStages || [];
 
-    res.status(201).json({ ...group.toObject(), isMember: true, isAdmin: true });
-  } catch (err) {
-    console.error("POST /groups error:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
+    console.log("📍 Active filters:");
+    console.log("   Location:", locationPref);
 
-// ─── POST /api/groups/:id/join ────────────────────────────────────────────────
-// Join a public group OR request to join a private group
-router.post("/:id/join", auth, async (req, res) => {
-  try {
-    const group = await Group.findById(req.params.id);
-    if (!group) return res.status(404).json({ message: "Group not found" });
-
-    const userId = req.user.id;
-    const isMember = group.members.some((m) => m.toString() === userId);
-    if (isMember) return res.status(400).json({ message: "Already a member" });
-
-    if (group.isPrivate) {
-      // Add to pending requests
-      const alreadyPending = group.pendingRequests.some(
-        (r) => r.userId?.toString() === userId
-      );
-      if (alreadyPending) return res.status(400).json({ message: "Request already pending" });
-
-      group.pendingRequests.push({ userId });
-      await group.save();
-      return res.json({ message: "Join request sent", isPending: true });
-    }
-
-    // Public group — join immediately
-    group.members.push(userId);
-    group.memberCount = group.members.length;
-    await group.save();
-
-    res.json({ message: "Joined group", isMember: true });
-  } catch (err) {
-    console.error("POST /groups/:id/join error:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// ─── POST /api/groups/:id/leave ───────────────────────────────────────────────
-router.post("/:id/leave", auth, async (req, res) => {
-  try {
-    const group = await Group.findById(req.params.id);
-    if (!group) return res.status(404).json({ message: "Group not found" });
-
-    const userId = req.user.id;
-
-    // Creator cannot leave their own group
-    if (group.createdBy.toString() === userId) {
-      return res.status(400).json({ message: "Group creator cannot leave. Delete the group instead." });
-    }
-
-    group.members = group.members.filter((m) => m.toString() !== userId);
-    group.admins = group.admins.filter((a) => a.toString() !== userId);
-    group.memberCount = group.members.length;
-    await group.save();
-
-    res.json({ message: "Left group" });
-  } catch (err) {
-    console.error("POST /groups/:id/leave error:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// ─── POST /api/groups/:id/approve/:userId ─────────────────────────────────────
-// Admin approves a join request for private group
-router.post("/:id/approve/:userId", auth, async (req, res) => {
-  try {
-    const group = await Group.findById(req.params.id);
-    if (!group) return res.status(404).json({ message: "Group not found" });
-
-    const isAdmin = group.admins.some((a) => a.toString() === req.user.id);
-    if (!isAdmin) return res.status(403).json({ message: "Not authorized" });
-
-    const targetUserId = req.params.userId;
-    group.pendingRequests = group.pendingRequests.filter(
-      (r) => r.userId?.toString() !== targetUserId
-    );
-    if (!group.members.some((m) => m.toString() === targetUserId)) {
-      group.members.push(targetUserId);
-      group.memberCount = group.members.length;
-    }
-    await group.save();
-
-    res.json({ message: "User approved" });
-  } catch (err) {
-    console.error("POST /groups/:id/approve error:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// ─── POST /api/groups/:id/reject/:userId ──────────────────────────────────────
-router.post("/:id/reject/:userId", auth, async (req, res) => {
-  try {
-    const group = await Group.findById(req.params.id);
-    if (!group) return res.status(404).json({ message: "Group not found" });
-
-    const isAdmin = group.admins.some((a) => a.toString() === req.user.id);
-    if (!isAdmin) return res.status(403).json({ message: "Not authorized" });
-
-    group.pendingRequests = group.pendingRequests.filter(
-      (r) => r.userId?.toString() !== req.params.userId
-    );
-    await group.save();
-
-    res.json({ message: "Request rejected" });
-  } catch (err) {
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// ─── PUT /api/groups/:id ──────────────────────────────────────────────────────
-// Update group (admin only)
-router.put("/:id", auth, async (req, res) => {
-  try {
-    const group = await Group.findById(req.params.id);
-    if (!group) return res.status(404).json({ message: "Group not found" });
-
-    const isAdmin = group.admins.some((a) => a.toString() === req.user.id);
-    if (!isAdmin) return res.status(403).json({ message: "Not authorized" });
-
-    const allowed = ["name", "description", "category", "city", "state", "address", "zipCode", "isNationwide", "isPrivate", "coverPhoto", "tags"];
-    allowed.forEach((field) => {
-      if (req.body[field] !== undefined) group[field] = req.body[field];
-    });
-
-    await group.save();
-    res.json(group);
-  } catch (err) {
-    console.error("PUT /groups/:id error:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// ─── DELETE /api/groups/:id ───────────────────────────────────────────────────
-router.delete("/:id", auth, async (req, res) => {
-  try {
-    const group = await Group.findById(req.params.id);
-    if (!group) return res.status(404).json({ message: "Group not found" });
-
-    if (group.createdBy.toString() !== req.user.id) {
-      return res.status(403).json({ message: "Only the creator can delete this group" });
-    }
-
-    group.isActive = false;
-    await group.save();
-
-    res.json({ message: "Group deleted" });
-  } catch (err) {
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// ─── GET /api/groups/:id/members ─────────────────────────────────────────────
-router.get("/:id/members", auth, async (req, res) => {
-  try {
-    const group = await Group.findById(req.params.id)
-      .populate("members", "name profilePhoto city state lifeStage bio causes")
-      .lean();
-
-    if (!group) return res.status(404).json({ message: "Group not found" });
-
-    // Must be a member to see members of private group
-    if (group.isPrivate) {
-      const isMember = group.members.some((m) => m._id.toString() === req.user.id);
-      if (!isMember) return res.status(403).json({ message: "Join the group to see members" });
-    }
-
-    res.json({ members: group.members });
-  } catch (err) {
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// ─── POST /api/groups/seed ────────────────────────────────────────────────────
-// Seed default groups for a city/state (admin use)
-router.post("/seed", auth, async (req, res) => {
-  try {
-    const { city, state } = req.body;
-    if (!city || !state) return res.status(400).json({ message: "city and state required" });
-
-    const seedGroups = [
-      { name: `Tennis Group — ${city}`, description: `Tennis players and enthusiasts in ${city}. All skill levels welcome!`, category: "Sports & Fitness", tags: ["tennis", "sports", "fitness"] },
-      { name: `Christian Fellowship — ${city}`, description: `A welcoming Christian community group in ${city} for faith, friendship, and fellowship.`, category: "Faith & Spirituality", tags: ["christian", "faith", "church"] },
-      { name: `Moms of ${city}`, description: `A supportive community for moms in ${city} — playdates, advice, friendship, and fun.`, category: "Parents", tags: ["moms", "parenting", "kids"] },
-      { name: `Fitness Buddies — ${city}`, description: `Find your fitness accountability partner in ${city}. Gym, running, hiking — all welcome.`, category: "Sports & Fitness", tags: ["fitness", "gym", "workout", "running"] },
-      { name: `Volunteers of ${city}`, description: `Connect with people who want to give back in ${city}. Find volunteer opportunities and meet like-minded people.`, category: "Volunteers & Causes", tags: ["volunteer", "community", "giving", "nonprofit"] },
-      { name: `Book Club — ${city}`, description: `Monthly book discussions for readers in ${city}. All genres welcome.`, category: "Arts, Culture & Book Clubs", tags: ["books", "reading", "book club"] },
-      { name: `New to ${city}`, description: `Just moved to ${city}? Meet other newcomers, discover the area, and build your social circle.`, category: "New to the Area", tags: ["new", "newcomer", "relocation"] },
-      { name: `Outdoor Adventures — ${city}`, description: `Hiking, cycling, kayaking and more for outdoor lovers in ${city} and surrounding areas.`, category: "Outdoor & Adventure", tags: ["hiking", "outdoors", "nature", "cycling"] },
-      { name: `Foodies of ${city}`, description: `Restaurant discoveries, cooking nights, and food adventures in ${city}. All cuisines welcome.`, category: "Food & Dining", tags: ["food", "restaurants", "cooking", "dining"] },
-      { name: `Learning & Growth — ${city}`, description: `Skill sharing, language exchange, workshops and personal development for curious minds in ${city}.`, category: "Learning & Education", tags: ["learning", "skills", "education", "growth"] },
-      { name: `Book Club — ${city}`, description: `Monthly book discussions for readers in ${city}. Fiction, non-fiction, all genres welcome — just bring your curiosity.`, category: "Arts, Culture & Book Clubs", tags: ["books", "reading", "book club", "fiction", "nonfiction"] },
-      { name: `Business Owners of ${city}`, description: `A community for entrepreneurs, small business owners, and founders in ${city}. Share resources, get advice, and grow together.`, category: "Business Owners & Entrepreneurs", tags: ["business", "entrepreneur", "startup", "small business", "founder"] },
-      { name: `Sober Living — ${city}`, description: `A supportive, judgment-free community for people living sober or alcohol-free in ${city}. AA, NA, or just choosing clean living — all welcome.`, category: "Sober & Clean Living", tags: ["sober", "sobriety", "recovery", "clean living", "AA", "NA"] },
-      { name: `Single Parents of ${city}`, description: `Support, community, and friendship for single moms and dads in ${city}. Playdates, advice, and real talk — you don't have to do it alone.`, category: "Single Parents", tags: ["single parent", "single mom", "single dad", "parenting", "kids"] },
-      { name: `Aging Gracefully — ${city}`, description: `A warm, welcoming community for older adults in ${city} who want connection, companionship, and friendship. No one should navigate this chapter alone.`, category: "Aging Gracefully", tags: ["seniors", "aging", "companionship", "older adults", "community"] },
-      { name: `Life Transitions — ${city}`, description: `Support for navigating life's big changes in ${city} — caregivers, divorce, relocation, loss, and starting over. You are not alone.`, category: "Life Transitions", tags: ["life transitions", "support", "caregivers", "divorce", "starting over"] },
+    const excludedIds = [
+      currentUser._id,
+      ...(currentUser.matches || []),
+      ...(currentUser.likes || []),
+      ...(currentUser.passed || []),
+      ...(currentUser.blockedUsers || []),
     ];
+    console.log("🚫 Excluding:", excludedIds.length, "users");
 
-    const created = [];
-    for (const seed of seedGroups) {
-      const exists = await Group.findOne({ name: seed.name, isActive: true });
-      if (!exists) {
-        const g = new Group({
-          ...seed,
-          city,
-          state,
-          createdBy: req.user.id,
-          members: [req.user.id],
-          admins: [req.user.id],
-          memberCount: 1,
-          isSeeded: true,
-        });
-        await g.save();
-        created.push(g.name);
+    let query = {
+      _id: { $nin: excludedIds },
+      isDeleted: { $ne: true },
+    };
+
+    // ✅ LOCATION FILTER — guard against empty state/city
+    const needsDistanceCalc = locationPref.includes("miles");
+
+    if (!needsDistanceCalc) {
+      if (locationPref === "Same city") {
+        if (currentUser.city && currentUser.state) {
+          // ✅ Case-insensitive match for both city and state
+          query.city = { $regex: new RegExp(`^${currentUser.city.trim()}$`, "i") };
+          query.state = { $regex: new RegExp(`^${currentUser.state.trim()}$`, "i") };
+          console.log("🏙️ Filter: Same city -", currentUser.city, currentUser.state);
+        } else {
+          console.log("⚠️ Same city requested but user missing city/state — showing Anywhere");
+        }
+      } else if (locationPref === "Same state") {
+        if (currentUser.state) {
+          // ✅ Case-insensitive match — handles "FL" vs "fl" vs "Florida" inconsistency
+          query.state = { $regex: new RegExp(`^${currentUser.state.trim()}$`, "i") };
+          console.log("🗺️ Filter: Same state -", currentUser.state);
+        } else {
+          console.log("⚠️ Same state requested but user missing state — showing Anywhere");
+        }
+      } else {
+        console.log("🌍 Filter: Anywhere (no restriction)");
       }
     }
 
-    res.json({ message: `Seeded ${created.length} groups`, created });
-  } catch (err) {
-    console.error("POST /groups/seed error:", err);
-    res.status(500).json({ message: "Server error" });
+    if (filterPolitical && filterPolitical.length > 0) {
+      query.politicalBeliefs = { $in: filterPolitical };
+    }
+    if (filterReligions && filterReligions.length > 0) {
+      query.religion = { $in: filterReligions };
+    }
+    if (filterLifeStages && filterLifeStages.length > 0) {
+      query.lifeStage = { $in: filterLifeStages };
+    }
+
+    console.log("🔎 Final query:", JSON.stringify(query, null, 2));
+
+    let users = await User.find(query)
+      .select("name age city state profilePhoto bio causes latitude longitude politicalBeliefs religion lifeStage")
+      .lean();
+
+    console.log(`✅ Database returned ${users.length} users`);
+
+    if (needsDistanceCalc) {
+      const miles = parseInt(locationPref.match(/\d+/)[0]);
+      if (!currentUser.latitude || !currentUser.longitude) {
+        console.log("⚠️ User missing coordinates - falling back to same state");
+        if (currentUser.state) {
+          users = users.filter((u) => u.state === currentUser.state);
+        }
+      } else {
+        users = users.filter((user) => {
+          if (!user.latitude || !user.longitude) return false;
+          return calculateDistance(currentUser.latitude, currentUser.longitude, user.latitude, user.longitude) <= miles;
+        });
+      }
+      console.log(`📍 After distance filter: ${users.length} users`);
+    }
+
+    users.forEach((user) => { delete user.latitude; delete user.longitude; });
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+    const totalCount = users.length;
+    const paginatedUsers = users.slice(skip, skip + limit);
+
+    console.log(`✅ Returning ${paginatedUsers.length}/${totalCount} users (page ${page})`);
+    console.log("===== DISCOVER COMPLETE =====\n");
+
+    return res.json({
+      users: paginatedUsers,
+      pagination: { page, limit, totalUsers: totalCount, totalPages: Math.ceil(totalCount / limit), hasMore: page * limit < totalCount },
+    });
+  } catch (error) {
+    console.error("===== DISCOVER ERROR =====", error.message);
+    return res.status(500).json({ message: error.message });
   }
 });
 
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 3959;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+function toRad(degrees) { return degrees * (Math.PI / 180); }
 
-// ─── POST /api/groups/:id/photo ──────────────────────────────────────────────
-// Upload group cover photo (admin only)
-router.post("/:id/photo", auth, upload.single("photo"), async (req, res) => {
+// ===== LIKE USER =====
+router.post("/like/:userId", auth, async (req, res) => {
   try {
-    const group = await Group.findById(req.params.id);
-    if (!group) return res.status(404).json({ message: "Group not found" });
+    const currentUser = await User.findById(req.userId);
+    const likedUserId = req.params.userId;
+    const likedUser = await User.findById(likedUserId);
+    if (!likedUser) return res.status(404).json({ message: "User not found" });
 
-    const isAdmin = group.admins.some((a) => a.toString() === req.user.id);
-    if (!isAdmin) return res.status(403).json({ message: "Not authorized" });
-
-    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
-
-    // Upload to Cloudinary
-    const result = await new Promise((resolve, reject) => {
-      cloudinary.uploader.upload_stream(
-        {
-          folder: "kindredpal/groups",
-          transformation: [{ width: 600, height: 600, crop: "fill", quality: "auto" }],
-        },
-        (error, result) => {
-          if (error) reject(error);
-          else resolve(result);
-        }
-      ).end(req.file.buffer);
-    });
-
-    // Delete old photo from Cloudinary if exists
-    if (group.coverPhoto && group.coverPhoto.includes("cloudinary")) {
-      const publicId = group.coverPhoto.split("/").pop().split(".")[0];
-      await cloudinary.uploader.destroy(`kindredpal/groups/${publicId}`).catch(() => {});
+    if (!currentUser.likes.includes(likedUserId)) {
+      currentUser.likes.push(likedUserId);
+      await currentUser.save();
     }
 
-    group.coverPhoto = result.secure_url;
-    await group.save();
+    const isMatch = likedUser.likes.includes(req.userId);
+    if (isMatch) {
+      if (!currentUser.matches.includes(likedUserId)) currentUser.matches.push(likedUserId);
+      if (!likedUser.matches.includes(req.userId)) likedUser.matches.push(req.userId);
+      await currentUser.save();
+      await likedUser.save();
 
-    res.json({ coverPhoto: result.secure_url });
-  } catch (err) {
-    console.error("Photo upload error:", err);
-    res.status(500).json({ message: "Photo upload failed" });
+      // Emit socket events for real-time badge updates
+      const io = req.app.get("io");
+      if (io) {
+        io.to(likedUserId).emit("new-match");
+        io.to(req.userId).emit("new-match");
+      }
+
+      return res.json({ isMatch: true, matchedUser: { _id: likedUser._id, name: likedUser.name, profilePhoto: likedUser.profilePhoto } });
+    }
+
+    // Emit new-like event so their badge updates
+    const io = req.app.get("io");
+    if (io) io.to(likedUserId).emit("new-like");
+
+    res.json({ isMatch: false });
+  } catch (error) {
+    logger.error("Like user error:", error);
+    res.status(500).json({ message: "Error liking user" });
+  }
+});
+
+// ===== PASS USER =====
+router.post("/pass/:userId", auth, async (req, res) => {
+  try {
+    const currentUser = await User.findById(req.userId);
+    const passedUserId = req.params.userId;
+    if (!currentUser.passed.includes(passedUserId)) {
+      currentUser.passed.push(passedUserId);
+      await currentUser.save();
+    }
+    res.json({ message: "User passed" });
+  } catch (error) {
+    logger.error("Pass user error:", error);
+    res.status(500).json({ message: "Error passing user" });
+  }
+});
+
+// ===== CLEAR PASSED (for testing / admin reset) =====
+router.delete("/passed", auth, async (req, res) => {
+  try {
+    await User.findByIdAndUpdate(req.userId, { $set: { passed: [] } });
+    res.json({ message: "Passed list cleared" });
+  } catch (error) {
+    res.status(500).json({ message: "Error clearing passed list" });
+  }
+});
+
+// ===== GET MATCHES =====
+router.get("/matches", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId).populate("matches", "name age city state profilePhoto bio causes lifeStage");
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json(user.matches.map((match) => match.toObject()));
+  } catch (error) {
+    logger.error("❌ Get matches error:", error);
+    res.status(500).json({ message: "Error fetching matches" });
+  }
+});
+
+// ===== GET LIKES YOU =====
+router.get("/likes-you", auth, async (req, res) => {
+  try {
+    const currentUser = await User.findById(req.userId);
+    if (!currentUser) return res.status(404).json({ message: "User not found" });
+
+    const excludedIds = [req.userId, ...(currentUser.matches || []), ...(currentUser.blockedUsers || [])];
+
+    const usersWhoLikedYou = await User.find({
+      likes: currentUser._id,
+      _id: { $nin: excludedIds },
+      isDeleted: { $ne: true },
+      isActive: { $ne: false },
+    }).select("name age city state profilePhoto bio causes lifeStage politicalBeliefs religion lookingFor").lean();
+
+    res.json({ users: usersWhoLikedYou, dailyLikesRemaining: 10 });
+  } catch (error) {
+    logger.error("❌ Likes you error:", error);
+    res.status(500).json({ message: "Error fetching likes", error: error.message });
+  }
+});
+
+// ===== UPDATE PROFILE =====
+router.put("/profile", auth, async (req, res) => {
+  try {
+    const updates = req.body;
+    const user = await User.findById(req.userId);
+    const allowedUpdates = ["name", "age", "city", "state", "bio", "profilePhoto", "additionalPhotos", "politicalBeliefs", "religion", "causes", "lifeStage", "lookingFor", "locationPreference", "filterPoliticalBeliefs", "filterReligions", "filterLifeStages"];
+    allowedUpdates.forEach((field) => { if (updates[field] !== undefined) user[field] = updates[field]; });
+    await user.save();
+    const userResponse = user.toObject();
+    userResponse.id = userResponse._id.toString();
+    res.json(userResponse);
+  } catch (error) {
+    logger.error("Update profile error:", error);
+    res.status(500).json({ message: "Error updating profile" });
+  }
+});
+
+// ===== GET USER PROFILE =====
+router.get("/profile/:userId", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId).select("-password").lean();
+    if (!user) return res.status(404).json({ message: "User not found" });
+    user.id = user._id.toString();
+    res.json(user);
+  } catch (error) {
+    logger.error("Get user profile error:", error);
+    res.status(500).json({ message: "Error fetching profile" });
+  }
+});
+
+// ===== UPDATE NOTIFICATION SETTINGS =====
+router.put("/notification-settings", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId);
+    user.emailNotifications = { ...user.emailNotifications, ...req.body };
+    await user.save();
+    res.json({ message: "Notification settings updated" });
+  } catch (error) {
+    logger.error("Update notifications error:", error);
+    res.status(500).json({ message: "Error updating settings" });
+  }
+});
+
+// ===== UNMATCH USER =====
+router.post("/unmatch/:userId", auth, async (req, res) => {
+  try {
+    const currentUser = await User.findById(req.userId);
+    const targetUser = await User.findById(req.params.userId);
+    if (!targetUser) return res.status(404).json({ message: "User not found" });
+
+    const isMatched = currentUser.matches.some((id) => id.toString() === targetUser._id.toString());
+    if (!isMatched) return res.status(400).json({ message: "Not matched with this user" });
+
+    currentUser.matches = currentUser.matches.filter((id) => id.toString() !== targetUser._id.toString());
+    targetUser.matches = targetUser.matches.filter((id) => id.toString() !== currentUser._id.toString());
+    currentUser.likes = currentUser.likes.filter((id) => id.toString() !== targetUser._id.toString());
+    targetUser.likes = targetUser.likes.filter((id) => id.toString() !== currentUser._id.toString());
+
+    await currentUser.save({ validateBeforeSave: false });
+    await targetUser.save({ validateBeforeSave: false });
+
+    res.json({ message: "Successfully unmatched", unmatchedUser: { _id: targetUser._id, name: targetUser.name } });
+  } catch (error) {
+    logger.error("❌ Unmatch error:", error);
+    res.status(500).json({ message: "Error unmatching user" });
+  }
+});
+
+// ===== DELETE ACCOUNT =====
+router.delete("/account", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId);
+    await user.softDelete();
+    res.json({ message: "Account deleted successfully" });
+  } catch (error) {
+    logger.error("Delete account error:", error);
+    res.status(500).json({ message: "Error deleting account" });
+  }
+});
+
+// ===== REPORT USER =====
+router.post("/:userId/report", auth, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { reason } = req.body;
+    if (!reason) return res.status(400).json({ message: "Report reason is required" });
+    const reportedUser = await User.findById(userId).lean();
+    if (!reportedUser) return res.status(404).json({ message: "User not found" });
+    if (userId === req.userId) return res.status(400).json({ message: "You cannot report yourself" });
+    res.status(200).json({ message: "Thank you for your report. Our team will review it shortly." });
+  } catch (error) {
+    logger.error("❌ Report user error:", error);
+    res.status(500).json({ message: "Error reporting user" });
+  }
+});
+
+// ===== BLOCK USER =====
+router.post("/:userId/block", auth, async (req, res) => {
+  try {
+    const currentUser = await User.findById(req.userId);
+    if (!currentUser) return res.status(404).json({ message: "User not found" });
+    const userToBlockId = req.params.userId;
+    if (!currentUser.blockedUsers.includes(userToBlockId)) {
+      currentUser.blockedUsers.push(userToBlockId);
+      await currentUser.save();
+    }
+    await Message.deleteMany({ $or: [{ sender: req.userId, recipient: userToBlockId }, { sender: userToBlockId, recipient: req.userId }] });
+    res.json({ message: "User blocked and message history deleted" });
+  } catch (error) {
+    logger.error("Error blocking user:", error);
+    res.status(500).json({ message: "Error blocking user", error: error.message });
+  }
+});
+
+// ===== UNBLOCK USER =====
+router.delete("/:userId/block", auth, async (req, res) => {
+  try {
+    const currentUser = await User.findById(req.userId);
+    if (!currentUser) return res.status(404).json({ message: "User not found" });
+    currentUser.blockedUsers = currentUser.blockedUsers.filter((id) => id.toString() !== req.params.userId);
+    await currentUser.save();
+    res.json({ message: "User unblocked successfully" });
+  } catch (error) {
+    logger.error("Error unblocking user:", error);
+    res.status(500).json({ message: "Error unblocking user", error: error.message });
+  }
+});
+
+// ===== GET BLOCKED USERS =====
+router.get("/blocked", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId).populate("blockedUsers", "name profilePhoto").lean();
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json((user.blockedUsers || []).filter(Boolean));
+  } catch (error) {
+    logger.error("❌ Get blocked users error:", error);
+    res.status(500).json({ message: "Error fetching blocked users" });
+  }
+});
+
+// ===== SAVE PUSH TOKEN =====
+router.post("/push-token", auth, async (req, res) => {
+  try {
+    const { token, device } = req.body;
+    if (!token) return res.status(400).json({ message: "Token is required" });
+    const user = await User.findById(req.userId);
+    if (!user.pushTokens.find((pt) => pt.token === token)) {
+      user.pushTokens.push({ token, device: device || "unknown" });
+      if (user.pushTokens.length > 3) user.pushTokens = user.pushTokens.slice(-3);
+      await user.save();
+    }
+    res.json({ message: "Push token saved successfully" });
+  } catch (error) {
+    logger.error("❌ Save push token error:", error);
+    res.status(500).json({ message: "Error saving push token" });
+  }
+});
+
+// ===== GET ALL BADGE COUNTS =====
+router.get("/counts", auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const unread = await Message.countDocuments({ recipient: userId, read: false });
+
+    const Meetup = require("../models/Meetup");
+    const meetupInvites = await Meetup.find({ invitedUsers: userId, isActive: true }).select("_id rsvps");
+    const pendingMeetups = meetupInvites.filter(
+      (m) => !m.rsvps.some((r) => r.user.toString() === userId)
+    );
+
+    res.json({
+      unread,
+      meetups: pendingMeetups.length,
+      meetupInviteIds: pendingMeetups.map((m) => m._id.toString()),
+    });
+  } catch (error) {
+    console.error("❌ Get counts error:", error);
+    res.status(500).json({ message: "Error fetching counts" });
   }
 });
 
