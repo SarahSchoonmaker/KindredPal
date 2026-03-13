@@ -1,5 +1,5 @@
 import React from "react";
-import { Mail, HelpCircle, Shield, AlertTriangle } from "lucide-react";
+import { Mail, HelpCircle, AlertTriangle } from "lucide-react";
 import "./LegalPage.css";
 
 const Support = () => {

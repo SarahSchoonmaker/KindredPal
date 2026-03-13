@@ -89,7 +89,7 @@ export default function CreateGroupPage() {
               type="text"
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
-              placeholder="e.g. Christian Fellowship — Poughkeepsie"
+              placeholder="e.g. Brunch at Hanger Cafe"
               maxLength={100}
             />
           </div>

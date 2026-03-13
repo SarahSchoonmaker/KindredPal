@@ -32,7 +32,7 @@ router.get("/", auth, async (req, res) => {
     const user = await User.findById(req.user.id).select("city state");
     const { category, search, page = 1, limit = 20 } = req.query;
 
-    const query = { isActive: true };
+    const query = { isActive: { $ne: false } }; // treat missing/undefined as active
 
     // Location: show groups in user's city/state OR nationwide
     if (!search) {
