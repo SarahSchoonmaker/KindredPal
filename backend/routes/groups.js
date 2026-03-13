@@ -35,11 +35,15 @@ router.get("/", auth, async (req, res) => {
     const query = { isActive: { $ne: false } }; // treat missing/undefined as active
 
     // Location: show groups in user's city/state OR nationwide
+    // Guard: if user not found or has no state, show all groups
     if (!search) {
-      query.$or = [
-        { state: user.state },
-        { isNationwide: true },
-      ];
+      if (user?.state) {
+        query.$or = [
+          { state: user.state },
+          { isNationwide: true },
+        ];
+      }
+      // else: no location filter — show all groups
     }
 
     if (category) query.category = category;
@@ -148,10 +152,13 @@ router.post("/", auth, async (req, res) => {
       isPrivate: isPrivate || false,
       coverPhoto: coverPhoto || "",
       tags: tags || [],
+      address: req.body.address || "",
+      zipCode: req.body.zipCode || "",
       createdBy: req.user.id,
       members: [req.user.id],
       admins: [req.user.id],
       memberCount: 1,
+      isActive: true,
     });
 
     await group.save();
