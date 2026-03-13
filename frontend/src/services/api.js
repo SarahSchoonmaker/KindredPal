@@ -21,7 +21,7 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error),
+  (error) => Promise.reject(error)
 );
 
 api.interceptors.response.use(
@@ -39,7 +39,7 @@ api.interceptors.response.use(
       localStorage.removeItem("token");
     }
     return Promise.reject(error);
-  },
+  }
 );
 
 // ===== AUTH =====
@@ -65,8 +65,7 @@ export const userAPI = {
   updateNotificationSettings: (settings) =>
     api.put("/users/notification-settings", settings),
   deleteAccount: () => api.delete("/users/account"),
-  reportUser: (userId, reason) =>
-    api.post(`/users/${userId}/report`, { reason }),
+  reportUser: (userId, reason) => api.post(`/users/${userId}/report`, { reason }),
   blockUser: (userId) => api.post(`/users/${userId}/block`),
   unblockUser: (userId) => api.delete(`/users/${userId}/block`),
   getBlockedUsers: () => api.get("/users/blocked"),
@@ -109,6 +108,10 @@ export const groupsAPI = {
   rejectRequest: (groupId, userId) =>
     api.post(`/groups/${groupId}/reject/${userId}`),
   updateGroup: (groupId, data) => api.put(`/groups/${groupId}`, data),
+  uploadPhoto: (groupId, formData) =>
+    api.post(`/groups/${groupId}/photo`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
   deleteGroup: (groupId) => api.delete(`/groups/${groupId}`),
   getMembers: (groupId) => api.get(`/groups/${groupId}/members`),
   seedGroups: (city, state) => api.post("/groups/seed", { city, state }),
@@ -128,6 +131,15 @@ export const connectionsAPI = {
   removeConnection: (connectionId) =>
     api.delete(`/connections/${connectionId}`),
   getStatus: (userId) => api.get(`/connections/status/${userId}`),
+};
+
+export const eventsAPI = {
+  getEvents: (groupId) => api.get(`/groups/${groupId}/events`),
+  createEvent: (groupId, data) => api.post(`/groups/${groupId}/events`, data),
+  rsvp: (groupId, eventId, status) =>
+    api.post(`/groups/${groupId}/events/${eventId}/rsvp`, { status }),
+  deleteEvent: (groupId, eventId) =>
+    api.delete(`/groups/${groupId}/events/${eventId}`),
 };
 
 export default api;

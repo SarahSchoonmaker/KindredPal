@@ -31,6 +31,7 @@ const messageRoutes = require("./routes/messages");
 const meetupRoutes = require("./routes/meetups");
 const groupRoutes = require("./routes/groups");
 const connectionRoutes = require("./routes/connections");
+const eventRoutes = require("./routes/events");
 
 const app = express();
 
@@ -214,6 +215,7 @@ app.use("/api/messages", messageRoutes);
 app.use("/api/meetups", meetupRoutes);
 app.use("/api/groups", groupRoutes);
 app.use("/api/connections", connectionRoutes);
+app.use("/api/groups/:groupId/events", eventRoutes);
 
 // Health check
 app.get("/", (req, res) => {

@@ -1,76 +1,69 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import { groupsAPI } from "../services/api";
 import {
-  Search, Plus, Lock, Globe, Users, LayoutGrid,
+  Search, Plus, Lock, Globe, Users, LayoutGrid, SlidersHorizontal, X,
 } from "lucide-react";
 import "./GroupsPage.css";
 
 const CATEGORIES = [
-  "All",
-  "Sports & Fitness",
-  "Faith & Spirituality",
-  "Parents",
-  "Hobbies & Interests",
-  "Volunteers & Causes",
-  "Support & Wellness",
-  "Professional & Networking",
-  "Arts, Culture & Book Clubs",
-  "Outdoor & Adventure",
-  "Food & Dining",
-  "Learning & Education",
-  "Neighborhood & Local",
-  "Life Transitions",
+  "All","Sports & Fitness","Faith & Spirituality","Parents",
+  "Hobbies & Interests","Volunteers & Causes","Support & Wellness",
+  "Professional & Networking","Arts, Culture & Book Clubs","Outdoor & Adventure",
+  "Food & Dining","Learning & Education","Neighborhood & Local","Life Transitions",
 ];
 
 const CATEGORY_ICONS = {
-  "Sports & Fitness": "🏃",
-  "Faith & Spirituality": "🙏",
-  "Parents": "👩‍👧",
-  "Hobbies & Interests": "🎯",
-  "Volunteers & Causes": "🤝",
-  "Support & Wellness": "💙",
-  "Professional & Networking": "💼",
-  "Arts, Culture & Book Clubs": "🎨",
-  "Outdoor & Adventure": "🏕️",
-  "Food & Dining": "🍽️",
-  "Learning & Education": "🎓",
-  "Neighborhood & Local": "🏘️",
-  "New to the Area": "📍",
-  "Business Owners & Entrepreneurs": "🚀",
-  "Sober & Clean Living": "🌿",
-  "Single Parents": "👨‍👧‍👦",
-  "Aging Gracefully": "🌻",
-  "Life Transitions": "🌿",
+  "Sports & Fitness":"🏃","Faith & Spirituality":"🙏","Parents":"👩‍👧",
+  "Hobbies & Interests":"🎯","Volunteers & Causes":"🤝","Support & Wellness":"💙",
+  "Professional & Networking":"💼","Arts, Culture & Book Clubs":"🎨",
+  "Outdoor & Adventure":"🏕️","Food & Dining":"🍽️","Learning & Education":"🎓",
+  "Neighborhood & Local":"🏘️","New to the Area":"📍",
+  "Business Owners & Entrepreneurs":"🚀","Sober & Clean Living":"🌿",
+  "Single Parents":"👨‍👧‍👦","Aging Gracefully":"🌻","Life Transitions":"🌿",
 };
+
+const RELIGION_OPTIONS = [
+  "None","Spiritual but not religious","Christian (Catholic)",
+  "Christian (Protestant)","Christian (Evangelical)","Christian (Orthodox)",
+  "Jewish","Muslim","Hindu","Buddhist","Mormon / LDS","Other",
+];
+
+const POLITICS_OPTIONS = [
+  "Very Conservative","Conservative","Moderate","Liberal","Very Liberal",
+];
+
+const LIFE_STAGE_OPTIONS = [
+  "Single","In a relationship","Married","Divorced",
+  "Widowed","Empty nester","Newly retired","Retired",
+];
+
+const FAMILY_OPTIONS = [
+  "No kids","Expecting","Kids under 5","Kids 6-12",
+  "Teenagers","Adult children","Grandchildren","Homeschooling",
+];
 
 function GroupCard({ group, onClick }) {
   return (
     <div className="group-card" onClick={() => onClick(group._id)}>
       <div className="group-card-header">
-        <div className="group-icon">
-          {CATEGORY_ICONS[group.category] || "✨"}
-        </div>
+        <div className="group-icon">{CATEGORY_ICONS[group.category] || "✨"}</div>
         <div className="group-card-info">
           <div className="group-card-title-row">
             <h3 className="group-name">{group.name}</h3>
-            {group.isPrivate ? (
-              <Lock size={14} className="privacy-icon private" />
-            ) : (
-              <Globe size={14} className="privacy-icon public" />
-            )}
+            {group.isPrivate
+              ? <Lock size={14} className="privacy-icon private" />
+              : <Globe size={14} className="privacy-icon public" />
+            }
           </div>
           <span className="group-category">{group.category}</span>
           <span className="group-location">
-            {group.isNationwide
-              ? "🌍 Nationwide"
-              : `📍 ${group.city}, ${group.state}`}
+            {group.isNationwide ? "🌍 Nationwide" : `📍 ${group.city}, ${group.state}`}
           </span>
         </div>
       </div>
-
       <p className="group-description">{group.description}</p>
-
       <div className="group-card-footer">
         <div className="member-count">
           <Users size={14} />
@@ -90,18 +83,142 @@ function GroupCard({ group, onClick }) {
   );
 }
 
+// Filter drawer component
+function FilterDrawer({ filters, onChange, onClose, userProfile }) {
+  const toggle = (field, val) => {
+    const current = filters[field] || [];
+    onChange({
+      ...filters,
+      [field]: current.includes(val)
+        ? current.filter((v) => v !== val)
+        : [...current, val],
+    });
+  };
+
+  const activeCount = Object.values(filters).flat().length;
+
+  return (
+    <div className="filter-drawer">
+      <div className="filter-drawer-header">
+        <h3>Filter Groups</h3>
+        <div className="filter-header-actions">
+          {activeCount > 0 && (
+            <button className="btn-clear-filters" onClick={() => onChange({})}>
+              Clear all ({activeCount})
+            </button>
+          )}
+          <button className="filter-close" onClick={onClose}><X size={20} /></button>
+        </div>
+      </div>
+
+      <div className="filter-section">
+        <h4>Faith / Religion</h4>
+        <div className="filter-chips">
+          {RELIGION_OPTIONS.map((r) => (
+            <button
+              key={r}
+              className={`filter-chip ${(filters.religion || []).includes(r) ? "active" : ""}`}
+              onClick={() => toggle("religion", r)}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="filter-section">
+        <h4>Political Views</h4>
+        <div className="filter-chips">
+          {POLITICS_OPTIONS.map((p) => (
+            <button
+              key={p}
+              className={`filter-chip ${(filters.politics || []).includes(p) ? "active" : ""}`}
+              onClick={() => toggle("politics", p)}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="filter-section">
+        <h4>Life Stage</h4>
+        <div className="filter-chips">
+          {LIFE_STAGE_OPTIONS.map((l) => (
+            <button
+              key={l}
+              className={`filter-chip ${(filters.lifeStage || []).includes(l) ? "active" : ""}`}
+              onClick={() => toggle("lifeStage", l)}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="filter-section">
+        <h4>Family Situation</h4>
+        <div className="filter-chips">
+          {FAMILY_OPTIONS.map((f) => (
+            <button
+              key={f}
+              className={`filter-chip ${(filters.family || []).includes(f) ? "active" : ""}`}
+              onClick={() => toggle("family", f)}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {userProfile && (
+        <button
+          className="btn-match-my-values"
+          onClick={() => onChange({
+            religion: userProfile.religion ? [userProfile.religion] : [],
+            politics: userProfile.politicalBeliefs ? [userProfile.politicalBeliefs] : [],
+            lifeStage: userProfile.lifeStage || [],
+            family: userProfile.familySituation || [],
+          })}
+        >
+          ✨ Match My Values
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function GroupsPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [groups, setGroups] = useState([]);
   const [myGroups, setMyGroups] = useState([]);
+  const [forYouGroups, setForYouGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("discover");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({});
 
   const fetchingRef = useRef(false);
   const fetchTimerRef = useRef(null);
+
+  const activeFilterCount = Object.values(filters).flat().length;
+
+  // Client-side filter groups by values
+  const applyFilters = useCallback((groupList) => {
+    if (activeFilterCount === 0) return groupList;
+    return groupList.filter((group) => {
+      const memberValues = group.memberValues || {};
+      if (filters.religion?.length && !filters.religion.some(r => (memberValues.religions || []).includes(r))) return false;
+      if (filters.politics?.length && !filters.politics.some(p => (memberValues.politics || []).includes(p))) return false;
+      if (filters.lifeStage?.length && !filters.lifeStage.some(l => (memberValues.lifeStages || []).includes(l))) return false;
+      if (filters.family?.length && !filters.family.some(f => (memberValues.families || []).includes(f))) return false;
+      return true;
+    });
+  }, [filters, activeFilterCount]);
 
   const fetchGroups = useCallback(async () => {
     if (fetchingRef.current) return;
@@ -112,18 +229,35 @@ export default function GroupsPage() {
       if (selectedCategory !== "All") params.category = selectedCategory;
       if (search) params.search = search;
 
-      const discoverRes = await groupsAPI.getGroups(params);
-      setGroups(discoverRes.data.groups || []);
+      const [discoverRes, myRes] = await Promise.all([
+        groupsAPI.getGroups(params),
+        groupsAPI.getMyGroups(),
+      ]);
 
-      const myRes = await groupsAPI.getMyGroups();
+      const allGroups = discoverRes.data.groups || [];
+      setGroups(allGroups);
       setMyGroups(myRes.data.groups || []);
+
+      // "For You" — groups that share at least one value with user
+      if (user?.religion || user?.politicalBeliefs || user?.lifeStage?.length || user?.familySituation?.length) {
+        const forYou = allGroups.filter((g) => {
+          if (g.isMember) return false;
+          const mv = g.memberValues || {};
+          if (user.religion && (mv.religions || []).includes(user.religion)) return true;
+          if (user.politicalBeliefs && (mv.politics || []).includes(user.politicalBeliefs)) return true;
+          if (user.lifeStage?.some(l => (mv.lifeStages || []).includes(l))) return true;
+          if (user.familySituation?.some(f => (mv.families || []).includes(f))) return true;
+          return false;
+        });
+        setForYouGroups(forYou);
+      }
     } catch (err) {
       console.error("Error fetching groups:", err);
     } finally {
       setLoading(false);
       fetchingRef.current = false;
     }
-  }, [selectedCategory, search]);
+  }, [selectedCategory, search, user]);
 
   useEffect(() => {
     if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current);
@@ -136,10 +270,12 @@ export default function GroupsPage() {
     setSearch(searchInput);
   };
 
-  const displayedGroups = activeTab === "my" ? myGroups : groups;
+  const baseGroups = activeTab === "my" ? myGroups : activeTab === "foryou" ? forYouGroups : groups;
+  const displayedGroups = applyFilters(baseGroups);
 
   return (
     <div className="groups-page">
+      {/* Header */}
       <div className="groups-header">
         <div className="groups-header-content">
           <LayoutGrid size={28} className="groups-header-icon" />
@@ -148,28 +284,45 @@ export default function GroupsPage() {
             <p>Find your people — connect through shared values, faith, and life stage</p>
           </div>
         </div>
-        <button
-          className="btn-create-group"
-          onClick={() => navigate("/groups/create")}
-        >
-          <Plus size={18} />
-          Create Group
+        <button className="btn-create-group" onClick={() => navigate("/groups/create")}>
+          <Plus size={18} /> Create Group
         </button>
       </div>
 
-      <form className="groups-search" onSubmit={handleSearch}>
-        <div className="search-input-wrap">
-          <Search size={18} className="search-icon" />
-          <input
-            type="text"
-            placeholder="Search groups..."
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-          />
-          <button type="submit" className="search-btn">Search</button>
-        </div>
-      </form>
+      {/* Search + Filter */}
+      <div className="groups-search-row">
+        <form className="groups-search" onSubmit={handleSearch}>
+          <div className="search-input-wrap">
+            <Search size={18} className="search-icon" />
+            <input
+              type="text"
+              placeholder="Search groups..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+            />
+            <button type="submit" className="search-btn">Search</button>
+          </div>
+        </form>
+        <button
+          className={`btn-filter ${activeFilterCount > 0 ? "btn-filter-active" : ""}`}
+          onClick={() => setShowFilters(!showFilters)}
+        >
+          <SlidersHorizontal size={18} />
+          Filters {activeFilterCount > 0 ? `(${activeFilterCount})` : ""}
+        </button>
+      </div>
 
+      {/* Filter Drawer */}
+      {showFilters && (
+        <FilterDrawer
+          filters={filters}
+          onChange={setFilters}
+          onClose={() => setShowFilters(false)}
+          userProfile={user}
+        />
+      )}
+
+      {/* Tabs */}
       <div className="groups-tabs">
         <button
           className={`groups-tab ${activeTab === "discover" ? "active" : ""}`}
@@ -177,6 +330,14 @@ export default function GroupsPage() {
         >
           Discover
         </button>
+        {forYouGroups.length > 0 && (
+          <button
+            className={`groups-tab ${activeTab === "foryou" ? "active" : ""}`}
+            onClick={() => setActiveTab("foryou")}
+          >
+            ✨ For You ({forYouGroups.length})
+          </button>
+        )}
         <button
           className={`groups-tab ${activeTab === "my" ? "active" : ""}`}
           onClick={() => setActiveTab("my")}
@@ -185,6 +346,7 @@ export default function GroupsPage() {
         </button>
       </div>
 
+      {/* Category Filter — only on Discover */}
       {activeTab === "discover" && (
         <div className="category-filter">
           {CATEGORIES.map((cat) => (
@@ -199,6 +361,7 @@ export default function GroupsPage() {
         </div>
       )}
 
+      {/* Groups Grid */}
       {loading ? (
         <div className="groups-loading">
           <div className="spinner" />
@@ -207,12 +370,20 @@ export default function GroupsPage() {
       ) : displayedGroups.length === 0 ? (
         <div className="groups-empty">
           <span className="empty-icon">👥</span>
-          <h3>{activeTab === "my" ? "No Groups Yet" : "No Groups Found"}</h3>
+          <h3>
+            {activeTab === "my" ? "No Groups Yet" :
+             activeTab === "foryou" ? "No Matches Yet" : "No Groups Found"}
+          </h3>
           <p>
-            {activeTab === "my"
-              ? "Join a group from Discover to get started!"
-              : "Try a different category or search term"}
+            {activeTab === "my" ? "Join a group from Discover to get started!" :
+             activeTab === "foryou" ? "Fill in your profile values to see groups matched to you" :
+             activeFilterCount > 0 ? "Try removing some filters" : "Try a different category or search term"}
           </p>
+          {activeTab === "foryou" && (
+            <button className="btn-go-profile" onClick={() => navigate("/profile")}>
+              Update My Profile →
+            </button>
+          )}
         </div>
       ) : (
         <div className="groups-grid">

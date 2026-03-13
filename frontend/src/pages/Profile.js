@@ -1,722 +1,276 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import {
-  Camera,
-  Edit2,
-  Save,
-  X,
-  Trash2,
-  Mail,
-  Shield,
-  ChevronRight,
-} from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { userAPI } from "../services/api";
-import PhotoUpload from "../components/PhotoUpload";
-import "./Profile.css";
+import "./ProfilePage.css";
 
-const Profile = () => {
-  const navigate = useNavigate();
-  const { user, updateUser, logout } = useAuth();
-  const [isEditing, setIsEditing] = useState(false);
-  const [showPhotoUpload, setShowPhotoUpload] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [toast, setToast] = useState({ show: false, message: "", type: "" });
-  const [formData, setFormData] = useState({
-    name: "",
-    age: "",
-    city: "",
-    state: "",
-    bio: "",
-    politicalBeliefs: [],
-    religion: "",
-    causes: [],
-    lifeStage: [],
-    lookingFor: [],
-    profilePhoto: "",
-    additionalPhotos: [],
-    emailNotifications: {
-      newMatch: true,
-      newMessage: true,
-    },
-  });
+const US_STATES = [
+  "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA",
+  "HI","ID","IL","IN","IA","KS","KY","LA","ME","MD",
+  "MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
+  "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC",
+  "SD","TN","TX","UT","VT","VA","WA","WV","WI","WY","DC",
+];
 
-  const showToast = (message, type = "success") => {
-    setToast({ show: true, message, type });
-    setTimeout(() => {
-      setToast({ show: false, message: "", type: "" });
-    }, 2000);
+const RELIGION_OPTIONS = [
+  "None","Spiritual but not religious","Christian (Catholic)",
+  "Christian (Protestant)","Christian (Evangelical)","Christian (Orthodox)",
+  "Jewish","Muslim","Hindu","Buddhist","Mormon / LDS","Other",
+];
+
+const POLITICS_OPTIONS = [
+  "Very Conservative","Conservative","Moderate",
+  "Liberal","Very Liberal","Prefer not to say",
+];
+
+const LIFE_STAGE_OPTIONS = [
+  "Single","In a relationship","Married","Divorced",
+  "Widowed","Empty nester","Newly retired","Retired",
+];
+
+const FAMILY_OPTIONS = [
+  "No kids","Expecting","Kids under 5","Kids 6-12",
+  "Teenagers","Adult children","Grandchildren","Homeschooling",
+];
+
+const CORE_VALUES_OPTIONS = [
+  "Faith & God","Personal growth","Health & wellness",
+];
+
+function ChipSelect({ options, selected = [], onChange, max }) {
+  const toggle = (val) => {
+    if (selected.includes(val)) {
+      onChange(selected.filter((v) => v !== val));
+    } else {
+      if (max && selected.length >= max) return;
+      onChange([...selected, val]);
+    }
   };
+  return (
+    <div className="chip-group">
+      {options.map((opt) => (
+        <button
+          key={opt}
+          type="button"
+          className={`chip ${selected.includes(opt) ? "chip-selected" : ""}`}
+          onClick={() => toggle(opt)}
+        >
+          {opt}
+        </button>
+      ))}
+      {max && <p className="chip-hint">Pick up to {max}</p>}
+    </div>
+  );
+}
 
-  const allPhotos = [
-    formData.profilePhoto,
-    ...(formData.additionalPhotos || []),
-  ].filter(Boolean);
-
-  const profilePhotoIndex = 0;
+export default function ProfilePage() {
+  const { user, setUser } = useAuth();
+  const [form, setForm] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+  const [section, setSection] = useState("basics");
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      if (user) {
-        setFormData({
-          name: user.name || "",
-          age: user.age || "",
-          city: user.city || "",
-          state: user.state || "",
-          bio: user.bio || "",
-          politicalBeliefs: user.politicalBeliefs || [],
-          religion: user.religion || "",
-          causes: user.causes || [],
-          lifeStage: user.lifeStage || [],
-          lookingFor: user.lookingFor || [],
-          profilePhoto: user.profilePhoto || "",
-          additionalPhotos: user.additionalPhotos || [],
-          emailNotifications: user.emailNotifications || {
-            newMatch: true,
-            newMessage: true,
-          },
-        });
-      }
-    };
-
-    fetchUserData();
+    if (user) {
+      setForm({
+        name: user.name || "",
+        age: user.age || "",
+        bio: user.bio || "",
+        city: user.city || "",
+        state: user.state || "",
+        religion: user.religion || "",
+        politicalBeliefs: user.politicalBeliefs || "",
+        lifeStage: user.lifeStage || [],
+        familySituation: user.familySituation || [],
+        coreValues: user.coreValues || [],
+      });
+    }
   }, [user]);
 
-  const handleSave = async () => {
+  const set = (field, value) => setForm((f) => ({ ...f, [field]: value }));
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSaving(true);
     try {
-      const response = await userAPI.updateProfile(formData);
-      updateUser(response.data);
-      setIsEditing(false);
-      showToast("Profile updated successfully!");
-    } catch (error) {
-      console.error("Error updating profile:", error);
-      showToast("Error updating profile", "error");
+      const res = await userAPI.updateProfile(form);
+      if (setUser) setUser(res.data);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || "Could not save profile");
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleDeleteAccount = async () => {
-    try {
-      await userAPI.deleteAccount();
-      showToast("Your account has been deleted.");
-      setTimeout(() => {
-        logout();
-        navigate("/");
-      }, 1000);
-    } catch (error) {
-      console.error("Error deleting account:", error);
-      showToast("Error deleting account. Please try again.", "error");
-    }
-  };
-
-  const handlePhotosChange = (newPhotos, newProfileIndex) => {
-    setFormData((prev) => ({
-      ...prev,
-      profilePhoto: newPhotos[newProfileIndex] || "",
-      additionalPhotos: newPhotos.filter((_, i) => i !== newProfileIndex),
-    }));
-  };
-
-  const handlePhotoModalClose = async () => {
-    setShowPhotoUpload(false);
-    try {
-      const response = await userAPI.updateProfile(formData);
-      updateUser(response.data);
-      console.log("✅ Photos updated successfully");
-      showToast("Photos updated successfully!");
-    } catch (error) {
-      console.error("Error updating photos:", error);
-      showToast("Error updating photos", "error");
-    }
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleEmailToggle = (type) => {
-    setFormData((prev) => ({
-      ...prev,
-      emailNotifications: {
-        ...prev.emailNotifications,
-        [type]: !prev.emailNotifications[type],
-      },
-    }));
-  };
-
-  if (!user) return <div>Loading...</div>;
+  if (!form) return <div className="profile-loading"><div className="spinner" /></div>;
 
   return (
     <div className="profile-page">
-      {toast.show && (
-        <div className={`toast toast-${toast.type}`}>{toast.message}</div>
-      )}
 
-      <div className="profile-container">
-        {/* Header */}
-        <div className="profile-header">
-          <h1>My Profile</h1>
-          <div className="header-actions">
-            {!isEditing ? (
-              <button className="btn-edit" onClick={() => setIsEditing(true)}>
-                <Edit2 size={20} />
-                <span>Edit Profile</span>
-              </button>
-            ) : (
-              <div className="edit-actions">
-                <button className="btn-save" onClick={handleSave}>
-                  <Save size={20} />
-                  <span>Save</span>
-                </button>
-                <button
-                  className="btn-cancel"
-                  onClick={() => setIsEditing(false)}
-                >
-                  <X size={20} />
-                  <span>Cancel</span>
-                </button>
-              </div>
-            )}
-          </div>
+      {/* Hero */}
+      <div className="profile-hero">
+        <div className="profile-avatar-wrap">
+          {user?.profilePhoto
+            ? <img src={user.profilePhoto} alt={user.name} className="profile-avatar" />
+            : <div className="profile-avatar-placeholder">{user?.name?.[0]?.toUpperCase()}</div>
+          }
         </div>
-
-        {/* Profile Content */}
-        <div className="profile-content">
-          {/* Photo Section */}
-          <section className="profile-section">
-            <h2>Photos</h2>
-            <div className="photo-section">
-              <div className="main-photo-container">
-                <img
-                  src={formData.profilePhoto || "/default-avatar.png"}
-                  alt="Profile"
-                  className="main-photo"
-                />
-                {isEditing && (
-                  <button
-                    className="photo-edit-btn"
-                    onClick={() => setShowPhotoUpload(true)}
-                  >
-                    <Camera size={20} />
-                    <span>Change Photo</span>
-                  </button>
-                )}
-              </div>
-
-              {formData.additionalPhotos?.length > 0 && (
-                <div className="additional-photos">
-                  {formData.additionalPhotos.map((photo, index) => (
-                    <img
-                      key={index}
-                      src={photo}
-                      alt={`Additional ${index + 1}`}
-                      className="additional-photo"
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* Basic Info */}
-          <section className="profile-section">
-            <h2>Basic Information</h2>
-            {isEditing ? (
-              <div className="form-fields">
-                <div className="form-field">
-                  <label>Email</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={user.email}
-                    disabled
-                    style={{
-                      backgroundColor: "#f5f5f5",
-                      cursor: "not-allowed",
-                      color: "#666",
-                    }}
-                  />
-                  <small
-                    style={{
-                      color: "#666",
-                      fontSize: "12px",
-                      display: "block",
-                      marginTop: "4px",
-                    }}
-                  >
-                    Email cannot be changed. Contact support if you need to
-                    update it.
-                  </small>
-                </div>
-
-                <div className="form-field">
-                  <label>Name</label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label>Age</label>
-                  <input
-                    type="number"
-                    name="age"
-                    value={formData.age}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label>City</label>
-                  <input
-                    type="text"
-                    name="city"
-                    value={formData.city}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label>State</label>
-                  <input
-                    type="text"
-                    name="state"
-                    value={formData.state}
-                    onChange={handleChange}
-                    maxLength={2}
-                    placeholder="e.g., CA"
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label>Bio</label>
-                  <textarea
-                    name="bio"
-                    value={formData.bio}
-                    onChange={handleChange}
-                    rows="4"
-                    maxLength={500}
-                  />
-                  <small
-                    style={{
-                      color: "#666",
-                      fontSize: "12px",
-                      display: "block",
-                      marginTop: "4px",
-                    }}
-                  >
-                    {formData.bio.length}/500 characters
-                  </small>
-                </div>
-              </div>
-            ) : (
-              <div className="info-display">
-                <p>
-                  <strong>Email:</strong> {user.email}
-                </p>
-                <p>
-                  <strong>Name:</strong> {user.name}, {user.age}
-                </p>
-                <p>
-                  <strong>Location:</strong> {user.city}, {user.state}
-                </p>
-                <p>
-                  <strong>Bio:</strong> {user.bio}
-                </p>
-              </div>
-            )}
-          </section>
-
-          {/* Values & Preferences - Only show in edit mode */}
-          {isEditing && (
-            <>
-              <section className="profile-section">
-                <h2>Political Beliefs</h2>
-                <div className="form-field">
-                  <select
-                    name="politicalBeliefs"
-                    value={formData.politicalBeliefs[0] || ""}
-                    onChange={(e) => {
-                      setFormData((prev) => ({
-                        ...prev,
-                        politicalBeliefs: [e.target.value],
-                      }));
-                    }}
-                  >
-                    <option value="">Select...</option>
-                    <option value="Liberal">Liberal</option>
-                    <option value="Moderate">Moderate</option>
-                    <option value="Conservative">Conservative</option>
-                    <option value="Libertarian">Libertarian</option>
-                    <option value="Prefer not to say">Prefer not to say</option>
-                  </select>
-                </div>
-              </section>
-
-              <section className="profile-section">
-                <h2>Religion</h2>
-                <div className="form-field">
-                  <select
-                    name="religion"
-                    value={formData.religion}
-                    onChange={handleChange}
-                  >
-                    <option value="">Select...</option>
-                    <option value="Christian">Christian</option>
-                    <option value="Jewish">Jewish</option>
-                    <option value="Muslim">Muslim</option>
-                    <option value="Hindu">Hindu</option>
-                    <option value="Buddhist">Buddhist</option>
-                    <option value="Seeking/Undecided">Seeking/Undecided</option>
-                    <option value="Agnostic">Agnostic</option>
-                    <option value="Atheist">Atheist</option>
-                    <option value="Prefer not to say">Prefer not to say</option>
-                  </select>
-                </div>
-              </section>
-
-              <section className="profile-section">
-                <h2>Life Stage</h2>
-                <div className="form-field">
-                  <select
-                    name="lifeStage"
-                    value={formData.lifeStage[0] || ""}
-                    onChange={(e) => {
-                      setFormData((prev) => ({
-                        ...prev,
-                        lifeStage: [e.target.value],
-                      }));
-                    }}
-                  >
-                    <option value="">Select...</option>
-                    <option value="Single">Single</option>
-                    <option value="In a Relationship">In a Relationship</option>
-                    <option value="Engaged">Engaged</option>
-                    <option value="Married">Married</option>
-                    <option value="Separated">Separated</option>
-                    <option value="Divorced">Divorced</option>
-                    <option value="It's Complicated">It's Complicated</option>
-                    <option value="Widowed">Widowed</option>
-                    <option value="Single Parent">Single Parent</option>
-                    <option value="Have Children">Have Children</option>
-                    <option value="Child-free by Choice">
-                      Child-free by Choice
-                    </option>
-                    <option value="Want Children Someday">
-                      Want Children Someday
-                    </option>
-                    <option value="Empty Nester">Empty Nester</option>
-                    <option value="Stay-at-Home Parent">
-                      Stay-at-Home Parent
-                    </option>
-                    <option value="Caregiver">Caregiver</option>
-                    <option value="College Student">College Student</option>
-                    <option value="Graduate Student">Graduate Student</option>
-                    <option value="Recent Graduate">Recent Graduate</option>
-                    <option value="Working Professional">
-                      Working Professional
-                    </option>
-                    <option value="Career Focused">Career Focused</option>
-                    <option value="Entrepreneur">Entrepreneur</option>
-                    <option value="Career Transition">Career Transition</option>
-                    <option value="Retired">Retired</option>
-                    <option value="Semi-Retired">Semi-Retired</option>
-                  </select>
-                </div>
-              </section>
-
-              <section className="profile-section">
-                <h2>Looking For</h2>
-                <div className="form-field">
-                  <select
-                    name="lookingFor"
-                    value={formData.lookingFor[0] || ""}
-                    onChange={(e) => {
-                      setFormData((prev) => ({
-                        ...prev,
-                        lookingFor: [e.target.value],
-                      }));
-                    }}
-                  >
-                    <option value="">Select...</option>
-                    <option value="Friendship">Friendship</option>
-                    <option value="Networking">Networking</option>
-                    <option value="Activity Partner">Activity Partner</option>
-                    <option value="Mentor">Mentor</option>
-                    <option value="Support Group">Support Group</option>
-                    <option value="Activity Group">Activity Group</option>
-                  </select>
-                </div>
-              </section>
-
-              <section className="profile-section">
-                <h2>Causes & Interests</h2>
-                <p className="section-subtitle">
-                  Select up to 10 causes you care about
-                </p>
-                <div className="causes-checkboxes">
-                  {[
-                    "Environment",
-                    "Travel & Adventure",
-                    "Health & Wellness",
-                    "Healthcare & Medical Causes",
-                    "Education & Continuous Learning",
-                    "Art & Design",
-                    "Theater & Performing Arts",
-                    "Film & Cinema",
-                    "Music",
-                    "Books & Literature",
-                    "Museums & History",
-                    "Poetry & Writing",
-                    "Comedy & Entertainment",
-                    "Fashion & Style",
-                    "Video Games & Gaming",
-                    "Community Service",
-                    "Animal Welfare",
-                    "Social Justice",
-                    "Technology & Innovation",
-                    "Entrepreneurship",
-                    "Fitness & Active Living",
-                    "Skilled Trades & Craftsmanship",
-                    "Ministry",
-                    "Psychology & Mental Health",
-                    "Philosophy",
-                    "Food & Cooking",
-                    "Photography",
-                    "Outdoor Activities",
-                  ].map((cause) => (
-                    <label key={cause} className="checkbox-label">
-                      <input
-                        type="checkbox"
-                        checked={formData.causes.includes(cause)}
-                        onChange={(e) => {
-                          const checked = e.target.checked;
-                          setFormData((prev) => ({
-                            ...prev,
-                            causes: checked
-                              ? [...prev.causes, cause]
-                              : prev.causes.filter((c) => c !== cause),
-                          }));
-                        }}
-                        disabled={
-                          !formData.causes.includes(cause) &&
-                          formData.causes.length >= 10
-                        }
-                      />
-                      {cause}
-                    </label>
-                  ))}
-                </div>
-              </section>
-            </>
-          )}
-
-          {/* Email Notifications */}
-          <section className="profile-section">
-            <h2>
-              <Mail size={24} />
-              Email Notifications
-            </h2>
-            <div className="email-settings">
-              <div className="email-toggle">
-                <div className="toggle-info">
-                  <strong>New Connection Notifications</strong>
-                  <p>Get notified when someone connects with you</p>
-                </div>
-                <label className="toggle-switch">
-                  <input
-                    type="checkbox"
-                    checked={formData.emailNotifications.newMatch}
-                    onChange={async () => {
-                      const newValue = !formData.emailNotifications.newMatch;
-                      handleEmailToggle("newMatch");
-
-                      try {
-                        const updated = {
-                          ...formData.emailNotifications,
-                          newMatch: newValue,
-                        };
-                        await userAPI.updateNotificationSettings(updated);
-                        console.log("✅ Notification settings saved");
-                      } catch (error) {
-                        console.error("Error saving settings:", error);
-                      }
-                    }}
-                  />
-                  <span className="toggle-slider"></span>
-                </label>
-              </div>
-
-              <div className="email-toggle">
-                <div className="toggle-info">
-                  <strong>New Message Notifications</strong>
-                  <p>Get notified when you receive a new message</p>
-                </div>
-                <label className="toggle-switch">
-                  <input
-                    type="checkbox"
-                    checked={formData.emailNotifications.newMessage}
-                    onChange={async () => {
-                      const newValue = !formData.emailNotifications.newMessage;
-                      handleEmailToggle("newMessage");
-
-                      try {
-                        const updated = {
-                          ...formData.emailNotifications,
-                          newMessage: newValue,
-                        };
-                        await userAPI.updateNotificationSettings(updated);
-                        console.log("✅ Notification settings saved");
-                      } catch (error) {
-                        console.error("Error saving settings:", error);
-                      }
-                    }}
-                  />
-                  <span className="toggle-slider"></span>
-                </label>
-              </div>
-            </div>
-          </section>
-
-          {/* Values Section - Only show in view mode */}
-          {!isEditing && (
-            <>
-              <section className="profile-section">
-                <h2>My Values</h2>
-                <div className="values-display">
-                  <div className="value-item">
-                    <strong>Religion:</strong> {user.religion}
-                  </div>
-                  <div className="value-item">
-                    <strong>Political Beliefs:</strong>{" "}
-                    {Array.isArray(user.politicalBeliefs)
-                      ? user.politicalBeliefs.join(", ")
-                      : user.politicalBeliefs}
-                  </div>
-                  <div className="value-item">
-                    <strong>Causes I Care About:</strong>{" "}
-                    {user.causes?.join(", ")}
-                  </div>
-                </div>
-              </section>
-
-              <section className="profile-section">
-                <h2>Life Stage</h2>
-                <div className="tags-display">
-                  <span className="tag">
-                    {Array.isArray(user.lifeStage)
-                      ? user.lifeStage.join(", ")
-                      : user.lifeStage}
-                  </span>
-                </div>
-              </section>
-
-              <section className="profile-section">
-                <h2>Looking For</h2>
-                <div className="tags-display">
-                  <span className="tag">
-                    {Array.isArray(user.lookingFor)
-                      ? user.lookingFor.join(", ")
-                      : user.lookingFor}
-                  </span>
-                </div>
-              </section>
-            </>
-          )}
-
-          {/* Privacy & Safety Section */}
-          <div className="profile-section">
-            <h3 className="section-title">Privacy & Safety</h3>
-            <button
-              onClick={() => navigate("/blocked-users")}
-              className="blocked-users-button"
-            >
-              <Shield size={20} />
-              <span>Blocked Users</span>
-              <ChevronRight size={20} />
-            </button>
-          </div>
-
-          {/* Danger Zone */}
-          <section className="profile-section danger-zone">
-            <h2>
-              <Trash2 size={24} />
-              Danger Zone
-            </h2>
-            <div className="danger-content">
-              <div className="danger-info">
-                <strong>Delete Account</strong>
-                <p>
-                  Once you delete your account, there is no going back. All your
-                  matches, messages, and profile data will be permanently
-                  deleted.
-                </p>
-              </div>
-              <button
-                className="btn-delete"
-                onClick={() => setShowDeleteConfirm(true)}
-              >
-                Delete Account
-              </button>
-            </div>
-          </section>
+        <div className="profile-hero-info">
+          <h1>{user?.name}</h1>
+          <p className="profile-email">{user?.email}</p>
+          {user?.city && <p className="profile-location">📍 {user.city}, {user.state}</p>}
         </div>
       </div>
 
-      {/* Photo Upload Modal */}
-      {showPhotoUpload && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <button className="modal-close" onClick={handlePhotoModalClose}>
-              <X size={24} />
-            </button>
-            <h3 style={{ marginBottom: "1rem", textAlign: "center" }}>
-              Update Your Photos
-            </h3>
-            <PhotoUpload
-              photos={allPhotos}
-              onPhotosChange={handlePhotosChange}
-              maxPhotos={3}
-              profilePhotoIndex={profilePhotoIndex}
-            />
-          </div>
-        </div>
-      )}
+      {/* Section tabs */}
+      <div className="profile-tabs">
+        {[
+          { id: "basics", label: "👤 Basics" },
+          { id: "values", label: "🙏 Faith & Values" },
+          { id: "life",   label: "🏡 Life Stage" },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            className={`profile-tab ${section === tab.id ? "active" : ""}`}
+            onClick={() => setSection(tab.id)}
+            type="button"
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="modal-overlay">
-          <div className="modal-content delete-confirm-modal">
-            <h2>Delete Account?</h2>
-            <p>
-              Are you absolutely sure you want to delete your account? This
-              action cannot be undone.
-            </p>
-            <div className="delete-confirm-actions">
-              <button
-                className="btn-delete-confirm"
-                onClick={handleDeleteAccount}
-              >
-                Yes, Delete My Account
-              </button>
-              <button
-                className="btn-cancel"
-                onClick={() => setShowDeleteConfirm(false)}
-              >
-                Cancel
-              </button>
+      <form onSubmit={handleSave} className="profile-form">
+
+        {/* ── BASICS ── */}
+        {section === "basics" && (
+          <div className="profile-section">
+            <div className="form-field">
+              <label>Name</label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => set("name", e.target.value)}
+                maxLength={60}
+              />
+            </div>
+
+            <div className="form-field">
+              <label>Age</label>
+              <input
+                type="number"
+                value={form.age}
+                onChange={(e) => set("age", e.target.value)}
+                min={18} max={100}
+                className="input-short"
+              />
+            </div>
+
+            <div className="form-field">
+              <label>Bio <span className="label-hint">— tell people who you are</span></label>
+              <textarea
+                value={form.bio}
+                onChange={(e) => set("bio", e.target.value)}
+                maxLength={500}
+                rows={4}
+                placeholder="Share a bit about yourself..."
+              />
+              <span className="char-count">{form.bio.length}/500</span>
+            </div>
+
+            <div className="form-row">
+              <div className="form-field">
+                <label>City</label>
+                <input
+                  type="text"
+                  value={form.city}
+                  onChange={(e) => set("city", e.target.value)}
+                  placeholder="City"
+                />
+              </div>
+              <div className="form-field form-field-short">
+                <label>State</label>
+                <select value={form.state} onChange={(e) => set("state", e.target.value)}>
+                  <option value="">--</option>
+                  {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* ── FAITH & VALUES ── */}
+        {section === "values" && (
+          <div className="profile-section">
+            <div className="form-field">
+              <label>Faith / Religion</label>
+              <p className="field-hint">Shown on your profile — helps you find your people</p>
+              <select
+                value={form.religion}
+                onChange={(e) => set("religion", e.target.value)}
+              >
+                <option value="">Prefer not to say</option>
+                {RELIGION_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+
+            <div className="form-field">
+              <label>Political Views</label>
+              <p className="field-hint">Shown on your profile</p>
+              <select
+                value={form.politicalBeliefs}
+                onChange={(e) => set("politicalBeliefs", e.target.value)}
+              >
+                <option value="">Prefer not to say</option>
+                {POLITICS_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+
+            <div className="form-field">
+              <label>Core Values <span className="label-hint">— pick up to 3</span></label>
+              <ChipSelect
+                options={CORE_VALUES_OPTIONS}
+                selected={form.coreValues}
+                onChange={(v) => set("coreValues", v)}
+                max={3}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ── LIFE STAGE ── */}
+        {section === "life" && (
+          <div className="profile-section">
+            <div className="form-field">
+              <label>Life Stage <span className="label-hint">— select all that apply</span></label>
+              <ChipSelect
+                options={LIFE_STAGE_OPTIONS}
+                selected={form.lifeStage}
+                onChange={(v) => set("lifeStage", v)}
+              />
+            </div>
+
+            <div className="form-field">
+              <label>Family Situation <span className="label-hint">— select all that apply</span></label>
+              <ChipSelect
+                options={FAMILY_OPTIONS}
+                selected={form.familySituation}
+                onChange={(v) => set("familySituation", v)}
+              />
+            </div>
+          </div>
+        )}
+
+        {error && <div className="profile-error">{error}</div>}
+        {saved && <div className="profile-saved">✓ Profile saved!</div>}
+
+        <button type="submit" className="btn-save-profile" disabled={saving}>
+          {saving ? "Saving..." : "Save Profile"}
+        </button>
+      </form>
     </div>
   );
-};
-
-export default Profile;
+}
