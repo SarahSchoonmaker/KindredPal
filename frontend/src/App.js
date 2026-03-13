@@ -62,30 +62,9 @@ function AppRoutes() {
       <ScrollToTop />
       <Routes>
         {/* Public routes */}
-        <Route
-          path="/"
-          element={
-            <PublicRoute>
-              <Landing />
-            </PublicRoute>
-          }
-        />
-        <Route
-          path="/login"
-          element={
-            <PublicRoute>
-              <Login />
-            </PublicRoute>
-          }
-        />
-        <Route
-          path="/signup"
-          element={
-            <PublicRoute>
-              <Signup />
-            </PublicRoute>
-          }
-        />
+        <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
+        <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+        <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
 
@@ -108,9 +87,9 @@ function AppRoutes() {
           }
         >
           {/* Groups — new home */}
-          <Route path="groups" element={<GroupsPage />} />
-          <Route path="groups/create" element={<CreateGroupPage />} />
-          <Route path="groups/:groupId" element={<GroupDetailPage />} />
+          <Route path="/groups" element={<GroupsPage />} />
+          <Route path="/groups/create" element={<CreateGroupPage />} />
+          <Route path="/groups/:groupId" element={<GroupDetailPage />} />
 
           {/* Connections — replaces Matches + LikesYou */}
           <Route path="connections" element={<ConnectionsPage />} />

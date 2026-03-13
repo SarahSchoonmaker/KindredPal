@@ -396,6 +396,11 @@ export default function GroupDetailPage() {
   const photoInputRef = React.useRef(null);
 
   const fetchGroup = useCallback(async () => {
+    // Safety guard — "create" is a route, not a group ID
+    if (!groupId || groupId === "create") {
+      navigate("/groups/create", { replace: true });
+      return;
+    }
     try {
       const res = await groupsAPI.getGroup(groupId);
       setGroup(res.data);
@@ -404,7 +409,7 @@ export default function GroupDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [groupId]);
+  }, [groupId, navigate]);
 
   useEffect(() => { fetchGroup(); }, [fetchGroup]);
 
