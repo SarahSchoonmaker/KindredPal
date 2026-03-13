@@ -183,7 +183,7 @@ router.get("/discover", auth, async (req, res) => {
     console.log("🔎 Final query:", JSON.stringify(query, null, 2));
 
     let users = await User.find(query)
-      .select("name age city state profilePhoto bio causes latitude longitude politicalBeliefs religion lifeStage")
+      .select("name age city state profilePhoto bio causes latitude longitude politicalBeliefs religion lifeStage familySituation coreValues isVerified")
       .lean();
 
     console.log(`✅ Database returned ${users.length} users`);
@@ -326,7 +326,7 @@ router.get("/likes-you", auth, async (req, res) => {
       _id: { $nin: excludedIds },
       isDeleted: { $ne: true },
       isActive: { $ne: false },
-    }).select("name age city state profilePhoto bio causes lifeStage politicalBeliefs religion lookingFor").lean();
+    }).select("name age city state profilePhoto bio causes lifeStage familySituation coreValues politicalBeliefs religion lookingFor isVerified").lean();
 
     res.json({ users: usersWhoLikedYou, dailyLikesRemaining: 10 });
   } catch (error) {
@@ -340,7 +340,15 @@ router.put("/profile", auth, async (req, res) => {
   try {
     const updates = req.body;
     const user = await User.findById(req.userId);
-    const allowedUpdates = ["name", "age", "city", "state", "bio", "profilePhoto", "additionalPhotos", "politicalBeliefs", "religion", "causes", "lifeStage", "lookingFor", "locationPreference", "filterPoliticalBeliefs", "filterReligions", "filterLifeStages"];
+    const allowedUpdates = [
+      "name", "age", "city", "state", "bio", "profilePhoto", "additionalPhotos",
+      "politicalBeliefs", "religion", "causes",
+      "lifeStage", "familySituation", "coreValues",
+      "lookingFor", "locationPreference",
+      "filterPoliticalBeliefs", "filterReligions", "filterLifeStages",
+      "filterFamilySituations", "filterCoreValues",
+      "isVerified",
+    ];
     allowedUpdates.forEach((field) => { if (updates[field] !== undefined) user[field] = updates[field]; });
     await user.save();
     const userResponse = user.toObject();
@@ -506,10 +514,17 @@ router.get("/counts", auth, async (req, res) => {
       (m) => !m.rsvps.some((r) => r.user.toString() === userId)
     );
 
+    const Connection = require("../models/Connection");
+    const requestCount = await Connection.countDocuments({
+      recipient: userId,
+      status: "pending",
+    });
+
     res.json({
       unread,
       meetups: pendingMeetups.length,
       meetupInviteIds: pendingMeetups.map((m) => m._id.toString()),
+      requestCount,
     });
   } catch (error) {
     console.error("❌ Get counts error:", error);
