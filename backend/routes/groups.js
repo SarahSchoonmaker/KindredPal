@@ -4,6 +4,11 @@ const mongoose = require("mongoose");
 const auth = require("../middleware/auth");
 const Group = require("../models/Group");
 const User = require("../models/User");
+
+// Safety check — catch model registration issues early
+if (typeof Group.findById !== "function") {
+  throw new Error("Group model failed to load correctly — check ../models/Group.js");
+}
 const multer = require("multer");
 const cloudinary = require("cloudinary").v2;
 
@@ -108,6 +113,11 @@ router.get("/my", auth, async (req, res) => {
 // Get single group with members
 router.get("/:id", auth, async (req, res) => {
   try {
+    // Guard against "undefined" or invalid IDs from frontend
+    if (!req.params.id || req.params.id === "undefined" || !mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid group ID" });
+    }
+
     const group = await Group.findById(req.params.id)
       .populate("createdBy", "name profilePhoto")
       .populate("members", "name profilePhoto city state lifeStage bio")

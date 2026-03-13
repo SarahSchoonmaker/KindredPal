@@ -53,14 +53,8 @@ app.use((req, res, next) => {
   const origin = req.headers.origin;
   if (!origin || allowedOrigins.includes(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin || "*");
-    res.setHeader(
-      "Access-Control-Allow-Methods",
-      "GET,POST,PUT,DELETE,OPTIONS,PATCH",
-    );
-    res.setHeader(
-      "Access-Control-Allow-Headers",
-      "Content-Type,Authorization,X-Requested-With,Accept,Origin",
-    );
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS,PATCH");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization,X-Requested-With,Accept,Origin");
     res.setHeader("Access-Control-Allow-Credentials", "true");
   }
   if (req.method === "OPTIONS") return res.status(200).end();
@@ -71,20 +65,12 @@ const corsOptions = {
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
     logger.error("🚫 Blocked origin:", origin);
-    callback(
-      new Error(`CORS policy does not allow access from origin: ${origin}`),
-    );
+    callback(new Error(`CORS policy does not allow access from origin: ${origin}`));
   },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
   credentials: true,
   optionsSuccessStatus: 200,
-  allowedHeaders: [
-    "Content-Type",
-    "Authorization",
-    "X-Requested-With",
-    "Accept",
-    "Origin",
-  ],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
   exposedHeaders: ["Content-Length", "X-Request-Id"],
   preflightContinue: false,
 };
@@ -101,14 +87,11 @@ app.use(
         styleSrc: ["'self'", "'unsafe-inline'"],
         scriptSrc: ["'self'"],
         imgSrc: ["'self'", "data:", "https:", "blob:"],
-        connectSrc: [
-          "'self'",
-          process.env.CLIENT_URL || "http://localhost:3000",
-        ],
+        connectSrc: ["'self'", process.env.CLIENT_URL || "http://localhost:3000"],
       },
     },
     crossOriginEmbedderPolicy: false,
-  }),
+  })
 );
 
 app.use(express.json({ limit: "10mb" }));
@@ -117,8 +100,6 @@ app.use(mongoSanitize());
 
 // ===== RATE LIMITING =====
 // Extract user ID from JWT for per-user rate limiting
-// CRITICAL on Railway: all requests share the same proxy IP,
-// so without keyGenerator everyone shares ONE bucket
 const getUserKey = (req) => {
   try {
     const auth = req.headers.authorization;
@@ -128,8 +109,9 @@ const getUserKey = (req) => {
       return `user_${decoded.userId || decoded.id}`;
     }
   } catch {}
-  // Fall back to IP for unauthenticated requests
-  return req.ip || req.headers["x-forwarded-for"] || "unknown";
+  // Fall back to IP — use x-forwarded-for on Railway proxy
+  const forwarded = req.headers["x-forwarded-for"];
+  return forwarded ? forwarded.split(",")[0].trim() : (req.ip || "unknown");
 };
 
 const limiter = rateLimit({
@@ -138,6 +120,7 @@ const limiter = rateLimit({
   message: "Too many requests, please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false }, // suppress IPv6 warning on Railway
   keyGenerator: getUserKey,
   // Skip rate limiting for safe read-only GET requests
   skip: (req) => {
@@ -151,9 +134,7 @@ const limiter = rateLimit({
       "/connections",
       "/auth/profile",
     ];
-    return (
-      req.method === "GET" && readOnlyPaths.some((p) => req.path.startsWith(p))
-    );
+    return req.method === "GET" && readOnlyPaths.some(p => req.path.startsWith(p));
   },
 });
 app.use("/api/", limiter);
@@ -212,10 +193,7 @@ io.on("connection", (socket) => {
       if (socketId === socket.id) {
         userSockets.delete(userId);
         logger.info(`👤 User ${userId} went offline`);
-        socket.broadcast.emit("user-status-change", {
-          userId,
-          status: "offline",
-        });
+        socket.broadcast.emit("user-status-change", { userId, status: "offline" });
         break;
       }
     }
@@ -269,10 +247,7 @@ app.use((req, res) => {
 
 app.use((err, req, res, next) => {
   logger.error("❌ Global error:", err);
-  const message =
-    process.env.NODE_ENV === "production"
-      ? "Internal server error"
-      : err.message;
+  const message = process.env.NODE_ENV === "production" ? "Internal server error" : err.message;
   res.status(err.status || 500).json({
     message,
     ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
