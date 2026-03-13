@@ -7,6 +7,15 @@ import {
   MessageCircle, Clock, ArrowLeft, Edit2, UserX, Send, Camera, MapPin,
 } from "lucide-react";
 import "./GroupDetailPage.css";
+const US_STATES = [
+  "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA",
+  "HI","ID","IL","IN","IA","KS","KY","LA","ME","MD",
+  "MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
+  "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC",
+  "SD","TN","TX","UT","VT","VA","WA","WV","WI","WY","DC",
+];
+
+
 
 const CATEGORY_ICONS = {
   "Sports & Fitness": "🏃",
@@ -142,14 +151,14 @@ function EditGroupModal({ group, onClose, onSaved }) {
                     placeholder="City"
                     className="city-input"
                   />
-                  <input
-                    type="text"
+                  <select
                     value={form.state}
-                    onChange={e => set("state", e.target.value.toUpperCase())}
-                    placeholder="ST"
-                    maxLength={2}
+                    onChange={e => set("state", e.target.value)}
                     className="state-input"
-                  />
+                  >
+                    <option value="">ST</option>
+                    {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
                   <input
                     type="text"
                     value={form.zipCode}

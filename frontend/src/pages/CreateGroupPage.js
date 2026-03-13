@@ -3,6 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { groupsAPI } from "../services/api";
 import { ArrowLeft } from "lucide-react";
 import "./CreateGroupPage.css";
+const US_STATES = [
+  "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA",
+  "HI","ID","IL","IN","IA","KS","KY","LA","ME","MD",
+  "MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
+  "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC",
+  "SD","TN","TX","UT","VT","VA","WA","WV","WI","WY","DC",
+];
+
+
 
 const CATEGORIES = [
   "Sports & Fitness",
@@ -28,20 +37,14 @@ const CATEGORIES = [
 export default function CreateGroupPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
-    name: "",
-    description: "",
-    category: "",
-    address: "",
-    city: "",
-    state: "",
-    zipCode: "",
-    isNationwide: false,
-    isPrivate: false,
+    name: "", description: "", category: "",
+    address: "", city: "", state: "", zipCode: "",
+    isNationwide: false, isPrivate: false,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const set = (field, value) => setForm((f) => ({ ...f, [field]: value }));
+  const set = (field, value) => setForm(f => ({ ...f, [field]: value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -76,8 +79,7 @@ export default function CreateGroupPage() {
       <div className="create-group-card">
         <h1>Create a Group</h1>
         <p className="create-group-subtitle">
-          Start a community group for people who share your interests, faith, or
-          life stage.
+          Start a community group for people who share your interests, faith, or life stage.
         </p>
 
         {error && <div className="form-error">{error}</div>}
@@ -88,8 +90,8 @@ export default function CreateGroupPage() {
             <input
               type="text"
               value={form.name}
-              onChange={(e) => set("name", e.target.value)}
-              placeholder="e.g. Brunch at Hanger Cafe"
+              onChange={e => set("name", e.target.value)}
+              placeholder="e.g. Christian Fellowship — Poughkeepsie"
               maxLength={100}
             />
           </div>
@@ -98,7 +100,7 @@ export default function CreateGroupPage() {
             <label>Description *</label>
             <textarea
               value={form.description}
-              onChange={(e) => set("description", e.target.value)}
+              onChange={e => set("description", e.target.value)}
               placeholder="What is this group about? Who should join?"
               maxLength={500}
               rows={4}
@@ -109,7 +111,7 @@ export default function CreateGroupPage() {
           <div className="form-field">
             <label>Category *</label>
             <div className="category-grid">
-              {CATEGORIES.map((cat) => (
+              {CATEGORIES.map(cat => (
                 <button
                   key={cat}
                   type="button"
@@ -129,7 +131,7 @@ export default function CreateGroupPage() {
               <input
                 type="checkbox"
                 checked={form.isNationwide}
-                onChange={(e) => set("isNationwide", e.target.checked)}
+                onChange={e => set("isNationwide", e.target.checked)}
               />
             </div>
             {!form.isNationwide && (
@@ -137,7 +139,7 @@ export default function CreateGroupPage() {
                 <input
                   type="text"
                   value={form.address}
-                  onChange={(e) => set("address", e.target.value)}
+                  onChange={e => set("address", e.target.value)}
                   placeholder="Street address or venue (e.g. 123 Main St, Hangers Cafe)"
                   className="address-input"
                   style={{ marginBottom: 8 }}
@@ -146,22 +148,22 @@ export default function CreateGroupPage() {
                   <input
                     type="text"
                     value={form.city}
-                    onChange={(e) => set("city", e.target.value)}
+                    onChange={e => set("city", e.target.value)}
                     placeholder="City"
                     className="city-input"
                   />
-                  <input
-                    type="text"
+                  <select
                     value={form.state}
-                    onChange={(e) => set("state", e.target.value.toUpperCase())}
-                    placeholder="ST"
-                    maxLength={2}
+                    onChange={e => set("state", e.target.value)}
                     className="state-input"
-                  />
+                  >
+                    <option value="">ST</option>
+                    {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
                   <input
                     type="text"
                     value={form.zipCode}
-                    onChange={(e) => set("zipCode", e.target.value)}
+                    onChange={e => set("zipCode", e.target.value)}
                     placeholder="ZIP"
                     maxLength={10}
                     className="zip-input"
@@ -185,7 +187,7 @@ export default function CreateGroupPage() {
               <input
                 type="checkbox"
                 checked={form.isPrivate}
-                onChange={(e) => set("isPrivate", e.target.checked)}
+                onChange={e => set("isPrivate", e.target.checked)}
               />
             </div>
           </div>
