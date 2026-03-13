@@ -192,12 +192,23 @@ export default function ConnectionsPage() {
                     <span className="conn-bio">{conn.user.bio}</span>
                   )}
                 </div>
-                <button
-                  className="btn-message-conn"
-                  onClick={() => navigate(`/messages/${conn.user._id}`)}
-                >
-                  <MessageCircle size={16} /> Message
-                </button>
+                <div className="conn-actions">
+                  <button
+                    className="btn-message-conn"
+                    onClick={() => navigate(`/messages/${conn.user._id}`)}
+                  >
+                    <MessageCircle size={16} /> Message
+                  </button>
+                  <button
+                    className="btn-remove-conn"
+                    onClick={() =>
+                      handleRemove(conn.connectionId, conn.user.name)
+                    }
+                    title="Remove connection"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
             ))
           )}

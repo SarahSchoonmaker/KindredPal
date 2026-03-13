@@ -262,3 +262,159 @@
 .btn-browse:hover {
   background: #2c5282;
 }
+
+@media (max-width: 600px) {
+  .connections-page {
+    padding: 16px 14px 60px;
+  }
+  .connections-header h1 {
+    font-size: 24px;
+  }
+  .connections-header p {
+    font-size: 14px;
+  }
+  .conn-tab {
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+  .request-card {
+    padding: 16px;
+  }
+  .conn-avatar {
+    width: 44px;
+    height: 44px;
+  }
+  .conn-name {
+    font-size: 15px;
+  }
+  .conn-location {
+    font-size: 13px;
+  }
+  .request-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .btn-decline,
+  .btn-accept {
+    flex: unset;
+    width: 100%;
+    padding: 11px;
+  }
+  .connection-card {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .btn-message-conn {
+    width: 100%;
+    justify-content: center;
+  }
+  .conn-bio {
+    max-width: 100%;
+  }
+}
+
+/* ===== MOBILE RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .connections-page {
+    padding: 16px 12px 80px;
+  }
+
+  .connections-header h1 {
+    font-size: 24px;
+  }
+  .connections-header p {
+    font-size: 15px;
+  }
+
+  .conn-tab {
+    padding: 10px 16px;
+    font-size: 15px;
+  }
+
+  /* Request card */
+  .request-card {
+    padding: 16px;
+  }
+  .conn-avatar {
+    width: 46px;
+    height: 46px;
+  }
+  .conn-name {
+    font-size: 16px;
+  }
+  .conn-location {
+    font-size: 14px;
+  }
+  .request-message {
+    font-size: 14px;
+  }
+  .btn-decline,
+  .btn-accept {
+    font-size: 14px;
+    padding: 10px;
+  }
+
+  /* Connection card */
+  .connection-card {
+    padding: 12px 14px;
+    gap: 12px;
+  }
+  .btn-message-conn {
+    padding: 8px 14px;
+    font-size: 14px;
+  }
+
+  /* Empty state */
+  .conn-empty {
+    padding: 40px 16px;
+  }
+  .conn-empty h3 {
+    font-size: 20px;
+  }
+  .conn-empty p {
+    font-size: 15px;
+  }
+  .btn-browse {
+    font-size: 15px;
+    padding: 11px 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Stack connection card vertically on very small screens */
+  .connection-card {
+    flex-wrap: wrap;
+  }
+  .btn-message-conn {
+    width: 100%;
+    justify-content: center;
+    margin-top: 4px;
+  }
+}
+
+.conn-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.btn-remove-conn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1.5px solid #e2e8f0;
+  background: white;
+  color: #a0aec0;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.btn-remove-conn:hover {
+  border-color: #fc8181;
+  color: #e53e3e;
+  background: #fff5f5;
+}

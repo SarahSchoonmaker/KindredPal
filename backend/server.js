@@ -116,12 +116,45 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(mongoSanitize());
 
 // ===== RATE LIMITING =====
+// Extract user ID from JWT for per-user rate limiting
+// CRITICAL on Railway: all requests share the same proxy IP,
+// so without keyGenerator everyone shares ONE bucket
+const getUserKey = (req) => {
+  try {
+    const auth = req.headers.authorization;
+    if (auth && auth.startsWith("Bearer ")) {
+      const jwt = require("jsonwebtoken");
+      const decoded = jwt.verify(auth.split(" ")[1], process.env.JWT_SECRET);
+      return `user_${decoded.userId || decoded.id}`;
+    }
+  } catch {}
+  // Fall back to IP for unauthenticated requests
+  return req.ip || req.headers["x-forwarded-for"] || "unknown";
+};
+
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: process.env.NODE_ENV === "production" ? 500 : 2000,
   message: "Too many requests, please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: getUserKey,
+  // Skip rate limiting for safe read-only GET requests
+  skip: (req) => {
+    if (req.method === "OPTIONS") return true;
+    const readOnlyPaths = [
+      "/groups",
+      "/meetups",
+      "/messages/conversations",
+      "/messages/unread",
+      "/users/counts",
+      "/connections",
+      "/auth/profile",
+    ];
+    return (
+      req.method === "GET" && readOnlyPaths.some((p) => req.path.startsWith(p))
+    );
+  },
 });
 app.use("/api/", limiter);
 
@@ -136,7 +169,7 @@ app.use("/api/auth/signup", authLimiter);
 
 const profileLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: 50,
   message: "Too many profile updates, please try again later.",
 });
 app.use("/api/users/profile", profileLimiter);

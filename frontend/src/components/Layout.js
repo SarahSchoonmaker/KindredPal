@@ -45,7 +45,7 @@ const BadgeIcon = ({ children, count }) => (
 const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout, unreadCount, meetupsCount } = useAuth();
+  const { logout, unreadCount, meetupsCount, requestCount } = useAuth();
 
   const hideFooter = location.pathname.startsWith("/messages");
 
@@ -80,7 +80,9 @@ const Layout = () => {
               className={`nav-link ${location.pathname === "/connections" ? "active" : ""}`}
               onClick={() => navigate("/connections")}
             >
-              <Users size={20} />
+              <BadgeIcon count={requestCount}>
+                <Users size={20} />
+              </BadgeIcon>
               <span>Connections</span>
             </button>
 

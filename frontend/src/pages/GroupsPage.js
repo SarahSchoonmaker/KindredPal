@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { groupsAPI } from "../services/api";
 import { Search, Plus, Lock, Globe, Users, LayoutGrid } from "lucide-react";
@@ -98,28 +98,38 @@ export default function GroupsPage() {
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
 
+  // Guard against double-fetch from React StrictMode double-invoke
+  const fetchingRef = useRef(false);
+  const fetchTimerRef = useRef(null);
+
   const fetchGroups = useCallback(async () => {
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
     setLoading(true);
     try {
       const params = {};
       if (selectedCategory !== "All") params.category = selectedCategory;
       if (search) params.search = search;
 
-      const [discoverRes, myRes] = await Promise.all([
-        groupsAPI.getGroups(params),
-        groupsAPI.getMyGroups(),
-      ]);
+      // Fetch discover groups first — only fetch myGroups if needed
+      const discoverRes = await groupsAPI.getGroups(params);
       setGroups(discoverRes.data.groups || []);
+
+      const myRes = await groupsAPI.getMyGroups();
       setMyGroups(myRes.data.groups || []);
     } catch (err) {
       console.error("Error fetching groups:", err);
     } finally {
       setLoading(false);
+      fetchingRef.current = false;
     }
   }, [selectedCategory, search]);
 
   useEffect(() => {
-    fetchGroups();
+    // Debounce — collapses rapid category/search changes into one request
+    if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current);
+    fetchTimerRef.current = setTimeout(() => fetchGroups(), 300);
+    return () => clearTimeout(fetchTimerRef.current);
   }, [fetchGroups]);
 
   const handleSearch = (e) => {
