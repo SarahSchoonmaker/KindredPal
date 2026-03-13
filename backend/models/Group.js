@@ -37,9 +37,11 @@ const groupSchema = new mongoose.Schema(
         "Life Transitions",
       ],
     },
-    // Location — groups are city/state based
+    // Location
     city: { type: String, trim: true },
     state: { type: String, trim: true },
+    address: { type: String, trim: true }, // street address / venue name
+    zipCode: { type: String, trim: true },
     isNationwide: { type: Boolean, default: false },
 
     // Public = anyone can join. Private = request required

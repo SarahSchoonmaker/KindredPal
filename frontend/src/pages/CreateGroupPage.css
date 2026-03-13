@@ -164,3 +164,119 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+@media (max-width: 600px) {
+  .create-group-page {
+    padding: 16px 14px 60px;
+  }
+  .create-group-card {
+    padding: 20px 16px;
+  }
+  .create-group-card h1 {
+    font-size: 22px;
+  }
+  .category-grid {
+    gap: 6px;
+  }
+  .cat-chip {
+    padding: 6px 11px;
+    font-size: 13px;
+  }
+  .location-row {
+    flex-direction: column;
+  }
+  .city-input,
+  .state-input {
+    width: 100% !important;
+  }
+  .btn-submit {
+    font-size: 15px;
+    padding: 13px;
+  }
+}
+
+/* ===== MOBILE RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .create-group-page {
+    padding: 16px 12px 80px;
+  }
+  .create-group-card {
+    padding: 20px 16px;
+  }
+  .create-group-card h1 {
+    font-size: 22px;
+  }
+  .create-group-subtitle {
+    font-size: 14px;
+  }
+
+  .form-field label {
+    font-size: 14px;
+  }
+  .form-field input[type="text"],
+  .form-field textarea {
+    font-size: 16px;
+    padding: 11px 12px;
+  }
+
+  .category-grid {
+    gap: 6px;
+  }
+  .cat-chip {
+    padding: 7px 12px;
+    font-size: 13px;
+  }
+
+  .location-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .city-input,
+  .state-input {
+    flex: unset !important;
+    width: 100%;
+  }
+
+  .toggle-row {
+    padding: 12px;
+  }
+  .toggle-label {
+    font-size: 15px;
+  }
+  .toggle-hint {
+    font-size: 13px;
+  }
+
+  .btn-submit {
+    font-size: 16px;
+    padding: 14px;
+  }
+}
+
+/* ===== ADDRESS FIELD ===== */
+.address-input {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 15px;
+  color: #1a202c;
+  box-sizing: border-box;
+  font-family: inherit;
+  display: block;
+}
+.address-input:focus {
+  outline: none;
+  border-color: #4f5bd5;
+  box-shadow: 0 0 0 3px rgba(79, 91, 213, 0.1);
+}
+.zip-input {
+  flex: 1.2;
+  min-width: 70px;
+}
+@media (max-width: 768px) {
+  .zip-input {
+    flex: unset;
+    width: 100%;
+  }
+}

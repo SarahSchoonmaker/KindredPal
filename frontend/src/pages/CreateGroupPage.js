@@ -31,8 +31,10 @@ export default function CreateGroupPage() {
     name: "",
     description: "",
     category: "",
+    address: "",
     city: "",
     state: "",
+    zipCode: "",
     isNationwide: false,
     isPrivate: false,
   });
@@ -87,7 +89,7 @@ export default function CreateGroupPage() {
               type="text"
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
-              placeholder="e.g. Brunch Outing "
+              placeholder="e.g. Christian Fellowship — Poughkeepsie"
               maxLength={100}
             />
           </div>
@@ -131,23 +133,41 @@ export default function CreateGroupPage() {
               />
             </div>
             {!form.isNationwide && (
-              <div className="location-row">
+              <>
                 <input
                   type="text"
-                  value={form.city}
-                  onChange={(e) => set("city", e.target.value)}
-                  placeholder="City"
-                  className="city-input"
+                  value={form.address}
+                  onChange={(e) => set("address", e.target.value)}
+                  placeholder="Street address or venue (e.g. 123 Main St, Hangers Cafe)"
+                  className="address-input"
+                  style={{ marginBottom: 8 }}
                 />
-                <input
-                  type="text"
-                  value={form.state}
-                  onChange={(e) => set("state", e.target.value.toUpperCase())}
-                  placeholder="State"
-                  maxLength={2}
-                  className="state-input"
-                />
-              </div>
+                <div className="location-row">
+                  <input
+                    type="text"
+                    value={form.city}
+                    onChange={(e) => set("city", e.target.value)}
+                    placeholder="City"
+                    className="city-input"
+                  />
+                  <input
+                    type="text"
+                    value={form.state}
+                    onChange={(e) => set("state", e.target.value.toUpperCase())}
+                    placeholder="ST"
+                    maxLength={2}
+                    className="state-input"
+                  />
+                  <input
+                    type="text"
+                    value={form.zipCode}
+                    onChange={(e) => set("zipCode", e.target.value)}
+                    placeholder="ZIP"
+                    maxLength={10}
+                    className="zip-input"
+                  />
+                </div>
+              </>
             )}
           </div>
 

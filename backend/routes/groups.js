@@ -4,6 +4,25 @@ const mongoose = require("mongoose");
 const auth = require("../middleware/auth");
 const Group = require("../models/Group");
 const User = require("../models/User");
+const multer = require("multer");
+const cloudinary = require("cloudinary").v2;
+
+// Cloudinary config (uses env vars CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET)
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Multer — memory storage, 5MB limit, images only
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) cb(null, true);
+    else cb(new Error("Only image files are allowed"), false);
+  },
+});
 
 // ─── GET /api/groups ─────────────────────────────────────────────────────────
 // List groups near user + nationwide groups
@@ -502,6 +521,54 @@ router.post("/seed", auth, async (req, res) => {
   } catch (err) {
     console.error("POST /groups/seed error:", err);
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ─── POST /api/groups/:id/photo ──────────────────────────────────────────────
+// Upload group cover photo (admin only)
+router.post("/:id/photo", auth, upload.single("photo"), async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ message: "Group not found" });
+
+    const isAdmin = group.admins.some((a) => a.toString() === req.user.id);
+    if (!isAdmin) return res.status(403).json({ message: "Not authorized" });
+
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
+    // Upload to Cloudinary
+    const result = await new Promise((resolve, reject) => {
+      cloudinary.uploader
+        .upload_stream(
+          {
+            folder: "kindredpal/groups",
+            transformation: [
+              { width: 600, height: 600, crop: "fill", quality: "auto" },
+            ],
+          },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          },
+        )
+        .end(req.file.buffer);
+    });
+
+    // Delete old photo from Cloudinary if exists
+    if (group.coverPhoto && group.coverPhoto.includes("cloudinary")) {
+      const publicId = group.coverPhoto.split("/").pop().split(".")[0];
+      await cloudinary.uploader
+        .destroy(`kindredpal/groups/${publicId}`)
+        .catch(() => {});
+    }
+
+    group.coverPhoto = result.secure_url;
+    await group.save();
+
+    res.json({ coverPhoto: result.secure_url });
+  } catch (err) {
+    console.error("Photo upload error:", err);
+    res.status(500).json({ message: "Photo upload failed" });
   }
 });
 
