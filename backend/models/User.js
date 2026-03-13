@@ -158,7 +158,7 @@ userSchema.index({ politicalBeliefs: 1 });
 userSchema.index({ lifeStage: 1 });
 userSchema.index({ familySituation: 1 });
 userSchema.index({ coreValues: 1 });
-userSchema.index({ email: 1 }, { unique: true });
+// email index is defined inline with unique:true on the field — no duplicate needed
 
 // ── Hash password before save ─────────────────────────────────────
 userSchema.pre("save", async function (next) {
