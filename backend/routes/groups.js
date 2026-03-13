@@ -5,10 +5,7 @@ const auth = require("../middleware/auth");
 const Group = require("../models/Group");
 const User = require("../models/User");
 
-// Safety check — catch model registration issues early
-if (typeof Group.findById !== "function") {
-  throw new Error("Group model failed to load correctly — check ../models/Group.js");
-}
+
 const multer = require("multer");
 const cloudinary = require("cloudinary").v2;
 
