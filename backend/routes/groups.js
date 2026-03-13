@@ -36,7 +36,10 @@ router.get("/", auth, async (req, res) => {
 
     // Location: show groups in user's city/state OR nationwide
     if (!search) {
-      query.$or = [{ state: user.state }, { isNationwide: true }];
+      query.$or = [
+        { state: user.state },
+        { isNationwide: true },
+      ];
     }
 
     if (category) query.category = category;
@@ -59,9 +62,7 @@ router.get("/", auth, async (req, res) => {
     const groupsWithMembership = groups.map((g) => ({
       ...g,
       isMember: g.members.some((m) => m.toString() === userId),
-      isPending: g.pendingRequests?.some(
-        (r) => r.userId?.toString() === userId,
-      ),
+      isPending: g.pendingRequests?.some((r) => r.userId?.toString() === userId),
     }));
 
     const total = await Group.countDocuments(query);
@@ -114,7 +115,7 @@ router.get("/:id", auth, async (req, res) => {
     group.isMember = group.members.some((m) => m._id.toString() === userId);
     group.isAdmin = group.admins.some((a) => a.toString() === userId);
     group.isPending = group.pendingRequests?.some(
-      (r) => r.userId?.toString() === userId,
+      (r) => r.userId?.toString() === userId
     );
 
     // Hide pending requests from non-admins
@@ -131,22 +132,10 @@ router.get("/:id", auth, async (req, res) => {
 // Create a new group
 router.post("/", auth, async (req, res) => {
   try {
-    const {
-      name,
-      description,
-      category,
-      city,
-      state,
-      isNationwide,
-      isPrivate,
-      coverPhoto,
-      tags,
-    } = req.body;
+    const { name, description, category, city, state, isNationwide, isPrivate, coverPhoto, tags } = req.body;
 
     if (!name || !description || !category) {
-      return res
-        .status(400)
-        .json({ message: "Name, description, and category are required" });
+      return res.status(400).json({ message: "Name, description, and category are required" });
     }
 
     const group = new Group({
@@ -168,9 +157,7 @@ router.post("/", auth, async (req, res) => {
     await group.save();
     await group.populate("createdBy", "name profilePhoto");
 
-    res
-      .status(201)
-      .json({ ...group.toObject(), isMember: true, isAdmin: true });
+    res.status(201).json({ ...group.toObject(), isMember: true, isAdmin: true });
   } catch (err) {
     console.error("POST /groups error:", err);
     res.status(500).json({ message: "Server error" });
@@ -191,10 +178,9 @@ router.post("/:id/join", auth, async (req, res) => {
     if (group.isPrivate) {
       // Add to pending requests
       const alreadyPending = group.pendingRequests.some(
-        (r) => r.userId?.toString() === userId,
+        (r) => r.userId?.toString() === userId
       );
-      if (alreadyPending)
-        return res.status(400).json({ message: "Request already pending" });
+      if (alreadyPending) return res.status(400).json({ message: "Request already pending" });
 
       group.pendingRequests.push({ userId });
       await group.save();
@@ -223,9 +209,7 @@ router.post("/:id/leave", auth, async (req, res) => {
 
     // Creator cannot leave their own group
     if (group.createdBy.toString() === userId) {
-      return res.status(400).json({
-        message: "Group creator cannot leave. Delete the group instead.",
-      });
+      return res.status(400).json({ message: "Group creator cannot leave. Delete the group instead." });
     }
 
     group.members = group.members.filter((m) => m.toString() !== userId);
@@ -252,7 +236,7 @@ router.post("/:id/approve/:userId", auth, async (req, res) => {
 
     const targetUserId = req.params.userId;
     group.pendingRequests = group.pendingRequests.filter(
-      (r) => r.userId?.toString() !== targetUserId,
+      (r) => r.userId?.toString() !== targetUserId
     );
     if (!group.members.some((m) => m.toString() === targetUserId)) {
       group.members.push(targetUserId);
@@ -277,7 +261,7 @@ router.post("/:id/reject/:userId", auth, async (req, res) => {
     if (!isAdmin) return res.status(403).json({ message: "Not authorized" });
 
     group.pendingRequests = group.pendingRequests.filter(
-      (r) => r.userId?.toString() !== req.params.userId,
+      (r) => r.userId?.toString() !== req.params.userId
     );
     await group.save();
 
@@ -297,17 +281,7 @@ router.put("/:id", auth, async (req, res) => {
     const isAdmin = group.admins.some((a) => a.toString() === req.user.id);
     if (!isAdmin) return res.status(403).json({ message: "Not authorized" });
 
-    const allowed = [
-      "name",
-      "description",
-      "category",
-      "city",
-      "state",
-      "isNationwide",
-      "isPrivate",
-      "coverPhoto",
-      "tags",
-    ];
+    const allowed = ["name", "description", "category", "city", "state", "address", "zipCode", "isNationwide", "isPrivate", "coverPhoto", "tags"];
     allowed.forEach((field) => {
       if (req.body[field] !== undefined) group[field] = req.body[field];
     });
@@ -327,9 +301,7 @@ router.delete("/:id", auth, async (req, res) => {
     if (!group) return res.status(404).json({ message: "Group not found" });
 
     if (group.createdBy.toString() !== req.user.id) {
-      return res
-        .status(403)
-        .json({ message: "Only the creator can delete this group" });
+      return res.status(403).json({ message: "Only the creator can delete this group" });
     }
 
     group.isActive = false;
@@ -352,13 +324,8 @@ router.get("/:id/members", auth, async (req, res) => {
 
     // Must be a member to see members of private group
     if (group.isPrivate) {
-      const isMember = group.members.some(
-        (m) => m._id.toString() === req.user.id,
-      );
-      if (!isMember)
-        return res
-          .status(403)
-          .json({ message: "Join the group to see members" });
+      const isMember = group.members.some((m) => m._id.toString() === req.user.id);
+      if (!isMember) return res.status(403).json({ message: "Join the group to see members" });
     }
 
     res.json({ members: group.members });
@@ -372,130 +339,25 @@ router.get("/:id/members", auth, async (req, res) => {
 router.post("/seed", auth, async (req, res) => {
   try {
     const { city, state } = req.body;
-    if (!city || !state)
-      return res.status(400).json({ message: "city and state required" });
+    if (!city || !state) return res.status(400).json({ message: "city and state required" });
 
     const seedGroups = [
-      {
-        name: `Tennis Group — ${city}`,
-        description: `Tennis players and enthusiasts in ${city}. All skill levels welcome!`,
-        category: "Sports & Fitness",
-        tags: ["tennis", "sports", "fitness"],
-      },
-      {
-        name: `Christian Fellowship — ${city}`,
-        description: `A welcoming Christian community group in ${city} for faith, friendship, and fellowship.`,
-        category: "Faith & Spirituality",
-        tags: ["christian", "faith", "church"],
-      },
-      {
-        name: `Moms of ${city}`,
-        description: `A supportive community for moms in ${city} — playdates, advice, friendship, and fun.`,
-        category: "Parents",
-        tags: ["moms", "parenting", "kids"],
-      },
-      {
-        name: `Fitness Buddies — ${city}`,
-        description: `Find your fitness accountability partner in ${city}. Gym, running, hiking — all welcome.`,
-        category: "Sports & Fitness",
-        tags: ["fitness", "gym", "workout", "running"],
-      },
-      {
-        name: `Volunteers of ${city}`,
-        description: `Connect with people who want to give back in ${city}. Find volunteer opportunities and meet like-minded people.`,
-        category: "Volunteers & Causes",
-        tags: ["volunteer", "community", "giving", "nonprofit"],
-      },
-      {
-        name: `Book Club — ${city}`,
-        description: `Monthly book discussions for readers in ${city}. All genres welcome.`,
-        category: "Arts, Culture & Book Clubs",
-        tags: ["books", "reading", "book club"],
-      },
-      {
-        name: `New to ${city}`,
-        description: `Just moved to ${city}? Meet other newcomers, discover the area, and build your social circle.`,
-        category: "New to the Area",
-        tags: ["new", "newcomer", "relocation"],
-      },
-      {
-        name: `Outdoor Adventures — ${city}`,
-        description: `Hiking, cycling, kayaking and more for outdoor lovers in ${city} and surrounding areas.`,
-        category: "Outdoor & Adventure",
-        tags: ["hiking", "outdoors", "nature", "cycling"],
-      },
-      {
-        name: `Foodies of ${city}`,
-        description: `Restaurant discoveries, cooking nights, and food adventures in ${city}. All cuisines welcome.`,
-        category: "Food & Dining",
-        tags: ["food", "restaurants", "cooking", "dining"],
-      },
-      {
-        name: `Learning & Growth — ${city}`,
-        description: `Skill sharing, language exchange, workshops and personal development for curious minds in ${city}.`,
-        category: "Learning & Education",
-        tags: ["learning", "skills", "education", "growth"],
-      },
-      {
-        name: `Book Club — ${city}`,
-        description: `Monthly book discussions for readers in ${city}. Fiction, non-fiction, all genres welcome — just bring your curiosity.`,
-        category: "Arts, Culture & Book Clubs",
-        tags: ["books", "reading", "book club", "fiction", "nonfiction"],
-      },
-      {
-        name: `Business Owners of ${city}`,
-        description: `A community for entrepreneurs, small business owners, and founders in ${city}. Share resources, get advice, and grow together.`,
-        category: "Business Owners & Entrepreneurs",
-        tags: [
-          "business",
-          "entrepreneur",
-          "startup",
-          "small business",
-          "founder",
-        ],
-      },
-      {
-        name: `Sober Living — ${city}`,
-        description: `A supportive, judgment-free community for people living sober or alcohol-free in ${city}. AA, NA, or just choosing clean living — all welcome.`,
-        category: "Sober & Clean Living",
-        tags: ["sober", "sobriety", "recovery", "clean living", "AA", "NA"],
-      },
-      {
-        name: `Single Parents of ${city}`,
-        description: `Support, community, and friendship for single moms and dads in ${city}. Playdates, advice, and real talk — you don't have to do it alone.`,
-        category: "Single Parents",
-        tags: [
-          "single parent",
-          "single mom",
-          "single dad",
-          "parenting",
-          "kids",
-        ],
-      },
-      {
-        name: `Aging Gracefully — ${city}`,
-        description: `A warm, welcoming community for older adults in ${city} who want connection, companionship, and friendship. No one should navigate this chapter alone.`,
-        category: "Aging Gracefully",
-        tags: [
-          "seniors",
-          "aging",
-          "companionship",
-          "older adults",
-          "community",
-        ],
-      },
-      {
-        name: `Life Transitions — ${city}`,
-        description: `Support for navigating life's big changes in ${city} — caregivers, divorce, relocation, loss, and starting over. You are not alone.`,
-        category: "Life Transitions",
-        tags: [
-          "life transitions",
-          "support",
-          "caregivers",
-          "divorce",
-          "starting over",
-        ],
-      },
+      { name: `Tennis Group — ${city}`, description: `Tennis players and enthusiasts in ${city}. All skill levels welcome!`, category: "Sports & Fitness", tags: ["tennis", "sports", "fitness"] },
+      { name: `Christian Fellowship — ${city}`, description: `A welcoming Christian community group in ${city} for faith, friendship, and fellowship.`, category: "Faith & Spirituality", tags: ["christian", "faith", "church"] },
+      { name: `Moms of ${city}`, description: `A supportive community for moms in ${city} — playdates, advice, friendship, and fun.`, category: "Parents", tags: ["moms", "parenting", "kids"] },
+      { name: `Fitness Buddies — ${city}`, description: `Find your fitness accountability partner in ${city}. Gym, running, hiking — all welcome.`, category: "Sports & Fitness", tags: ["fitness", "gym", "workout", "running"] },
+      { name: `Volunteers of ${city}`, description: `Connect with people who want to give back in ${city}. Find volunteer opportunities and meet like-minded people.`, category: "Volunteers & Causes", tags: ["volunteer", "community", "giving", "nonprofit"] },
+      { name: `Book Club — ${city}`, description: `Monthly book discussions for readers in ${city}. All genres welcome.`, category: "Arts, Culture & Book Clubs", tags: ["books", "reading", "book club"] },
+      { name: `New to ${city}`, description: `Just moved to ${city}? Meet other newcomers, discover the area, and build your social circle.`, category: "New to the Area", tags: ["new", "newcomer", "relocation"] },
+      { name: `Outdoor Adventures — ${city}`, description: `Hiking, cycling, kayaking and more for outdoor lovers in ${city} and surrounding areas.`, category: "Outdoor & Adventure", tags: ["hiking", "outdoors", "nature", "cycling"] },
+      { name: `Foodies of ${city}`, description: `Restaurant discoveries, cooking nights, and food adventures in ${city}. All cuisines welcome.`, category: "Food & Dining", tags: ["food", "restaurants", "cooking", "dining"] },
+      { name: `Learning & Growth — ${city}`, description: `Skill sharing, language exchange, workshops and personal development for curious minds in ${city}.`, category: "Learning & Education", tags: ["learning", "skills", "education", "growth"] },
+      { name: `Book Club — ${city}`, description: `Monthly book discussions for readers in ${city}. Fiction, non-fiction, all genres welcome — just bring your curiosity.`, category: "Arts, Culture & Book Clubs", tags: ["books", "reading", "book club", "fiction", "nonfiction"] },
+      { name: `Business Owners of ${city}`, description: `A community for entrepreneurs, small business owners, and founders in ${city}. Share resources, get advice, and grow together.`, category: "Business Owners & Entrepreneurs", tags: ["business", "entrepreneur", "startup", "small business", "founder"] },
+      { name: `Sober Living — ${city}`, description: `A supportive, judgment-free community for people living sober or alcohol-free in ${city}. AA, NA, or just choosing clean living — all welcome.`, category: "Sober & Clean Living", tags: ["sober", "sobriety", "recovery", "clean living", "AA", "NA"] },
+      { name: `Single Parents of ${city}`, description: `Support, community, and friendship for single moms and dads in ${city}. Playdates, advice, and real talk — you don't have to do it alone.`, category: "Single Parents", tags: ["single parent", "single mom", "single dad", "parenting", "kids"] },
+      { name: `Aging Gracefully — ${city}`, description: `A warm, welcoming community for older adults in ${city} who want connection, companionship, and friendship. No one should navigate this chapter alone.`, category: "Aging Gracefully", tags: ["seniors", "aging", "companionship", "older adults", "community"] },
+      { name: `Life Transitions — ${city}`, description: `Support for navigating life's big changes in ${city} — caregivers, divorce, relocation, loss, and starting over. You are not alone.`, category: "Life Transitions", tags: ["life transitions", "support", "caregivers", "divorce", "starting over"] },
     ];
 
     const created = [];
@@ -524,6 +386,7 @@ router.post("/seed", auth, async (req, res) => {
   }
 });
 
+
 // ─── POST /api/groups/:id/photo ──────────────────────────────────────────────
 // Upload group cover photo (admin only)
 router.post("/:id/photo", auth, upload.single("photo"), async (req, res) => {
@@ -538,28 +401,22 @@ router.post("/:id/photo", auth, upload.single("photo"), async (req, res) => {
 
     // Upload to Cloudinary
     const result = await new Promise((resolve, reject) => {
-      cloudinary.uploader
-        .upload_stream(
-          {
-            folder: "kindredpal/groups",
-            transformation: [
-              { width: 600, height: 600, crop: "fill", quality: "auto" },
-            ],
-          },
-          (error, result) => {
-            if (error) reject(error);
-            else resolve(result);
-          },
-        )
-        .end(req.file.buffer);
+      cloudinary.uploader.upload_stream(
+        {
+          folder: "kindredpal/groups",
+          transformation: [{ width: 600, height: 600, crop: "fill", quality: "auto" }],
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      ).end(req.file.buffer);
     });
 
     // Delete old photo from Cloudinary if exists
     if (group.coverPhoto && group.coverPhoto.includes("cloudinary")) {
       const publicId = group.coverPhoto.split("/").pop().split(".")[0];
-      await cloudinary.uploader
-        .destroy(`kindredpal/groups/${publicId}`)
-        .catch(() => {});
+      await cloudinary.uploader.destroy(`kindredpal/groups/${publicId}`).catch(() => {});
     }
 
     group.coverPhoto = result.secure_url;
