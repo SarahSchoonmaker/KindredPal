@@ -103,6 +103,8 @@ app.use(mongoSanitize());
 
 // ===== RATE LIMITING =====
 // Extract user ID from JWT for per-user rate limiting
+const { ipKeyGenerator } = require("express-rate-limit");
+
 const getUserKey = (req) => {
   try {
     const auth = req.headers.authorization;
@@ -112,9 +114,8 @@ const getUserKey = (req) => {
       return `user_${decoded.userId || decoded.id}`;
     }
   } catch {}
-  // Fall back to IP — use x-forwarded-for on Railway proxy
-  const forwarded = req.headers["x-forwarded-for"];
-  return forwarded ? forwarded.split(",")[0].trim() : (req.ip || "unknown");
+  // Fall back to IP — use ipKeyGenerator to handle IPv6 properly
+  return ipKeyGenerator(req);
 };
 
 const limiter = rateLimit({
