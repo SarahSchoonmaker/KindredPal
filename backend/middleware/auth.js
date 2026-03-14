@@ -12,20 +12,32 @@ const auth = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Use mongoose.model() instead of require() to avoid circular dependency
+    // Support both 'userId' and 'id' in JWT payload
+    const userId = decoded.userId || decoded.id;
+    if (!userId) {
+      return res.status(401).json({ message: "Invalid token payload" });
+    }
+
+    // Use mongoose.model() to avoid circular dependency
     const User = mongoose.model("User");
-    const user = await User.findById(decoded.userId).select("-password");
+    const user = await User.findById(userId).select("-password");
 
     if (!user) {
       return res.status(401).json({ message: "User not found" });
     }
 
     req.user = user;
-    req.userId = decoded.userId;
+    req.userId = userId;
 
     next();
   } catch (error) {
     logger.error("Auth middleware error:", error);
+    if (error.name === "JsonWebTokenError") {
+      return res.status(401).json({ message: "Invalid token" });
+    }
+    if (error.name === "TokenExpiredError") {
+      return res.status(401).json({ message: "Token expired, please log in again" });
+    }
     res.status(401).json({ message: "Invalid token" });
   }
 };
