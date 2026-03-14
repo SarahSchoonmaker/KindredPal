@@ -1,29 +1,25 @@
 const jwt = require("jsonwebtoken");
-const User = require("../models/User");
+const mongoose = require("mongoose");
 const logger = require("../utils/logger");
 
 const auth = async (req, res, next) => {
   try {
-    // Get token from header
     const token = req.header("Authorization")?.replace("Bearer ", "");
 
     if (!token) {
-      return res
-        .status(401)
-        .json({ message: "No authentication token, access denied" });
+      return res.status(401).json({ message: "No authentication token, access denied" });
     }
 
-    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Get user from database
+    // Use mongoose.model() instead of require() to avoid circular dependency
+    const User = mongoose.model("User");
     const user = await User.findById(decoded.userId).select("-password");
 
     if (!user) {
       return res.status(401).json({ message: "User not found" });
     }
 
-    // Attach user to request
     req.user = user;
     req.userId = decoded.userId;
 
