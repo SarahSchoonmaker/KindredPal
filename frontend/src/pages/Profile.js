@@ -62,8 +62,8 @@ function ChipSelect({ options, selected = [], onChange, max }) {
   );
 }
 
-export default function ProfilePage() {
-  const { user, setUser } = useAuth();
+export default function Profile() {
+  const { user, updateUser } = useAuth();
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -95,7 +95,7 @@ export default function ProfilePage() {
     setSaving(true);
     try {
       const res = await userAPI.updateProfile(form);
-      if (setUser) setUser(res.data);
+      if (updateUser) updateUser(res.data);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {

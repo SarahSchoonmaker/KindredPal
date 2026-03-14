@@ -1,0 +1,229 @@
+.profile-page {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 24px 16px 80px;
+}
+
+/* Hero */
+.profile-hero {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 28px;
+  padding: 24px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+.profile-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #e2e8f0;
+}
+.profile-avatar-placeholder {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.profile-hero-info h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0 0 4px;
+}
+.profile-email {
+  font-size: 14px;
+  color: #718096;
+  margin: 0 0 4px;
+}
+.profile-location {
+  font-size: 14px;
+  color: #4a5568;
+  margin: 0;
+}
+
+/* Tabs */
+.profile-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 0;
+}
+.profile-tab {
+  background: none;
+  border: none;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #718096;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.15s;
+}
+.profile-tab.active {
+  color: #2563eb;
+  border-bottom-color: #2563eb;
+  font-weight: 600;
+}
+.profile-tab:hover:not(.active) {
+  color: #4a5568;
+}
+
+/* Form */
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.profile-section {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-bottom: 16px;
+}
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.form-field label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2d3748;
+}
+.label-hint {
+  font-weight: 400;
+  color: #718096;
+}
+.field-hint {
+  font-size: 13px;
+  color: #718096;
+  margin: 0;
+}
+.form-field input,
+.form-field select,
+.form-field textarea {
+  padding: 10px 12px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 15px;
+  color: #1a202c;
+  background: #f8fafc;
+  transition: border-color 0.15s;
+  width: 100%;
+  box-sizing: border-box;
+}
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  background: white;
+}
+.form-field textarea { resize: vertical; }
+.char-count {
+  font-size: 12px;
+  color: #a0aec0;
+  text-align: right;
+}
+.input-short { max-width: 100px; }
+.form-row {
+  display: flex;
+  gap: 12px;
+}
+.form-row .form-field { flex: 1; }
+.form-field-short { max-width: 110px; flex: 0 0 auto !important; }
+
+/* Chip select */
+.chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip {
+  padding: 7px 14px;
+  border-radius: 20px;
+  border: 1.5px solid #e2e8f0;
+  background: white;
+  color: #4a5568;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.chip:hover { border-color: #2563eb; color: #2563eb; }
+.chip-selected {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: white;
+  font-weight: 500;
+}
+.chip-hint {
+  width: 100%;
+  font-size: 12px;
+  color: #a0aec0;
+  margin: 4px 0 0;
+}
+
+/* Save button */
+.btn-save-profile {
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 14px 32px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background 0.15s;
+}
+.btn-save-profile:hover { background: #1d4ed8; }
+.btn-save-profile:disabled { background: #93c5fd; cursor: not-allowed; }
+
+.profile-error {
+  background: #fff5f5;
+  border: 1px solid #feb2b2;
+  color: #c53030;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+.profile-saved {
+  background: #f0fff4;
+  border: 1px solid #9ae6b4;
+  color: #276749;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+.profile-loading {
+  display: flex;
+  justify-content: center;
+  padding: 60px;
+}
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
