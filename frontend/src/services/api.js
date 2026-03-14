@@ -133,6 +133,15 @@ export const connectionsAPI = {
   getStatus: (userId) => api.get(`/connections/status/${userId}`),
 };
 
+export const groupChatAPI = {
+  getMessages: (groupId, params = {}) =>
+    api.get(`/groups/${groupId}/messages`, { params }),
+  sendMessage: (groupId, content, eventId = null) =>
+    api.post(`/groups/${groupId}/messages`, { content, eventId }),
+  deleteMessage: (groupId, msgId) =>
+    api.delete(`/groups/${groupId}/messages/${msgId}`),
+};
+
 export const eventsAPI = {
   getEvents: (groupId) => api.get(`/groups/${groupId}/events`),
   createEvent: (groupId, data) => api.post(`/groups/${groupId}/events`, data),

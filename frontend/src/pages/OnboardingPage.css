@@ -1,0 +1,205 @@
+.ob-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.ob-card {
+  background: white;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 520px;
+  padding: 32px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+
+/* Header */
+.ob-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.ob-logo { font-size: 18px; font-weight: 800; color: #4c1d95; }
+.ob-skip {
+  background: none;
+  border: none;
+  color: #a0aec0;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: color 0.15s;
+}
+.ob-skip:hover { color: #718096; }
+
+/* Progress dots */
+.ob-progress {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 32px;
+  justify-content: center;
+}
+.ob-progress-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  transition: all 0.2s;
+}
+.ob-progress-dot.done { background: #7c3aed; }
+.ob-progress-dot.active {
+  background: #7c3aed;
+  width: 24px;
+  border-radius: 4px;
+}
+
+/* Step content */
+.ob-step { }
+.ob-step-icon { font-size: 40px; margin-bottom: 12px; }
+.ob-step h2 { font-size: 22px; font-weight: 800; color: #1a202c; margin: 0 0 8px; }
+.ob-subtitle { color: #718096; font-size: 14px; margin: 0 0 24px; line-height: 1.5; }
+
+/* Fields */
+.ob-field { margin-bottom: 20px; }
+.ob-field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4a5568;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.ob-field input[type="text"],
+.ob-field input[type="number"],
+.ob-select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 15px;
+  color: #1a202c;
+  transition: border 0.15s;
+  background: white;
+  box-sizing: border-box;
+}
+.ob-field input:focus,
+.ob-select:focus { outline: none; border-color: #7c3aed; }
+.ob-input-short { max-width: 100px !important; }
+
+.ob-location-row { display: flex; gap: 10px; }
+.ob-city-input { flex: 1; }
+.ob-state-input {
+  width: 110px;
+  padding: 10px 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 15px;
+  background: white;
+}
+.ob-state-input:focus { outline: none; border-color: #7c3aed; }
+
+/* Chips */
+.ob-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ob-chip {
+  padding: 8px 14px;
+  border-radius: 20px;
+  border: 1.5px solid #e2e8f0;
+  background: white;
+  font-size: 13px;
+  font-weight: 500;
+  color: #4a5568;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.ob-chip:hover:not(.disabled) { border-color: #7c3aed; color: #7c3aed; }
+.ob-chip.active {
+  background: #7c3aed;
+  border-color: #7c3aed;
+  color: white;
+  font-weight: 600;
+}
+.ob-chip.disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Politics buttons */
+.ob-politics-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.ob-politics-btn {
+  padding: 8px 14px;
+  border-radius: 20px;
+  border: 1.5px solid #e2e8f0;
+  background: white;
+  font-size: 13px;
+  font-weight: 500;
+  color: #4a5568;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.ob-politics-btn:hover { border-color: #7c3aed; color: #7c3aed; }
+.ob-politics-btn.active { background: #7c3aed; border-color: #7c3aed; color: white; font-weight: 600; }
+
+/* Max hint */
+.ob-max-hint {
+  background: #f0fdf4;
+  color: #15803d;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+/* Error */
+.ob-error {
+  background: #fff5f5;
+  color: #c53030;
+  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  border: 1px solid #fed7d7;
+}
+
+/* Footer */
+.ob-footer {
+  display: flex;
+  gap: 12px;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid #f7fafc;
+}
+.ob-btn-back {
+  background: none;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #718096;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.ob-btn-back:hover { border-color: #a0aec0; color: #4a5568; }
+.ob-btn-next {
+  flex: 1;
+  background: linear-gradient(135deg, #7c3aed, #4c1d95);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 14px 24px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  box-shadow: 0 4px 15px rgba(124,58,237,0.4);
+}
+.ob-btn-next:hover:not(:disabled) { opacity: 0.9; }
+.ob-btn-next:disabled { opacity: 0.6; cursor: not-allowed; }
+
+@media (max-width: 540px) {
+  .ob-card { padding: 24px 20px; border-radius: 16px; }
+  .ob-step h2 { font-size: 19px; }
+}

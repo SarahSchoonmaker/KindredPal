@@ -32,6 +32,10 @@ const meetupRoutes = require("./routes/meetups");
 const groupRoutes = require("./routes/groups");
 const connectionRoutes = require("./routes/connections");
 const eventRoutes = require("./routes/events");
+const groupMessageRoutes = require("./routes/GroupMessages");
+const GroupMessage = require("./models/GroupMessage");
+const groupChatRoutes = require("./routes/groupChat");
+const GroupMessage = require("./models/GroupMessage");
 
 const app = express();
 
@@ -174,8 +178,45 @@ app.use((req, res, next) => {
 // Socket.io connection handling
 const userSockets = new Map();
 
+// Expose io to routes
+app.set("io", io);
+
 io.on("connection", (socket) => {
   logger.info("🔌 Socket connected:", socket.id);
+
+  // Group chat rooms
+  socket.on("join-group-room", (groupId) => {
+    socket.join(`group:${groupId}`);
+  });
+  socket.on("leave-group-room", (groupId) => {
+    socket.leave(`group:${groupId}`);
+  });
+
+  // Send group message via socket (primary path)
+  socket.on("group-message", async ({ groupId, content, eventId, senderId }) => {
+    try {
+      const Group = require("./models/Group");
+      const group = await Group.findById(groupId).select("members").lean();
+      if (!group) return;
+      const isMember = group.members.some(m => m.toString() === senderId);
+      if (!isMember) return;
+
+      const msg = await GroupMessage.create({
+        group: groupId,
+        event: eventId || null,
+        sender: senderId,
+        content: content.trim(),
+      });
+      await msg.populate("sender", "name profilePhoto");
+
+      io.to(`group:${groupId}`).emit("group-message", {
+        ...msg.toObject(),
+        eventId: eventId || null,
+      });
+    } catch (err) {
+      logger.error("Socket group-message error:", err);
+    }
+  });
 
   socket.on("user-online", (userId) => {
     if (!userId || typeof userId !== "string") {
@@ -216,6 +257,8 @@ app.use("/api/meetups", meetupRoutes);
 app.use("/api/groups", groupRoutes);
 app.use("/api/connections", connectionRoutes);
 app.use("/api/groups/:groupId/events", eventRoutes);
+app.use("/api/groups/:groupId/messages", groupMessageRoutes);
+app.use("/api/groups/:groupId/chat", groupChatRoutes);
 
 // Health check
 app.get("/", (req, res) => {

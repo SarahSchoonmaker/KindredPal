@@ -111,6 +111,7 @@ const userSchema = new mongoose.Schema(
 
     // ── Verification ──────────────────────────────────────────────
     isVerified: { type: Boolean, default: false },
+    onboardingComplete: { type: Boolean, default: false },
     verifiedAt: { type: Date },
 
     // ── Discover / Matching (legacy — kept for backwards compat) ──

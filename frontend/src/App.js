@@ -34,6 +34,8 @@ import UserProfile from "./pages/UserProfile";
 import MeetupsPage from "./pages/MeetupsPage";
 import MeetupDetailsPage from "./pages/MeetupDetailsPage";
 
+import OnboardingPage from "./pages/OnboardingPage";
+
 // Protected pages — new Groups + Connections
 import GroupsPage from "./pages/GroupsPage";
 import GroupDetailPage from "./pages/GroupDetailPage";
@@ -42,11 +44,15 @@ import ConnectionsPage from "./pages/ConnectionsPage";
 
 import "./App.css";
 
-// Protected Route wrapper
-const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+// Protected Route wrapper — also redirects to onboarding if not completed
+const ProtectedRoute = ({ children, skipOnboarding = false }) => {
+  const { isAuthenticated, loading, user } = useAuth();
   if (loading) return <div className="loading-screen">Loading...</div>;
-  return isAuthenticated ? children : <Navigate to="/login" />;
+  if (!isAuthenticated) return <Navigate to="/login" />;
+  if (!skipOnboarding && user && !user.onboardingComplete) {
+    return <Navigate to="/onboarding" />;
+  }
+  return children;
 };
 
 // Public Route wrapper (redirect to groups if already authenticated)
@@ -101,12 +107,23 @@ function AppRoutes() {
           <Route path="meetups/:meetupId" element={<MeetupDetailsPage />} />
           <Route path="profile" element={<Profile />} />
           <Route path="profile/:userId" element={<UserProfile />} />
+          <Route path="members/:userId" element={<UserProfile />} />
 
           {/* Old routes kept as redirects so bookmarks don't break */}
           <Route path="discover" element={<Navigate to="/groups" />} />
           <Route path="matches" element={<Navigate to="/connections" />} />
           <Route path="likes-you" element={<Navigate to="/connections" />} />
         </Route>
+
+        {/* Onboarding — full screen, no layout */}
+        <Route
+          path="/onboarding"
+          element={
+            <ProtectedRoute skipOnboarding={true}>
+              <OnboardingPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Catch-all */}
         <Route path="*" element={<Navigate to="/" />} />

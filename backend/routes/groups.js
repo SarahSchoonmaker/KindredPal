@@ -36,16 +36,20 @@ router.get("/", auth, async (req, res) => {
 
     const query = { isActive: { $ne: false } }; // treat missing/undefined as active
 
-    // Location: show groups in user's city/state OR nationwide
-    // Guard: if user not found or has no state, show all groups
+    // Public groups are always visible to everyone.
+    // Private groups only shown if in user's state.
     if (!search) {
       if (user?.state) {
         query.$or = [
-          { state: user.state },
+          { isPrivate: false },
           { isNationwide: true },
+          {
+            isPrivate: true,
+            state: { $regex: new RegExp("^" + user.state.trim() + "$", "i") },
+          },
         ];
       }
-      // else: no location filter — show all groups
+      // no state on user profile — show everything
     }
 
     if (category) query.category = category;
@@ -58,18 +62,38 @@ router.get("/", auth, async (req, res) => {
 
     const groups = await Group.find(query)
       .populate("createdBy", "name profilePhoto")
+      .populate("members", "religion politicalBeliefs lifeStage familySituation")
       .sort({ memberCount: -1, createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit))
       .lean();
 
-    // Add isMember flag for each group
+    // Add isMember flag + memberValues summary (for "People like me" tags, threshold: 3+)
     const userId = req.user.id;
-    const groupsWithMembership = groups.map((g) => ({
-      ...g,
-      isMember: g.members.some((m) => m.toString() === userId),
-      isPending: g.pendingRequests?.some((r) => r.userId?.toString() === userId),
-    }));
+    const groupsWithMembership = groups.map((g) => {
+      const members = g.members || [];
+      const THRESHOLD = 3;
+      const freq = (arr) => arr.reduce((acc, v) => { if (v) acc[v] = (acc[v] || 0) + 1; return acc; }, {});
+      const topByThreshold = (obj) => Object.keys(obj).filter(k => obj[k] >= THRESHOLD);
+      const flatFreq = (arr) => {
+        const obj = {};
+        arr.forEach(v => { if (v) obj[v] = (obj[v] || 0) + 1; });
+        return topByThreshold(obj);
+      };
+
+      return {
+        ...g,
+        members: g.members.map(m => m._id || m), // strip back to IDs for list view
+        isMember: g.members.some((m) => (m._id || m).toString() === userId),
+        isPending: g.pendingRequests?.some((r) => r.userId?.toString() === userId),
+        memberValues: {
+          religions: topByThreshold(freq(members.map(m => m.religion))),
+          politics: topByThreshold(freq(members.map(m => m.politicalBeliefs))),
+          lifeStages: flatFreq(members.flatMap(m => m.lifeStage || [])),
+          families: flatFreq(members.flatMap(m => m.familySituation || [])),
+        },
+      };
+    });
 
     const total = await Group.countDocuments(query);
 
@@ -99,7 +123,17 @@ router.get("/my", auth, async (req, res) => {
 
     const userId = req.user.id;
     const result = groups.map((g) => ({ ...g, isMember: true }));
-    res.json({ groups: result });
+    // Compute memberValues summary for each group (for "People like me" tags)
+      const groupsWithValues = result.map(g => ({
+        ...g,
+        memberValues: {
+          religions: [...new Set((g.members || []).map(m => m.religion).filter(Boolean))],
+          politics: [...new Set((g.members || []).map(m => m.politicalBeliefs).filter(Boolean))],
+          lifeStages: [...new Set((g.members || []).flatMap(m => m.lifeStage || []))],
+          families: [...new Set((g.members || []).flatMap(m => m.familySituation || []))],
+        }
+      }));
+      res.json({ groups: groupsWithValues });
   } catch (err) {
     console.error("GET /groups/my error:", err);
     res.status(500).json({ message: "Server error" });
@@ -117,7 +151,7 @@ router.get("/:id", auth, async (req, res) => {
 
     const group = await Group.findById(req.params.id)
       .populate("createdBy", "name profilePhoto")
-      .populate("members", "name profilePhoto city state lifeStage bio")
+      .populate("members", "name profilePhoto city state lifeStage familySituation religion politicalBeliefs bio")
       .lean();
 
     if (!group) return res.status(404).json({ message: "Group not found" });
@@ -331,7 +365,7 @@ router.delete("/:id", auth, async (req, res) => {
 router.get("/:id/members", auth, async (req, res) => {
   try {
     const group = await Group.findById(req.params.id)
-      .populate("members", "name profilePhoto city state lifeStage bio causes")
+      .populate("members", "name profilePhoto city state lifeStage familySituation religion politicalBeliefs bio")
       .lean();
 
     if (!group) return res.status(404).json({ message: "Group not found" });

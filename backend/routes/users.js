@@ -346,7 +346,7 @@ router.put("/profile", auth, async (req, res) => {
       "lifeStage", "familySituation", "coreValues",
       "lookingFor", "locationPreference",
       "filterPoliticalBeliefs", "filterReligions", "filterLifeStages",
-      "filterFamilySituations", "filterCoreValues",
+      "filterFamilySituations", "filterCoreValues", "onboardingComplete",
       "isVerified",
     ];
     allowedUpdates.forEach((field) => { if (updates[field] !== undefined) user[field] = updates[field]; });

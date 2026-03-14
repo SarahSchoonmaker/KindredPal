@@ -17,18 +17,33 @@ router.get("/", auth, async (req, res) => {
       date: { $gte: now },
     })
       .populate("createdBy", "name profilePhoto")
+      .populate("rsvps.user", "name profilePhoto lifeStage religion")
       .sort({ date: 1 })
       .lean();
 
-    // Add isGoing flag for each event
+    // Add isGoing flag and attendee preview for each event
     const userId = req.user.id;
-    const result = events.map((e) => ({
-      ...e,
-      isGoing: e.rsvps.some((r) => r.user.toString() === userId && r.status === "going"),
-      isMaybe: e.rsvps.some((r) => r.user.toString() === userId && r.status === "maybe"),
-      goingCount: e.rsvps.filter((r) => r.status === "going").length,
-      maybeCount: e.rsvps.filter((r) => r.status === "maybe").length,
-    }));
+    const result = events.map((e) => {
+      const goingRsvps = e.rsvps.filter((r) => r.status === "going");
+      const goingPreview = goingRsvps
+        .filter(r => r.user && r.user._id)
+        .slice(0, 5)
+        .map(r => ({
+          _id: r.user._id,
+          name: r.user.name,
+          profilePhoto: r.user.profilePhoto,
+          lifeStage: r.user.lifeStage,
+          religion: r.user.religion,
+        }));
+      return {
+        ...e,
+        isGoing: e.rsvps.some((r) => r.user?._id?.toString() === userId && r.status === "going"),
+        isMaybe: e.rsvps.some((r) => r.user?._id?.toString() === userId && r.status === "maybe"),
+        goingCount: goingRsvps.length,
+        maybeCount: e.rsvps.filter((r) => r.status === "maybe").length,
+        goingPreview,
+      };
+    });
 
     res.json({ events: result });
   } catch (err) {

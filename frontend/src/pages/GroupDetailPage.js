@@ -5,9 +5,10 @@ import { groupsAPI, connectionsAPI, eventsAPI } from "../services/api";
 import {
   Lock, Globe, LogOut, UserPlus, UserCheck,
   MessageCircle, Clock, ArrowLeft, Edit2, UserX, Send, Camera, MapPin,
-  Calendar, Plus, Trash2, ExternalLink,
+  Calendar, Plus, Trash2, ExternalLink, MessageSquare,
 } from "lucide-react";
 import "./GroupDetailPage.css";
+import GroupChat from "./GroupChat";
 
 const US_STATES = [
   "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA",
@@ -248,7 +249,17 @@ function MemberRow({ member, groupId, groupName, groupCategory, currentUserId, i
           {member._id === createdBy && <span className="creator-badge">👑 Creator</span>}
         </div>
         <span className="member-location">{member.city}, {member.state}</span>
-        {member.lifeStage?.length > 0 && <span className="member-stage">{member.lifeStage.slice(0, 2).join(" · ")}</span>}
+        <div className="member-value-tags">
+          {member.lifeStage?.length > 0 && (
+            <span className="member-vtag vtag-stage">{member.lifeStage.slice(0, 2).join(" · ")}</span>
+          )}
+          {member.religion && member.religion !== "None" && (
+            <span className="member-vtag vtag-faith">🙏 {member.religion.replace("Christian (", "").replace(")", "")}</span>
+          )}
+          {member.familySituation?.length > 0 && (
+            <span className="member-vtag vtag-family">👨‍👧 {member.familySituation[0]}</span>
+          )}
+        </div>
       </div>
       <div className="member-row-actions" onClick={e => e.stopPropagation()}>
         {renderAction()}
@@ -417,6 +428,32 @@ function EventCard({ event, groupId, isAdmin, currentUserId, onRsvp, onDelete })
         )}
       </div>
       {event.description && <p className="event-description">{event.description}</p>}
+
+      {/* Attendance preview — show avatars of who's going */}
+      {event.goingPreview?.length > 0 && (
+        <div className="event-attendees-preview">
+          <div className="attendee-avatars">
+            {event.goingPreview.map((a, i) => (
+              <img
+                key={a._id || i}
+                src={a.profilePhoto || "/default-avatar.png"}
+                alt={a.name}
+                className="attendee-avatar"
+                title={a.name}
+                style={{ zIndex: 10 - i }}
+              />
+            ))}
+            {event.goingCount > 5 && (
+              <span className="attendee-overflow">+{event.goingCount - 5}</span>
+            )}
+          </div>
+          <span className="attendee-names-hint">
+            {event.goingPreview.slice(0, 2).map(a => a.name.split(" ")[0]).join(", ")}
+            {event.goingCount > 2 ? ` & ${event.goingCount - 2} others going` : " going"}
+          </span>
+        </div>
+      )}
+
       <div className="event-footer">
         <div className="event-counts">
           <span>✅ {event.goingCount} going</span>
@@ -676,6 +713,11 @@ export default function GroupDetailPage() {
         <button className={`gd-tab ${activeTab === "members" ? "active" : ""}`} onClick={() => setActiveTab("members")}>
           Members ({group.members?.length || 0})
         </button>
+        {(group.isMember || group.isAdmin) && (
+          <button className={`gd-tab ${activeTab === "chat" ? "active" : ""}`} onClick={() => setActiveTab("chat")}>
+            <MessageSquare size={15} /> Chat
+          </button>
+        )}
       </div>
 
       {/* Stats */}
@@ -777,6 +819,17 @@ export default function GroupDetailPage() {
             </div>
           )}
         </>
+      )}
+
+      {/* ── CHAT TAB ── */}
+      {activeTab === "chat" && (group.isMember || group.isAdmin) && (
+        <div className="group-section group-chat-section">
+          <GroupChat
+            groupId={groupId}
+            group={group}
+            events={events}
+          />
+        </div>
       )}
 
       {/* Modals */}
