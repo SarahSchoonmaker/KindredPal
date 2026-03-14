@@ -18,13 +18,21 @@ const RELIGION_OPTIONS = [
 ];
 
 const POLITICS_OPTIONS = [
-  "Very Conservative","Conservative","Moderate",
-  "Liberal","Very Liberal","Prefer not to say",
+  "Conservative","Moderate","Liberal","Prefer not to say",
 ];
 
 const LIFE_STAGE_OPTIONS = [
-  "Single","In a relationship","Married","Divorced",
-  "Widowed","Empty nester","Newly retired","Retired",
+  "Single",
+  "In a relationship",
+  "Married",
+  "Divorced",
+  "Widowed",
+  "Empty nester",
+  "Retired",
+  "Caregiver",
+  "Aging Alone",
+  "New Career",
+  "New To Town",
 ];
 
 const FAMILY_OPTIONS = [
@@ -51,6 +59,10 @@ const CORE_VALUES_OPTIONS = [
   "Sports & Athletics",
   "Fashion",
   "Design",
+  "Real Estate",
+  "Investing",
+  "Reading",
+  "Politics",
 ];
 
 function ChipSelect({ options, selected = [], onChange, max }) {

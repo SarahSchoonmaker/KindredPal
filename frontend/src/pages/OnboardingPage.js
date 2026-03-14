@@ -7,8 +7,17 @@ import "./OnboardingPage.css";
 const TOTAL_STEPS = 4;
 
 const LIFE_STAGES = [
-  "Single", "In a relationship", "Married", "Divorced", "Widowed",
-  "Empty nester", "Newly retired", "Retired",
+  "Single",
+  "In a relationship",
+  "Married",
+  "Divorced",
+  "Widowed",
+  "Empty nester",
+  "Retired",
+  "Caregiver",
+  "Aging Alone",
+  "New Career",
+  "New To Town",
 ];
 
 const FAMILY_OPTIONS = [
@@ -35,6 +44,10 @@ const CORE_VALUES = [
   { id: "Sports & Athletics", label: "Sports & Athletics", emoji: "🏆" },
   { id: "Fashion", label: "Fashion", emoji: "👗" },
   { id: "Design", label: "Design", emoji: "✏️" },
+  { id: "Real Estate", label: "Real Estate", emoji: "🏠" },
+  { id: "Investing", label: "Investing", emoji: "📈" },
+  { id: "Reading", label: "Reading", emoji: "📖" },
+  { id: "Politics", label: "Politics", emoji: "🗳️" },
 ];
 
 const RELIGION_OPTIONS = [
@@ -44,7 +57,7 @@ const RELIGION_OPTIONS = [
 ];
 
 const POLITICS_OPTIONS = [
-  "Very Conservative", "Conservative", "Moderate", "Liberal", "Very Liberal", "Prefer not to say",
+  "Conservative", "Moderate", "Liberal", "Prefer not to say",
 ];
 
 const US_STATES = [

@@ -48,11 +48,9 @@ const userSchema = new mongoose.Schema(
     politicalBeliefs: {
       type: String,
       enum: [
-        "Very Conservative",
         "Conservative",
         "Moderate",
         "Liberal",
-        "Very Liberal",
         "Prefer not to say",
         "",
       ],
@@ -69,8 +67,11 @@ const userSchema = new mongoose.Schema(
         "Divorced",
         "Widowed",
         "Empty nester",
-        "Newly retired",
         "Retired",
+        "Caregiver",
+        "Aging Alone",
+        "New Career",
+        "New To Town",
       ],
       default: [],
     },
@@ -94,7 +95,7 @@ const userSchema = new mongoose.Schema(
     // ── Core Values (pick up to 3) ────────────────────────────────
     coreValues: {
       type: [String],
-      enum: [
+            enum: [
         "Faith & God",
         "Personal growth",
         "Health & wellness",
@@ -113,6 +114,10 @@ const userSchema = new mongoose.Schema(
         "Sports & Athletics",
         "Fashion",
         "Design",
+        "Real Estate",
+        "Investing",
+        "Reading",
+        "Politics",
       ],
       validate: {
         validator: function (v) { return v.length <= 3; },
