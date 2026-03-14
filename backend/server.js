@@ -34,6 +34,8 @@ const connectionRoutes = require("./routes/connections");
 const eventRoutes = require("./routes/events");
 const groupMessageRoutes = require("./routes/groupMessages");
 const GroupMessage = require("./models/GroupMessage");
+// Preload User model first to prevent circular dependency issues
+const User = require("./models/User");
 
 const app = express();
 
