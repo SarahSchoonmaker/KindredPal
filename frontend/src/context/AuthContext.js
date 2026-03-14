@@ -219,7 +219,7 @@ export const AuthProvider = ({ children }) => {
       if (response.data.token) {
         localStorage.setItem("token", response.data.token);
         setUser(response.data.user);
-        return { success: true };
+        return { success: true, user: response.data.user };
       }
       return { success: false, error: "Signup failed" };
     } catch (error) {
@@ -243,7 +243,7 @@ export const AuthProvider = ({ children }) => {
         keysToRemove.forEach((k) => localStorage.removeItem(k));
         localStorage.setItem("token", response.data.token);
         setUser(response.data.user);
-        return { success: true };
+        return { success: true, user: response.data.user };
       }
       return { success: false, error: "Login failed" };
     } catch (error) {

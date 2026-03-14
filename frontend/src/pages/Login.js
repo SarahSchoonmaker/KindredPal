@@ -6,10 +6,7 @@ import "./Auth.css";
 const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
+  const [formData, setFormData] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -18,17 +15,17 @@ const Login = () => {
     setError("");
     setLoading(true);
 
-    console.log("🔍 Frontend: Attempting login with:", formData.email);
-
     const result = await login(formData.email, formData.password);
 
-    console.log("🔍 Frontend: Login result:", result);
-
     if (result.success) {
-      console.log("✅ Frontend: Login successful, navigating to /discover");
-      navigate("/discover");
+      // Redirect to onboarding if first login, otherwise groups
+      const user = result.user;
+      if (user && !user.onboardingComplete) {
+        navigate("/onboarding");
+      } else {
+        navigate("/groups");
+      }
     } else {
-      console.log("❌ Frontend: Login failed:", result.error);
       setError(result.error);
     }
 
@@ -36,10 +33,7 @@ const Login = () => {
   };
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   return (
@@ -63,7 +57,6 @@ const Login = () => {
                 required
               />
             </div>
-
             <div className="form-group">
               <label className="form-label">Password</label>
               <input
@@ -90,7 +83,6 @@ const Login = () => {
           <p className="auth-link">
             Don't have an account? <Link to="/signup">Sign up</Link>
           </p>
-
           <p className="auth-link">
             <Link to="/">← Back to home</Link>
           </p>
