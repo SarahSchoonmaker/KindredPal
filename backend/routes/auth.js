@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-const User = require("../models/User");
+const mongoose = require("mongoose");
 const auth = require("../middleware/auth");
 const { body, validationResult } = require("express-validator");
 const logger = require("../utils/logger");
@@ -12,71 +12,33 @@ const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
+// Helper — get User model at runtime to avoid circular dependency
+const getUser = () => mongoose.model("User");
+
 // ===== SIGNUP ROUTE =====
 router.post(
   "/signup",
   [
-    body("email")
-      .isEmail()
-      .normalizeEmail()
-      .withMessage("Invalid email address"),
-    body("password")
-      .isLength({ min: 6 })
-      .withMessage("Password must be at least 6 characters"),
+    body("email").isEmail().normalizeEmail().withMessage("Invalid email address"),
+    body("password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters"),
     body("name").trim().notEmpty().withMessage("Name is required"),
-    body("age")
-      .isInt({ min: 18, max: 120 })
-      .withMessage("Age must be between 18 and 120"),
+    body("age").isInt({ min: 18, max: 120 }).withMessage("Age must be between 18 and 120"),
     body("city").trim().notEmpty().withMessage("City is required"),
     body("state").trim().notEmpty().withMessage("State is required"),
-    body("bio").trim().notEmpty().withMessage("Bio is required"),
   ],
   async (req, res) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        logger.info("❌ Validation errors:", errors.array());
-        return res
-          .status(400)
-          .json({ message: errors.array()[0].msg, errors: errors.array() });
+        return res.status(400).json({ message: errors.array()[0].msg, errors: errors.array() });
       }
 
-      logger.info("\n========== SIGNUP REQUEST ==========");
-      logger.info("📥 Full request body:", JSON.stringify(req.body, null, 2));
-      logger.info("====================================\n");
-
+      const User = getUser();
       const userData = req.body;
 
       const existingUser = await User.findOne({ email: userData.email });
       if (existingUser) {
-        return res
-          .status(400)
-          .json({ message: "User already exists with this email" });
-      }
-
-      if (!userData.religion) {
-        return res
-          .status(400)
-          .json({ message: "Religion/Spirituality is required" });
-      }
-      if (
-        !userData.politicalBeliefs ||
-        userData.politicalBeliefs.length === 0
-      ) {
-        return res
-          .status(400)
-          .json({
-            message:
-              "Political beliefs are required - please select at least one",
-          });
-      }
-      if (!userData.lifeStage || userData.lifeStage.length === 0) {
-        return res.status(400).json({ message: "Life stage is required" });
-      }
-      if (!userData.causes || userData.causes.length < 3) {
-        return res
-          .status(400)
-          .json({ message: "Please select at least 3 causes" });
+        return res.status(400).json({ message: "User already exists with this email" });
       }
 
       const user = new User({
@@ -84,60 +46,30 @@ router.post(
         password: userData.password,
         name: userData.name,
         age: parseInt(userData.age),
-        gender: userData.gender,
+        gender: userData.gender || "",
         city: userData.city,
         state: userData.state,
-        bio: userData.bio,
-        politicalBeliefs: userData.politicalBeliefs,
-        religion: userData.religion,
-        causes: userData.causes,
-        lifeStage: userData.lifeStage,
-        lookingFor: userData.lookingFor || [],
+        bio: userData.bio || "",
+        politicalBeliefs: userData.politicalBeliefs || "",
+        religion: userData.religion || "",
+        causes: userData.causes || [],
+        lifeStage: userData.lifeStage || [],
+        lookingFor: userData.lookingFor || "",
         profilePhoto: userData.profilePhoto || "",
         additionalPhotos: userData.additionalPhotos || [],
+        onboardingComplete: false,
       });
 
-      logger.info("💾 Saving user...");
       await user.save();
-      logger.info("✅ User saved successfully!");
+      logger.info("✅ User saved successfully:", user.email);
 
-      const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-        expiresIn: "7d",
-      });
+      const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
-      // ✅ Full user object — must include all fields AuthContext and Discover depend on
-      const userResponse = {
-        id: user._id.toString(),
-        _id: user._id,
-        email: user.email,
-        name: user.name,
-        age: user.age,
-        gender: user.gender,
-        city: user.city,
-        state: user.state,
-        bio: user.bio,
-        profilePhoto: user.profilePhoto,
-        additionalPhotos: user.additionalPhotos,
-        politicalBeliefs: user.politicalBeliefs,
-        religion: user.religion,
-        causes: user.causes,
-        lifeStage: user.lifeStage,
-        lookingFor: user.lookingFor,
-        locationPreference: user.locationPreference,
-        filterPoliticalBeliefs: user.filterPoliticalBeliefs || [],
-        filterReligions: user.filterReligions || [],
-        filterLifeStages: user.filterLifeStages || [],
-        matches: user.matches || [],
-        likes: user.likes || [],
-        createdAt: user.createdAt,
-      };
-
+      const userResponse = buildUserResponse(user);
       res.status(201).json({ token, user: userResponse });
     } catch (error) {
-      logger.error("\n❌ SIGNUP ERROR:", error);
-      res
-        .status(500)
-        .json({ message: error.message || "Error creating account" });
+      logger.error("❌ SIGNUP ERROR:", error);
+      res.status(500).json({ message: error.message || "Error creating account" });
     }
   },
 );
@@ -146,27 +78,21 @@ router.post(
 router.post(
   "/login",
   [
-    body("email")
-      .isEmail()
-      .normalizeEmail()
-      .withMessage("Invalid email address"),
-    body("password")
-      .isLength({ min: 6 })
-      .withMessage("Password must be at least 6 characters"),
+    body("email").isEmail().normalizeEmail().withMessage("Invalid email address"),
+    body("password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters"),
   ],
   async (req, res) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        return res
-          .status(400)
-          .json({ message: errors.array()[0].msg, errors: errors.array() });
+        return res.status(400).json({ message: errors.array()[0].msg });
       }
 
       const { email, password } = req.body;
       logger.info("\n========== LOGIN ATTEMPT ==========");
       logger.info("📧 Email:", email);
 
+      const User = getUser();
       const user = await User.findOne({ email });
       if (!user) {
         logger.info("❌ User not found");
@@ -179,39 +105,10 @@ router.post(
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-        expiresIn: "7d",
-      });
+      const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
-      // ✅ Full user object — must include all fields AuthContext and Discover depend on
-      const userResponse = {
-        id: user._id.toString(),
-        _id: user._id,
-        email: user.email,
-        name: user.name,
-        age: user.age,
-        gender: user.gender,
-        city: user.city,
-        state: user.state,
-        bio: user.bio,
-        profilePhoto: user.profilePhoto,
-        additionalPhotos: user.additionalPhotos,
-        politicalBeliefs: user.politicalBeliefs,
-        religion: user.religion,
-        causes: user.causes,
-        lifeStage: user.lifeStage,
-        lookingFor: user.lookingFor,
-        locationPreference: user.locationPreference,
-        filterPoliticalBeliefs: user.filterPoliticalBeliefs || [],
-        filterReligions: user.filterReligions || [],
-        filterLifeStages: user.filterLifeStages || [],
-        matches: user.matches || [],
-        likes: user.likes || [],
-        createdAt: user.createdAt,
-      };
-
-      logger.info("✅ Login successful!");
-      res.json({ token, user: userResponse });
+      logger.info("✅ Login successful:", email);
+      res.json({ token, user: buildUserResponse(user) });
     } catch (error) {
       logger.error("❌ Login error:", error);
       res.status(500).json({ message: "Error logging in" });
@@ -222,6 +119,7 @@ router.post(
 // ===== GET PROFILE ROUTE =====
 router.get("/profile", auth, async (req, res) => {
   try {
+    const User = getUser();
     const user = await User.findById(req.userId).select("-password");
     if (!user) return res.status(404).json({ message: "User not found" });
     const userResponse = user.toObject();
@@ -236,102 +134,63 @@ router.get("/profile", auth, async (req, res) => {
 // ===== FORGOT PASSWORD =====
 router.post(
   "/forgot-password",
-  [
-    body("email")
-      .isEmail()
-      .normalizeEmail()
-      .withMessage("Invalid email address"),
-  ],
+  [body("email").isEmail().normalizeEmail().withMessage("Invalid email address")],
   async (req, res) => {
     try {
       const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ message: errors.array()[0].msg });
-      }
+      if (!errors.isEmpty()) return res.status(400).json({ message: errors.array()[0].msg });
 
       const { email } = req.body;
-      logger.info("\n========== FORGOT PASSWORD REQUEST ==========");
-      logger.info("📧 Email:", email);
-
+      const User = getUser();
       const user = await User.findOne({ email });
 
       if (!user) {
-        logger.info("⚠️ User not found, returning generic message");
-        return res.status(200).json({
-          message:
-            "If an account exists, you will receive a password reset email",
-        });
+        return res.status(200).json({ message: "If an account exists, you will receive a password reset email" });
       }
 
-      // Generate token
       const resetToken = crypto.randomBytes(32).toString("hex");
-      const hashedToken = crypto
-        .createHash("sha256")
-        .update(resetToken)
-        .digest("hex");
+      const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
 
       user.resetPasswordToken = hashedToken;
-      user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+      user.resetPasswordExpires = Date.now() + 3600000;
       await user.save();
 
       const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
-      logger.info("🔗 Reset URL:", resetUrl);
 
-      // ✅ Send email via Resend
       try {
         if (resend) {
           await resend.emails.send({
-            from:
-              process.env.FROM_EMAIL || "KindredPal <onboarding@resend.dev>",
+            from: process.env.FROM_EMAIL || "KindredPal <onboarding@resend.dev>",
             to: user.email,
             subject: "Reset Your KindredPal Password",
             html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-              <div style="background-color: #2B6CB0; padding: 24px; border-radius: 8px 8px 0 0; text-align: center;">
-                <h1 style="color: white; margin: 0; font-size: 24px;">KindredPal</h1>
-              </div>
-              <div style="background-color: #ffffff; padding: 32px; border: 1px solid #E2E8F0; border-top: none; border-radius: 0 0 8px 8px;">
-                <h2 style="color: #2D3748; margin-top: 0;">Reset Your Password</h2>
-                <p style="color: #4A5568; font-size: 16px;">Hi ${user.name},</p>
-                <p style="color: #4A5568; font-size: 16px;">
-                  We received a request to reset your password. Click the button below to create a new password.
-                  This link will expire in <strong>1 hour</strong>.
-                </p>
-                <div style="text-align: center; margin: 32px 0;">
-                  <a href="${resetUrl}"
-                    style="background-color: #2B6CB0; color: white; padding: 14px 32px; border-radius: 8px;
-                    text-decoration: none; font-size: 16px; font-weight: bold; display: inline-block;">
-                    Reset Password
-                  </a>
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="background-color: #2B6CB0; padding: 24px; border-radius: 8px 8px 0 0; text-align: center;">
+                  <h1 style="color: white; margin: 0; font-size: 24px;">KindredPal</h1>
                 </div>
-                <p style="color: #718096; font-size: 14px;">
-                  If you didn't request a password reset, you can safely ignore this email.
-                  Your password will not be changed.
-                </p>
-                <hr style="border: none; border-top: 1px solid #E2E8F0; margin: 24px 0;" />
-                <p style="color: #A0AEC0; font-size: 12px; text-align: center;">
-                  © ${new Date().getFullYear()} KindredPal. All rights reserved.
-                </p>
+                <div style="background-color: #ffffff; padding: 32px; border: 1px solid #E2E8F0; border-top: none; border-radius: 0 0 8px 8px;">
+                  <h2 style="color: #2D3748; margin-top: 0;">Reset Your Password</h2>
+                  <p style="color: #4A5568;">Hi ${user.name},</p>
+                  <p style="color: #4A5568;">Click the button below to reset your password. This link expires in 1 hour.</p>
+                  <div style="text-align: center; margin: 32px 0;">
+                    <a href="${resetUrl}" style="background-color: #2B6CB0; color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: bold;">
+                      Reset Password
+                    </a>
+                  </div>
+                  <p style="color: #718096; font-size: 14px;">If you didn't request this, you can safely ignore this email.</p>
+                </div>
               </div>
-            </div>
-          `,
+            `,
           });
           logger.info("✅ Reset email sent to:", user.email);
         } else {
-          logger.warn(
-            "⚠️ RESEND_API_KEY not set - email not sent. Reset URL:",
-            resetUrl,
-          );
+          logger.warn("⚠️ RESEND_API_KEY not set. Reset URL:", resetUrl);
         }
       } catch (emailError) {
         logger.error("❌ Email send error:", emailError);
-        // Don't fail the request if email fails — token is still saved
       }
 
-      res.status(200).json({
-        message:
-          "If an account exists, you will receive a password reset email",
-      });
+      res.status(200).json({ message: "If an account exists, you will receive a password reset email" });
     } catch (error) {
       logger.error("❌ Forgot password error:", error);
       res.status(500).json({ message: "Server error" });
@@ -344,35 +203,24 @@ router.post(
   "/reset-password",
   [
     body("token").notEmpty().withMessage("Reset token is required"),
-    body("newPassword")
-      .isLength({ min: 6 })
-      .withMessage("Password must be at least 6 characters"),
+    body("newPassword").isLength({ min: 6 }).withMessage("Password must be at least 6 characters"),
   ],
   async (req, res) => {
     try {
       const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ message: errors.array()[0].msg });
-      }
+      if (!errors.isEmpty()) return res.status(400).json({ message: errors.array()[0].msg });
 
       const { token, newPassword } = req.body;
-      logger.info("\n========== RESET PASSWORD REQUEST ==========");
+      const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
-      const hashedToken = crypto
-        .createHash("sha256")
-        .update(token)
-        .digest("hex");
-
+      const User = getUser();
       const user = await User.findOne({
         resetPasswordToken: hashedToken,
         resetPasswordExpires: { $gt: Date.now() },
       });
 
       if (!user) {
-        logger.info("❌ Invalid or expired token");
-        return res.status(400).json({
-          message: "Invalid or expired reset token. Please request a new one.",
-        });
+        return res.status(400).json({ message: "Invalid or expired reset token. Please request a new one." });
       }
 
       user.password = newPassword;
@@ -381,16 +229,44 @@ router.post(
       await user.save();
 
       logger.info("✅ Password reset successful for:", user.email);
-
-      res.status(200).json({
-        message:
-          "Password has been reset successfully. You can now log in with your new password.",
-      });
+      res.status(200).json({ message: "Password has been reset successfully. You can now log in with your new password." });
     } catch (error) {
       logger.error("❌ Reset password error:", error);
       res.status(500).json({ message: "Server error" });
     }
   },
 );
+
+// ── Helper ────────────────────────────────────────────────────────
+function buildUserResponse(user) {
+  return {
+    id: user._id.toString(),
+    _id: user._id,
+    email: user.email,
+    name: user.name,
+    age: user.age,
+    gender: user.gender,
+    city: user.city,
+    state: user.state,
+    bio: user.bio,
+    profilePhoto: user.profilePhoto,
+    additionalPhotos: user.additionalPhotos,
+    politicalBeliefs: user.politicalBeliefs,
+    religion: user.religion,
+    causes: user.causes,
+    lifeStage: user.lifeStage,
+    familySituation: user.familySituation || [],
+    coreValues: user.coreValues || [],
+    lookingFor: user.lookingFor,
+    locationPreference: user.locationPreference,
+    filterPoliticalBeliefs: user.filterPoliticalBeliefs || [],
+    filterReligions: user.filterReligions || [],
+    filterLifeStages: user.filterLifeStages || [],
+    onboardingComplete: user.onboardingComplete || false,
+    matches: user.matches || [],
+    likes: user.likes || [],
+    createdAt: user.createdAt,
+  };
+}
 
 module.exports = router;
