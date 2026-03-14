@@ -33,7 +33,24 @@ const FAMILY_OPTIONS = [
 ];
 
 const CORE_VALUES_OPTIONS = [
-  "Faith & God","Personal growth","Health & wellness",
+  "Faith & God",
+  "Personal growth",
+  "Health & wellness",
+  "Community & service",
+  "Adventure & outdoors",
+  "Creativity & arts",
+  "Lifelong learning",
+  "Financial freedom",
+  "Environmental stewardship",
+  "Mental health & self-care",
+  "Entrepreneurship",
+  "Animal welfare",
+  "Theology",
+  "Philosophy",
+  "Technology",
+  "Sports & Athletics",
+  "Fashion",
+  "Design",
 ];
 
 function ChipSelect({ options, selected = [], onChange, max }) {

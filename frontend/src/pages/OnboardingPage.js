@@ -17,20 +17,30 @@ const FAMILY_OPTIONS = [
 ];
 
 const CORE_VALUES = [
-  { id: "faith", label: "Faith & God", emoji: "🙏" },
-  { id: "growth", label: "Personal growth", emoji: "🌱" },
-  { id: "health", label: "Health & wellness", emoji: "💪" },
-  { id: "family", label: "Family first", emoji: "👨‍👩‍👧" },
-  { id: "community", label: "Community & service", emoji: "🤝" },
-  { id: "creativity", label: "Creativity & arts", emoji: "🎨" },
-  { id: "adventure", label: "Adventure & outdoors", emoji: "🏕️" },
-  { id: "learning", label: "Lifelong learning", emoji: "📚" },
+  { id: "Faith & God", label: "Faith & God", emoji: "🙏" },
+  { id: "Personal growth", label: "Personal growth", emoji: "🌱" },
+  { id: "Health & wellness", label: "Health & wellness", emoji: "💪" },
+  { id: "Community & service", label: "Community & service", emoji: "🤝" },
+  { id: "Adventure & outdoors", label: "Adventure & outdoors", emoji: "🏕️" },
+  { id: "Creativity & arts", label: "Creativity & arts", emoji: "🎨" },
+  { id: "Lifelong learning", label: "Lifelong learning", emoji: "📚" },
+  { id: "Financial freedom", label: "Financial freedom", emoji: "💰" },
+  { id: "Environmental stewardship", label: "Environmental stewardship", emoji: "🌿" },
+  { id: "Mental health & self-care", label: "Mental health & self-care", emoji: "🧠" },
+  { id: "Entrepreneurship", label: "Entrepreneurship", emoji: "🚀" },
+  { id: "Animal welfare", label: "Animal welfare", emoji: "🐾" },
+  { id: "Theology", label: "Theology", emoji: "✝️" },
+  { id: "Philosophy", label: "Philosophy", emoji: "🤔" },
+  { id: "Technology", label: "Technology", emoji: "💻" },
+  { id: "Sports & Athletics", label: "Sports & Athletics", emoji: "🏆" },
+  { id: "Fashion", label: "Fashion", emoji: "👗" },
+  { id: "Design", label: "Design", emoji: "✏️" },
 ];
 
 const RELIGION_OPTIONS = [
   "None", "Spiritual but not religious",
   "Christian (Catholic)", "Christian (Protestant)", "Christian (Evangelical)", "Christian (Orthodox)",
-  "Jewish", "Muslim", "Hindu", "Buddhist", "Mormon", "Other",
+  "Jewish", "Muslim", "Hindu", "Buddhist", "Mormon / LDS", "Other",
 ];
 
 const POLITICS_OPTIONS = [
