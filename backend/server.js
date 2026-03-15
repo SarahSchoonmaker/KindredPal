@@ -31,6 +31,12 @@ require("./models/Group");
 require("./models/Connection");
 require("./models/Event");
 
+// Debug: confirm models registered
+console.log("✅ Models registered:", ["User","GroupMessage","Group","Connection","Event"].map(m => {
+  try { require("mongoose").model(m); return m + ":OK"; }
+  catch(e) { return m + ":MISSING"; }
+}).join(", "));
+
 // ===== ROUTES =====
 const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/users");
