@@ -24,6 +24,13 @@ const rateLimit = require("express-rate-limit");
 const mongoSanitize = require("express-mongo-sanitize");
 const logger = require("./utils/logger");
 
+// ===== MODELS (must load before routes to register schemas) =====
+const User = require("./models/User");
+const GroupMessage = require("./models/GroupMessage");
+require("./models/Group");
+require("./models/Connection");
+require("./models/Event");
+
 // ===== ROUTES =====
 const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/users");
@@ -33,9 +40,6 @@ const groupRoutes = require("./routes/groups");
 const connectionRoutes = require("./routes/connections");
 const eventRoutes = require("./routes/events");
 const groupMessageRoutes = require("./routes/groupMessages");
-const GroupMessage = require("./models/GroupMessage");
-// Preload User model first to prevent circular dependency issues
-const User = require("./models/User");
 
 const app = express();
 
