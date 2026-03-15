@@ -66,7 +66,6 @@ export const userAPI = {
   unmatch: (userId) => api.post(`/users/unmatch/${userId}`),
 };
 
-// ✅ Groups API — new core feature
 export const groupsAPI = {
   getGroups: (params) => api.get("/groups", { params }),
   getMyGroups: () => api.get("/groups/my"),
@@ -80,8 +79,45 @@ export const groupsAPI = {
     api.post(`/groups/${groupId}/reject/${userId}`),
   updateGroup: (groupId, data) => api.put(`/groups/${groupId}`, data),
   deleteGroup: (groupId) => api.delete(`/groups/${groupId}`),
+  uploadPhoto: (groupId, formData) =>
+    api.post(`/groups/${groupId}/photo`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
   getMembers: (groupId) => api.get(`/groups/${groupId}/members`),
   seedGroups: (city, state) => api.post("/groups/seed", { city, state }),
+};
+
+export const connectionsAPI = {
+  getConnections: () => api.get("/connections"),
+  getRequests: () => api.get("/connections/requests"),
+  getSent: () => api.get("/connections/sent"),
+  sendRequest: (userId, message = "") =>
+    api.post(`/connections/request/${userId}`, { message }),
+  acceptRequest: (connectionId) =>
+    api.post(`/connections/accept/${connectionId}`),
+  declineRequest: (connectionId) =>
+    api.post(`/connections/decline/${connectionId}`),
+  removeConnection: (connectionId) =>
+    api.delete(`/connections/${connectionId}`),
+  getStatus: (userId) => api.get(`/connections/status/${userId}`),
+};
+
+export const eventsAPI = {
+  getEvents: (groupId) => api.get(`/groups/${groupId}/events`),
+  createEvent: (groupId, data) => api.post(`/groups/${groupId}/events`, data),
+  rsvp: (groupId, eventId, status) =>
+    api.post(`/groups/${groupId}/events/${eventId}/rsvp`, { status }),
+  deleteEvent: (groupId, eventId) =>
+    api.delete(`/groups/${groupId}/events/${eventId}`),
+};
+
+export const groupChatAPI = {
+  getMessages: (groupId, params = {}) =>
+    api.get(`/groups/${groupId}/messages`, { params }),
+  sendMessage: (groupId, content, eventId = null) =>
+    api.post(`/groups/${groupId}/messages`, { content, eventId }),
+  deleteMessage: (groupId, msgId) =>
+    api.delete(`/groups/${groupId}/messages/${msgId}`),
 };
 
 export const messageAPI = {
