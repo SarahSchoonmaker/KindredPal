@@ -25,7 +25,14 @@ const mongoSanitize = require("express-mongo-sanitize");
 const logger = require("./utils/logger");
 
 // ===== MODELS (must load before routes to register schemas) =====
-const User = require("./models/User");
+let User;
+try {
+  User = require("./models/User");
+  console.log("✅ User model loaded OK, keys:", Object.keys(User));
+} catch(e) {
+  console.error("❌ User model FAILED to load:", e.message);
+  console.error(e.stack);
+}
 const GroupMessage = require("./models/GroupMessage");
 require("./models/Group");
 require("./models/Connection");
