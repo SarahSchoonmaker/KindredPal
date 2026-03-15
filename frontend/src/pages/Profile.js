@@ -170,23 +170,22 @@ export default function Profile() {
 
       {/* Quick actions */}
       <div className="profile-actions-row">
-        <button
-          className="profile-action-btn"
-          onClick={() => navigate("/blocked-users")}
-        >
-          🚫 Blocked Users
+        <button className="profile-action-btn blocked" onClick={() => navigate("/blocked-users")}>
+          <span className="action-icon">🚫</span>
+          <span>Blocked Users</span>
+          <span className="action-arrow">›</span>
         </button>
-        <button
-          className="profile-action-btn profile-action-logout"
-          onClick={() => setShowLogoutConfirm(true)}
-        >
-          🚪 Log Out
+        <div className="profile-action-divider" />
+        <button className="profile-action-btn profile-action-logout" onClick={() => setShowLogoutConfirm(true)}>
+          <span className="action-icon">🚪</span>
+          <span>Log Out</span>
+          <span className="action-arrow">›</span>
         </button>
-        <button
-          className="profile-action-btn profile-action-danger"
-          onClick={() => setShowDeleteConfirm(true)}
-        >
-          🗑 Delete Account
+        <div className="profile-action-divider" />
+        <button className="profile-action-btn profile-action-danger" onClick={() => setShowDeleteConfirm(true)}>
+          <span className="action-icon">🗑</span>
+          <span>Delete Account</span>
+          <span className="action-arrow">›</span>
         </button>
       </div>
 
