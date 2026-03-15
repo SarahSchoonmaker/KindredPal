@@ -349,14 +349,32 @@ router.put("/profile", auth, async (req, res) => {
       "filterFamilySituations", "filterCoreValues", "onboardingComplete",
       "isVerified",
     ];
-    allowedUpdates.forEach((field) => { if (updates[field] !== undefined) user[field] = updates[field]; });
-    await user.save();
-    const userResponse = user.toObject();
+    // String fields that must NOT be arrays (frontend bug sends them as arrays sometimes)
+    const STRING_FIELDS = ["politicalBeliefs", "religion", "locationPreference", "lookingFor", "bio", "name", "city", "state"];
+
+    const filteredUpdates = {};
+    allowedUpdates.forEach((field) => {
+      if (updates[field] === undefined) return;
+      let val = updates[field];
+      // Coerce array -> string for fields that should be strings
+      if (STRING_FIELDS.includes(field) && Array.isArray(val)) {
+        val = val[0] ?? "";
+      }
+      filteredUpdates[field] = val;
+    });
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.userId,
+      { $set: filteredUpdates },
+      { new: true, runValidators: false }
+    );
+
+    const userResponse = updatedUser.toObject();
     userResponse.id = userResponse._id.toString();
     res.json(userResponse);
   } catch (error) {
     logger.error("Update profile error:", error);
-    res.status(500).json({ message: "Error updating profile" });
+    res.status(500).json({ message: "Error updating profile", detail: error.message });
   }
 });
 
