@@ -105,4 +105,5 @@ groupSchema.index({ category: 1, isActive: 1 });
 groupSchema.index({ isNationwide: 1, isActive: 1 });
 groupSchema.index({ name: "text", description: "text", tags: "text" });
 
-module.exports = mongoose.model("Group", groupSchema);
+const Group = mongoose.models.Group || mongoose.model("Group", groupSchema);
+module.exports = Group;

@@ -30,7 +30,7 @@ const connectionSchema = new mongoose.Schema(
       ref: "Group",
     },
   },
-  { timestamps: true },
+  { timestamps: true }
 );
 
 // Prevent duplicate pairs
@@ -38,4 +38,5 @@ connectionSchema.index({ from: 1, to: 1 }, { unique: true });
 connectionSchema.index({ to: 1, status: 1 });
 connectionSchema.index({ from: 1, status: 1 });
 
-module.exports = mongoose.model("Connection", connectionSchema);
+const Connection = mongoose.models.Connection || mongoose.model("Connection", connectionSchema);
+module.exports = Connection;
