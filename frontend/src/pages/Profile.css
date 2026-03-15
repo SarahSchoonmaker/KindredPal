@@ -227,3 +227,102 @@
   animation: spin 0.7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Quick action buttons ── */
+.profile-actions-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.profile-action-btn {
+  flex: 1;
+  min-width: 120px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1.5px solid #e2e8f0;
+  background: white;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4a5568;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+}
+.profile-action-btn:hover { background: #f7fafc; border-color: #a0aec0; }
+.profile-action-logout { color: #2563eb; border-color: #bfdbfe; }
+.profile-action-logout:hover { background: #eff6ff; }
+.profile-action-danger { color: #e53e3e; border-color: #fed7d7; }
+.profile-action-danger:hover { background: #fff5f5; }
+
+/* ── Chip disabled state ── */
+.chip-disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Confirm modal ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+.modal-card-sm {
+  background: white;
+  border-radius: 16px;
+  padding: 28px 24px;
+  max-width: 360px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+.modal-confirm-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0 0 10px;
+}
+.modal-confirm-msg {
+  font-size: 14px;
+  color: #718096;
+  margin: 0 0 24px;
+  line-height: 1.5;
+}
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.btn-modal-cancel {
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: 1.5px solid #e2e8f0;
+  background: white;
+  font-size: 14px;
+  font-weight: 600;
+  color: #718096;
+  cursor: pointer;
+}
+.btn-modal-danger {
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: none;
+  background: #e53e3e;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-modal-danger:hover { background: #c53030; }
+.btn-modal-logout {
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: none;
+  background: #2563eb;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-modal-logout:hover { background: #1d4ed8; }

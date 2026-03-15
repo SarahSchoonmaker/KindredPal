@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { userAPI } from "../services/api";
 import "./ProfilePage.css";
@@ -22,17 +23,9 @@ const POLITICS_OPTIONS = [
 ];
 
 const LIFE_STAGE_OPTIONS = [
-  "Single",
-  "In a relationship",
-  "Married",
-  "Divorced",
-  "Widowed",
-  "Empty nester",
-  "Retired",
-  "Caregiver",
-  "Aging Alone",
-  "New Career",
-  "New To Town",
+  "Single","In a relationship","Married","Divorced",
+  "Widowed","Empty nester","Retired","Caregiver",
+  "Aging Alone","New Career","New To Town",
 ];
 
 const FAMILY_OPTIONS = [
@@ -41,28 +34,11 @@ const FAMILY_OPTIONS = [
 ];
 
 const CORE_VALUES_OPTIONS = [
-  "Faith & God",
-  "Personal growth",
-  "Health & wellness",
-  "Community & service",
-  "Adventure & outdoors",
-  "Creativity & arts",
-  "Lifelong learning",
-  "Financial freedom",
-  "Environmental stewardship",
-  "Mental health & self-care",
-  "Entrepreneurship",
-  "Animal welfare",
-  "Theology",
-  "Philosophy",
-  "Technology",
-  "Sports & Athletics",
-  "Fashion",
-  "Design",
-  "Real Estate",
-  "Investing",
-  "Reading",
-  "Politics",
+  "Faith & God","Personal growth","Health & wellness","Community & service",
+  "Adventure & outdoors","Creativity & arts","Lifelong learning","Financial freedom",
+  "Environmental stewardship","Mental health & self-care","Entrepreneurship",
+  "Animal welfare","Theology","Philosophy","Technology","Sports & Athletics",
+  "Fashion","Design","Real Estate","Investing","Reading","Politics",
 ];
 
 function ChipSelect({ options, selected = [], onChange, max }) {
@@ -80,7 +56,7 @@ function ChipSelect({ options, selected = [], onChange, max }) {
         <button
           key={opt}
           type="button"
-          className={`chip ${selected.includes(opt) ? "chip-selected" : ""}`}
+          className={`chip ${selected.includes(opt) ? "chip-selected" : ""} ${max && selected.length >= max && !selected.includes(opt) ? "chip-disabled" : ""}`}
           onClick={() => toggle(opt)}
         >
           {opt}
@@ -91,13 +67,32 @@ function ChipSelect({ options, selected = [], onChange, max }) {
   );
 }
 
+function ConfirmModal({ title, message, confirmLabel, confirmClass, onConfirm, onCancel }) {
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal-card modal-card-sm" onClick={e => e.stopPropagation()}>
+        <h3 className="modal-confirm-title">{title}</h3>
+        <p className="modal-confirm-msg">{message}</p>
+        <div className="modal-actions">
+          <button className="btn-modal-cancel" onClick={onCancel}>Cancel</button>
+          <button className={confirmClass || "btn-modal-danger"} onClick={onConfirm}>{confirmLabel}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Profile() {
-  const { user, updateUser } = useAuth();
+  const navigate = useNavigate();
+  const { user, updateUser, logout } = useAuth();
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [section, setSection] = useState("basics");
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -134,6 +129,25 @@ export default function Profile() {
     }
   };
 
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      await userAPI.deleteAccount();
+      logout();
+      navigate("/");
+    } catch (err) {
+      setError("Could not delete account. Please try again.");
+      setShowDeleteConfirm(false);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (!form) return <div className="profile-loading"><div className="spinner" /></div>;
 
   return (
@@ -152,6 +166,28 @@ export default function Profile() {
           <p className="profile-email">{user?.email}</p>
           {user?.city && <p className="profile-location">📍 {user.city}, {user.state}</p>}
         </div>
+      </div>
+
+      {/* Quick actions */}
+      <div className="profile-actions-row">
+        <button
+          className="profile-action-btn"
+          onClick={() => navigate("/blocked-users")}
+        >
+          🚫 Blocked Users
+        </button>
+        <button
+          className="profile-action-btn profile-action-logout"
+          onClick={() => setShowLogoutConfirm(true)}
+        >
+          🚪 Log Out
+        </button>
+        <button
+          className="profile-action-btn profile-action-danger"
+          onClick={() => setShowDeleteConfirm(true)}
+        >
+          🗑 Delete Account
+        </button>
       </div>
 
       {/* Section tabs */}
@@ -179,46 +215,21 @@ export default function Profile() {
           <div className="profile-section">
             <div className="form-field">
               <label>Name</label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => set("name", e.target.value)}
-                maxLength={60}
-              />
+              <input type="text" value={form.name} onChange={(e) => set("name", e.target.value)} maxLength={60} />
             </div>
-
             <div className="form-field">
               <label>Age</label>
-              <input
-                type="number"
-                value={form.age}
-                onChange={(e) => set("age", e.target.value)}
-                min={18} max={100}
-                className="input-short"
-              />
+              <input type="number" value={form.age} onChange={(e) => set("age", e.target.value)} min={18} max={100} className="input-short" />
             </div>
-
             <div className="form-field">
               <label>Bio <span className="label-hint">— tell people who you are</span></label>
-              <textarea
-                value={form.bio}
-                onChange={(e) => set("bio", e.target.value)}
-                maxLength={500}
-                rows={4}
-                placeholder="Share a bit about yourself..."
-              />
+              <textarea value={form.bio} onChange={(e) => set("bio", e.target.value)} maxLength={500} rows={4} placeholder="Share a bit about yourself..." />
               <span className="char-count">{form.bio.length}/500</span>
             </div>
-
             <div className="form-row">
               <div className="form-field">
                 <label>City</label>
-                <input
-                  type="text"
-                  value={form.city}
-                  onChange={(e) => set("city", e.target.value)}
-                  placeholder="City"
-                />
+                <input type="text" value={form.city} onChange={(e) => set("city", e.target.value)} placeholder="City" />
               </div>
               <div className="form-field form-field-short">
                 <label>State</label>
@@ -237,27 +248,19 @@ export default function Profile() {
             <div className="form-field">
               <label>Faith / Religion</label>
               <p className="field-hint">Shown on your profile — helps you find your people</p>
-              <select
-                value={form.religion}
-                onChange={(e) => set("religion", e.target.value)}
-              >
+              <select value={form.religion} onChange={(e) => set("religion", e.target.value)}>
                 <option value="">Prefer not to say</option>
                 {RELIGION_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
               </select>
             </div>
-
             <div className="form-field">
               <label>Political Views</label>
               <p className="field-hint">Shown on your profile</p>
-              <select
-                value={form.politicalBeliefs}
-                onChange={(e) => set("politicalBeliefs", e.target.value)}
-              >
+              <select value={form.politicalBeliefs} onChange={(e) => set("politicalBeliefs", e.target.value)}>
                 <option value="">Prefer not to say</option>
                 {POLITICS_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
-
             <div className="form-field">
               <label>Core Values <span className="label-hint">— pick up to 3</span></label>
               <ChipSelect
@@ -281,7 +284,6 @@ export default function Profile() {
                 onChange={(v) => set("lifeStage", v)}
               />
             </div>
-
             <div className="form-field">
               <label>Family Situation <span className="label-hint">— select all that apply</span></label>
               <ChipSelect
@@ -300,6 +302,29 @@ export default function Profile() {
           {saving ? "Saving..." : "Save Profile"}
         </button>
       </form>
+
+      {/* Confirm modals */}
+      {showLogoutConfirm && (
+        <ConfirmModal
+          title="Log Out"
+          message="Are you sure you want to log out?"
+          confirmLabel="Log Out"
+          confirmClass="btn-modal-logout"
+          onConfirm={handleLogout}
+          onCancel={() => setShowLogoutConfirm(false)}
+        />
+      )}
+
+      {showDeleteConfirm && (
+        <ConfirmModal
+          title="Delete Account"
+          message="This will permanently delete your account and all your data. This cannot be undone."
+          confirmLabel={deleting ? "Deleting..." : "Delete My Account"}
+          confirmClass="btn-modal-danger"
+          onConfirm={handleDeleteAccount}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
     </div>
   );
 }
