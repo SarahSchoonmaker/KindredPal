@@ -291,13 +291,11 @@ export default function ProfileScreen({ navigation }) {
         <Text style={styles.sectionTitle}>Values & Beliefs</Text>
         <Card style={styles.card}>
           <Card.Content>
-            {user.politicalBeliefs && user.politicalBeliefs.length > 0 && (
+            {user.politicalBeliefs && typeof user.politicalBeliefs === "string" && user.politicalBeliefs.length > 0 && (
               <View style={styles.valueSection}>
-                <Text style={styles.valueLabel}>Political Beliefs</Text>
+                <Text style={styles.valueLabel}>Political Views</Text>
                 <View style={styles.chips}>
-                  {user.politicalBeliefs.map((belief, index) => (
-                    <View key={index} style={styles.chip}><Text style={styles.chipText}>{belief}</Text></View>
-                  ))}
+                  <View style={styles.chip}><Text style={styles.chipText}>{user.politicalBeliefs}</Text></View>
                 </View>
               </View>
             )}
@@ -327,11 +325,31 @@ export default function ProfileScreen({ navigation }) {
                 </View>
               </View>
             )}
+            {user.familySituation && user.familySituation.length > 0 && (
+              <View style={styles.valueSection}>
+                <Text style={styles.valueLabel}>Family</Text>
+                <View style={styles.chips}>
+                  {user.familySituation.map((item, index) => (
+                    <View key={index} style={styles.chip}><Text style={styles.chipText}>{item}</Text></View>
+                  ))}
+                </View>
+              </View>
+            )}
+            {user.coreValues && user.coreValues.length > 0 && (
+              <View style={styles.valueSection}>
+                <Text style={styles.valueLabel}>Core Values</Text>
+                <View style={styles.chips}>
+                  {user.coreValues.map((val, index) => (
+                    <View key={index} style={[styles.chip, {backgroundColor: "#FAF5FF"}]}><Text style={[styles.chipText, {color: "#6B21A8"}]}>{val}</Text></View>
+                  ))}
+                </View>
+              </View>
+            )}
             {user.lookingFor && user.lookingFor.length > 0 && (
               <View style={styles.valueSection}>
                 <Text style={styles.valueLabel}>Looking For</Text>
                 <View style={styles.chips}>
-                  {user.lookingFor.map((item, index) => (
+                  {(Array.isArray(user.lookingFor) ? user.lookingFor : [user.lookingFor]).map((item, index) => (
                     <View key={index} style={styles.chip}><Text style={styles.chipText}>{item}</Text></View>
                   ))}
                 </View>

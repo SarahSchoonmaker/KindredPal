@@ -1,15 +1,10 @@
 import React, { useState, useCallback } from "react";
 import {
-  View,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  RefreshControl,
-  TextInput,
-  Image,
+  View, ScrollView, TouchableOpacity, StyleSheet,
+  RefreshControl, TextInput, Image, FlatList,
 } from "react-native";
-import { Text, ActivityIndicator, Chip } from "react-native-paper";
-import { Users, Search, Plus, Lock, Globe } from "lucide-react-native";
+import { Text, ActivityIndicator } from "react-native-paper";
+import { Users, Search, Plus, Lock, Globe, SlidersHorizontal } from "lucide-react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import api from "../services/api";
 
@@ -17,82 +12,88 @@ const CATEGORIES = [
   "All",
   "Sports & Fitness",
   "Faith & Spirituality",
-  "Life Stage",
+  "Parents",
   "Hobbies & Interests",
-  "Social Gatherings",
+  "Volunteers & Causes",
   "Support & Wellness",
   "Professional & Networking",
-  "Arts & Culture",
+  "Arts, Culture & Book Clubs",
   "Outdoor & Adventure",
+  "Food & Dining",
+  "Learning & Education",
+  "Neighborhood & Local",
+  "New to the Area",
+  "Business Owners & Entrepreneurs",
+  "Sober & Clean Living",
+  "Single Parents",
+  "Aging Gracefully",
+  "Life Transitions",
 ];
 
 const CATEGORY_ICONS = {
+  "All": "✨",
   "Sports & Fitness": "🏃",
   "Faith & Spirituality": "🙏",
-  "Life Stage": "🌱",
+  "Parents": "👩‍👧",
   "Hobbies & Interests": "🎯",
-  "Social Gatherings": "👥",
+  "Volunteers & Causes": "🤝",
   "Support & Wellness": "💙",
   "Professional & Networking": "💼",
-  "Arts & Culture": "🎨",
+  "Arts, Culture & Book Clubs": "🎨",
   "Outdoor & Adventure": "🏕️",
-  Other: "✨",
+  "Food & Dining": "🍽️",
+  "Learning & Education": "🎓",
+  "Neighborhood & Local": "🏘️",
+  "New to the Area": "📍",
+  "Business Owners & Entrepreneurs": "🚀",
+  "Sober & Clean Living": "🌿",
+  "Single Parents": "👨‍👧‍👦",
+  "Aging Gracefully": "🌻",
+  "Life Transitions": "🔄",
 };
 
 function GroupCard({ group, onPress }) {
+  const icon = CATEGORY_ICONS[group.category] || "✨";
   return (
-    <TouchableOpacity style={styles.card} onPress={() => onPress(group._id)}>
+    <TouchableOpacity style={styles.card} onPress={() => onPress(group._id)} activeOpacity={0.7}>
       <View style={styles.cardHeader}>
         <View style={styles.cardIcon}>
-          <Text style={styles.cardIconText}>
-            {CATEGORY_ICONS[group.category] || "✨"}
-          </Text>
+          <Text style={styles.cardIconText}>{icon}</Text>
         </View>
         <View style={styles.cardInfo}>
           <View style={styles.cardTitleRow}>
-            <Text style={styles.cardName} numberOfLines={1}>
-              {group.name}
-            </Text>
-            {group.isPrivate ? (
-              <Lock size={14} color="#718096" />
-            ) : (
-              <Globe size={14} color="#68A57D" />
-            )}
+            <Text style={styles.cardName} numberOfLines={1}>{group.name}</Text>
+            {group.isPrivate
+              ? <Lock size={13} color="#a0aec0" />
+              : <Globe size={13} color="#68d391" />
+            }
           </View>
-          <Text style={styles.cardCategory}>{group.category}</Text>
-          {group.city ? (
-            <Text style={styles.cardLocation}>
-              📍 {group.city}, {group.state}
-            </Text>
-          ) : (
-            <Text style={styles.cardLocation}>🌍 Nationwide</Text>
-          )}
+          <Text style={styles.cardCategory} numberOfLines={1}>{group.category}</Text>
+          <Text style={styles.cardLocation} numberOfLines={1}>
+            {group.isNationwide ? "🌍 Nationwide" : `📍 ${group.city}, ${group.state}`}
+          </Text>
         </View>
       </View>
 
-      <Text style={styles.cardDescription} numberOfLines={2}>
-        {group.description}
-      </Text>
+      <Text style={styles.cardDescription} numberOfLines={2}>{group.description}</Text>
 
       <View style={styles.cardFooter}>
         <View style={styles.memberCount}>
-          <Users size={14} color="#718096" />
-          <Text style={styles.memberCountText}>
-            {group.memberCount || 0} members
-          </Text>
+          <Users size={13} color="#718096" />
+          <Text style={styles.memberCountText}>{group.memberCount || 0} members</Text>
         </View>
         {group.isMember ? (
-          <View style={styles.memberBadge}>
-            <Text style={styles.memberBadgeText}>✓ Joined</Text>
+          <View style={[styles.badge, styles.badgeJoined]}>
+            <Text style={[styles.badgeText, { color: "#276749" }]}>✓ Joined</Text>
           </View>
         ) : group.isPending ? (
-          <View style={styles.pendingBadge}>
-            <Text style={styles.pendingBadgeText}>Pending</Text>
+          <View style={[styles.badge, styles.badgePending]}>
+            <Text style={[styles.badgeText, { color: "#744210" }]}>Pending</Text>
           </View>
         ) : (
-          <View style={styles.joinBadge}>
-            <Text style={styles.joinBadgeText}>
-              {group.isPrivate ? "Request to Join" : "Join"}
+          <View style={[styles.badge, styles.badgeJoin]}>
+            <Text style={[styles.badgeText, { color: "#2B6CB0" }]}>
+              {group.isPrivate ? "Request" : "Join"}
             </Text>
           </View>
         )}
@@ -108,7 +109,7 @@ export default function GroupsScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [activeTab, setActiveTab] = useState("discover"); // discover | my
+  const [activeTab, setActiveTab] = useState("discover");
 
   const fetchGroups = useCallback(async () => {
     try {
@@ -135,17 +136,13 @@ export default function GroupsScreen({ navigation }) {
     useCallback(() => {
       setLoading(true);
       fetchGroups();
-    }, [fetchGroups]),
+    }, [fetchGroups])
   );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchGroups();
   }, [fetchGroups]);
-
-  const handleGroupPress = (groupId) => {
-    navigation.navigate("GroupDetail", { groupId });
-  };
 
   const displayedGroups = activeTab === "my" ? myGroups : groups;
 
@@ -160,48 +157,45 @@ export default function GroupsScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Search size={18} color="#718096" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search groups..."
-          value={search}
-          onChangeText={setSearch}
-          onSubmitEditing={fetchGroups}
-          returnKeyType="search"
-          placeholderTextColor="#A0AEC0"
-        />
+
+      {/* Search */}
+      <View style={styles.searchRow}>
+        <View style={styles.searchContainer}>
+          <Search size={16} color="#a0aec0" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search groups..."
+            value={search}
+            onChangeText={setSearch}
+            onSubmitEditing={fetchGroups}
+            returnKeyType="search"
+            placeholderTextColor="#a0aec0"
+          />
+        </View>
+        <TouchableOpacity
+          style={styles.createBtn}
+          onPress={() => navigation.navigate("CreateGroup")}
+        >
+          <Plus size={20} color="white" />
+        </TouchableOpacity>
       </View>
 
       {/* Tabs */}
       <View style={styles.tabs}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "discover" && styles.tabActive]}
-          onPress={() => setActiveTab("discover")}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "discover" && styles.tabTextActive,
-            ]}
+        {["discover", "my"].map(tab => (
+          <TouchableOpacity
+            key={tab}
+            style={[styles.tab, activeTab === tab && styles.tabActive]}
+            onPress={() => setActiveTab(tab)}
           >
-            Discover
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "my" && styles.tabActive]}
-          onPress={() => setActiveTab("my")}
-        >
-          <Text
-            style={[styles.tabText, activeTab === "my" && styles.tabTextActive]}
-          >
-            My Groups {myGroups.length > 0 ? `(${myGroups.length})` : ""}
-          </Text>
-        </TouchableOpacity>
+            <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+              {tab === "discover" ? "Discover" : `My Groups${myGroups.length > 0 ? ` (${myGroups.length})` : ""}`}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
-      {/* Category Filter */}
+      {/* Category chips — compact horizontal scroll */}
       {activeTab === "discover" && (
         <ScrollView
           horizontal
@@ -209,37 +203,31 @@ export default function GroupsScreen({ navigation }) {
           style={styles.categoryScroll}
           contentContainerStyle={styles.categoryContent}
         >
-          {CATEGORIES.map((cat) => (
+          {CATEGORIES.map(cat => (
             <TouchableOpacity
               key={cat}
-              style={[
-                styles.categoryChip,
-                selectedCategory === cat && styles.categoryChipActive,
-              ]}
+              style={[styles.chip, selectedCategory === cat && styles.chipActive]}
               onPress={() => setSelectedCategory(cat)}
             >
-              <Text
-                style={[
-                  styles.categoryChipText,
-                  selectedCategory === cat && styles.categoryChipTextActive,
-                ]}
-              >
-                {cat === "All" ? "All Groups" : cat}
+              <Text style={styles.chipEmoji}>{CATEGORY_ICONS[cat]}</Text>
+              <Text style={[styles.chipText, selectedCategory === cat && styles.chipTextActive]}>
+                {cat === "All" ? "All" : cat}
               </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
       )}
 
-      {/* Group List */}
-      <ScrollView
-        style={styles.list}
+      {/* Group list */}
+      <FlatList
+        data={displayedGroups}
+        keyExtractor={item => item._id}
+        renderItem={({ item }) => (
+          <GroupCard group={item} onPress={id => navigation.navigate("GroupDetail", { groupId: id })} />
+        )}
         contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        {displayedGroups.length === 0 ? (
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        ListEmptyComponent={() => (
           <View style={styles.empty}>
             <Text style={styles.emptyIcon}>👥</Text>
             <Text style={styles.emptyTitle}>
@@ -247,55 +235,52 @@ export default function GroupsScreen({ navigation }) {
             </Text>
             <Text style={styles.emptyText}>
               {activeTab === "my"
-                ? "Join a group from Discover to get started!"
+                ? "Join a group from Discover!"
                 : "Try a different search or category"}
             </Text>
           </View>
-        ) : (
-          displayedGroups.map((group) => (
-            <GroupCard
-              key={group._id}
-              group={group}
-              onPress={handleGroupPress}
-            />
-          ))
         )}
-        <View style={{ height: 20 }} />
-      </ScrollView>
-
-      {/* Create Group FAB */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => navigation.navigate("CreateGroup")}
-      >
-        <Plus size={24} color="white" />
-      </TouchableOpacity>
+        ListFooterComponent={<View style={{ height: 80 }} />}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F7FAFC" },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#F7FAFC",
-  },
-  loadingText: { marginTop: 16, fontSize: 16, color: "#718096" },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  loadingText: { marginTop: 12, fontSize: 15, color: "#718096" },
 
-  searchContainer: {
+  searchRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "white",
-    margin: 12,
-    borderRadius: 10,
     paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+  },
+  searchContainer: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F7FAFC",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    gap: 6,
     borderWidth: 1,
     borderColor: "#E2E8F0",
+    height: 40,
   },
-  searchIcon: { marginRight: 8 },
-  searchInput: { flex: 1, height: 44, fontSize: 15, color: "#2D3748" },
+  searchInput: { flex: 1, fontSize: 14, color: "#2D3748" },
+  createBtn: {
+    width: 40, height: 40,
+    borderRadius: 10,
+    backgroundColor: "#2B6CB0",
+    justifyContent: "center",
+    alignItems: "center",
+  },
 
   tabs: {
     flexDirection: "row",
@@ -304,147 +289,82 @@ const styles = StyleSheet.create({
     borderBottomColor: "#E2E8F0",
   },
   tab: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: "center",
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
+    flex: 1, paddingVertical: 10, alignItems: "center",
+    borderBottomWidth: 2, borderBottomColor: "transparent",
   },
   tabActive: { borderBottomColor: "#2B6CB0" },
-  tabText: { fontSize: 14, fontWeight: "600", color: "#718096" },
+  tabText: { fontSize: 13, fontWeight: "600", color: "#718096" },
   tabTextActive: { color: "#2B6CB0" },
 
   categoryScroll: {
     backgroundColor: "white",
     borderBottomWidth: 1,
     borderBottomColor: "#E2E8F0",
+    maxHeight: 52,
   },
-  categoryContent: { paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
-  categoryChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
+  categoryContent: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  chip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 16,
     backgroundColor: "#F7FAFC",
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    marginRight: 8,
   },
-  categoryChipActive: { backgroundColor: "#2B6CB0", borderColor: "#2B6CB0" },
-  categoryChipText: { fontSize: 13, fontWeight: "500", color: "#718096" },
-  categoryChipTextActive: { color: "white" },
+  chipActive: { backgroundColor: "#2B6CB0", borderColor: "#2B6CB0" },
+  chipEmoji: { fontSize: 13 },
+  chipText: { fontSize: 12, fontWeight: "500", color: "#718096", whiteSpace: "nowrap" },
+  chipTextActive: { color: "white" },
 
-  list: { flex: 1 },
   listContent: { padding: 12 },
 
   card: {
     backgroundColor: "white",
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    padding: 14,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: "#E2E8F0",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
     elevation: 2,
   },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 10,
-  },
+  cardHeader: { flexDirection: "row", alignItems: "flex-start", marginBottom: 8 },
   cardIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: 44, height: 44, borderRadius: 10,
     backgroundColor: "#EBF4FF",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
+    justifyContent: "center", alignItems: "center",
+    marginRight: 10, flexShrink: 0,
   },
-  cardIconText: { fontSize: 22 },
+  cardIconText: { fontSize: 20 },
   cardInfo: { flex: 1 },
-  cardTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 2,
-  },
-  cardName: { fontSize: 16, fontWeight: "700", color: "#2D3748", flex: 1 },
-  cardCategory: {
-    fontSize: 12,
-    color: "#2B6CB0",
-    fontWeight: "600",
-    marginBottom: 2,
-  },
-  cardLocation: { fontSize: 12, color: "#718096" },
-  cardDescription: {
-    fontSize: 14,
-    color: "#4A5568",
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  cardFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
+  cardTitleRow: { flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 2 },
+  cardName: { fontSize: 15, fontWeight: "700", color: "#2D3748", flex: 1 },
+  cardCategory: { fontSize: 11, color: "#2B6CB0", fontWeight: "600", marginBottom: 1 },
+  cardLocation: { fontSize: 11, color: "#718096" },
+  cardDescription: { fontSize: 13, color: "#4A5568", lineHeight: 18, marginBottom: 10 },
+  cardFooter: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   memberCount: { flexDirection: "row", alignItems: "center", gap: 4 },
-  memberCountText: { fontSize: 13, color: "#718096" },
-  memberBadge: {
-    backgroundColor: "#C6F6D5",
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 20,
-  },
-  memberBadgeText: { fontSize: 12, color: "#276749", fontWeight: "700" },
-  pendingBadge: {
-    backgroundColor: "#FEFCBF",
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 20,
-  },
-  pendingBadgeText: { fontSize: 12, color: "#744210", fontWeight: "600" },
-  joinBadge: {
-    backgroundColor: "#EBF4FF",
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#2B6CB0",
-  },
-  joinBadgeText: { fontSize: 12, color: "#2B6CB0", fontWeight: "600" },
+  memberCountText: { fontSize: 12, color: "#718096" },
+  badge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12 },
+  badgeJoined: { backgroundColor: "#C6F6D5" },
+  badgePending: { backgroundColor: "#FEFCBF" },
+  badgeJoin: { backgroundColor: "#EBF4FF", borderWidth: 1, borderColor: "#2B6CB0" },
+  badgeText: { fontSize: 11, fontWeight: "700" },
 
   empty: { alignItems: "center", paddingVertical: 60 },
-  emptyIcon: { fontSize: 56, marginBottom: 16 },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#2D3748",
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 15,
-    color: "#718096",
-    textAlign: "center",
-    paddingHorizontal: 32,
-  },
-
-  fab: {
-    position: "absolute",
-    bottom: 24,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#2B6CB0",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
-  },
+  emptyIcon: { fontSize: 48, marginBottom: 12 },
+  emptyTitle: { fontSize: 18, fontWeight: "700", color: "#2D3748", marginBottom: 6 },
+  emptyText: { fontSize: 14, color: "#718096", textAlign: "center", paddingHorizontal: 32 },
 });
