@@ -41,7 +41,7 @@ const Login = () => {
           <div className="auth-brand-content">
             <div className="auth-brand-logo">🤝 KindredPal</div>
             <h1 className="auth-brand-headline">
-              Find your people.<br />For real this time.
+              Find your people.<br />
             </h1>
             <p className="auth-brand-sub">
               Groups built around shared faith, values, and life stage —

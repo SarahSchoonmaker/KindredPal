@@ -38,7 +38,7 @@ export default function LoginScreen({ navigation }) {
         {/* Hero */}
         <View style={styles.hero}>
           <Text style={styles.logo}>💜 KindredPal</Text>
-          <Text style={styles.heroTitle}>Find your people.{"\n"}For real this time.</Text>
+          <Text style={styles.heroTitle}>Find your people.{"\n"}</Text>
           <Text style={styles.heroSubtitle}>
             Groups built around shared values, faith, and life stage — so you can
             meet people who actually get you.
