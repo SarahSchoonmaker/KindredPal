@@ -14,7 +14,11 @@
     },
     "preview": {
       "distribution": "internal",
+      "autoIncrement": true,
       "node": "20.19.4",
+      "ios": {
+        "buildConfiguration": "Release"
+      },
       "env": {
         "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
       }
