@@ -1,17 +1,11 @@
 import React, { useState } from "react";
 import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
+  View, StyleSheet, ScrollView, Alert,
+  KeyboardAvoidingView, Platform, TouchableOpacity, Text,
 } from "react-native";
-import { Text, TextInput, Button } from "react-native-paper";
+import { TextInput, Button, ActivityIndicator } from "react-native-paper";
 import { authAPI } from "../services/api";
 import * as SecureStore from "expo-secure-store";
-import { Users, MessageCircle, Calendar } from "lucide-react-native";
-import Footer from "../components/Footer";
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
@@ -19,88 +13,57 @@ export default function LoginScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
+    if (!email || !password) return;
     setLoading(true);
     try {
-      console.log("🔐 Logging in:", email);
       const response = await authAPI.login(email, password);
-
-      const token = response.data.token;
-      const user = response.data.user;
-
-      if (!user || !user.id) {
-        throw new Error("Invalid response: missing user ID");
-      }
-
-      const userId = user.id;
+      const { token, user } = response.data;
+      if (!user?.id) throw new Error("Invalid response");
 
       await SecureStore.setItemAsync("token", token);
-      await SecureStore.setItemAsync("userId", userId);
-
-      console.log("✅ Login successful! Token and userId saved securely.");
-      const savedToken = await SecureStore.getItemAsync("token");
-      const savedUserId = await SecureStore.getItemAsync("userId");
-      console.log(
-        "🔐 About to navigate - token matches:",
-        savedToken === token,
-      );
-      console.log("🔐 About to navigate - userId:", savedUserId);
+      await SecureStore.setItemAsync("userId", user.id);
 
       navigation.replace("MainTabs");
     } catch (error) {
-      console.error("❌ Login error:", error);
-      console.error("❌ Error response:", error.response?.data);
-
-      const message =
-        error.response?.data?.message || error.message || "Invalid credentials";
-      Alert.alert("Login Failed", message);
+      Alert.alert("Login Failed", error.response?.data?.message || error.message || "Invalid credentials");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleForgotPassword = () => {
-    navigation.navigate("ForgotPassword");
-  };
-
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Hero Section */}
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+
+        {/* Hero */}
         <View style={styles.hero}>
-          <Text style={styles.logo}>KindredPal</Text>
-          <Text style={styles.tagline}>Find Your Social Support Network</Text>
-          <Text style={styles.subtitle}>
-            Connect with like-minded adults through shared values, causes, and
-            community events
+          <Text style={styles.logo}>💜 KindredPal</Text>
+          <Text style={styles.heroTitle}>Find your people.{"\n"}For real this time.</Text>
+          <Text style={styles.heroSubtitle}>
+            Groups built around shared values, faith, and life stage — so you can
+            meet people who actually get you.
           </Text>
 
-          {/* Feature Icons */}
           <View style={styles.features}>
             <View style={styles.feature}>
-              <Users color="white" size={32} />
-              <Text style={styles.featureText}>Find Friends</Text>
+              <Text style={styles.featureIcon}>🙏</Text>
+              <Text style={styles.featureText}>Values-first groups</Text>
             </View>
             <View style={styles.feature}>
-              <MessageCircle color="white" size={32} />
-              <Text style={styles.featureText}>Connect</Text>
+              <Text style={styles.featureIcon}>📅</Text>
+              <Text style={styles.featureText}>Real-life events</Text>
             </View>
             <View style={styles.feature}>
-              <Calendar color="white" size={32} />
-              <Text style={styles.featureText}>Meet Up</Text>
+              <Text style={styles.featureIcon}>💬</Text>
+              <Text style={styles.featureText}>Group & direct chat</Text>
             </View>
           </View>
         </View>
-        {/* ✅ hero closes here, after features */}
 
-        {/* Login Form */}
-        <View style={styles.formContainer}>
-          <Text style={styles.formTitle}>Welcome Back</Text>
+        {/* Form */}
+        <View style={styles.form}>
+          <Text style={styles.formTitle}>Welcome back</Text>
+          <Text style={styles.formSubtitle}>Log in to find your community</Text>
 
           <TextInput
             mode="outlined"
@@ -109,6 +72,7 @@ export default function LoginScreen({ navigation }) {
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
+            autoCorrect={false}
             style={styles.input}
             outlineColor="#E2E8F0"
             activeOutlineColor="#2B6CB0"
@@ -125,148 +89,88 @@ export default function LoginScreen({ navigation }) {
             activeOutlineColor="#2B6CB0"
           />
 
-          <Button
-            mode="text"
-            onPress={handleForgotPassword}
-            style={styles.forgotButton}
-            labelStyle={styles.forgotButtonLabel}
-          >
-            Forgot Password?
-          </Button>
+          <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")} style={styles.forgotRow}>
+            <Text style={styles.forgotText}>Forgot password?</Text>
+          </TouchableOpacity>
 
           <Button
             mode="contained"
             onPress={handleLogin}
             loading={loading}
             disabled={!email || !password || loading}
-            style={styles.button}
-            labelStyle={styles.buttonLabel}
+            style={styles.loginBtn}
+            labelStyle={styles.loginBtnLabel}
+            buttonColor="#2B6CB0"
           >
-            Login
+            Log In
           </Button>
 
-          <Button
-            mode="text"
-            onPress={() => navigation.navigate("Signup")}
-            style={styles.signupButton}
-            labelStyle={styles.signupButtonLabel}
-          >
-            Don't have an account? Sign up
-          </Button>
+          <TouchableOpacity onPress={() => navigation.navigate("Signup")} style={styles.signupRow}>
+            <Text style={styles.signupText}>
+              New to KindredPal? <Text style={styles.signupLink}>Create an account</Text>
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Footer */}
-        <Footer />
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F7FAFC",
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
+  container: { flex: 1, backgroundColor: "#F7FAFC" },
+  scroll: { flexGrow: 1 },
+
   hero: {
-    backgroundColor: "#2B6CB0",
-    paddingTop: 60,
-    paddingBottom: 40,
-    paddingHorizontal: 20,
-    alignItems: "center",
+    background: undefined,
+    backgroundColor: "#1a56a0",
+    paddingTop: 64,
+    paddingBottom: 48,
+    paddingHorizontal: 28,
   },
-  logo: {
-    fontSize: 42,
-    fontWeight: "bold",
-    color: "white",
-    marginBottom: 8,
-  },
-  tagline: {
-    fontSize: 18,
-    color: "white",
-    opacity: 0.9,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: "white",
-    opacity: 0.8,
-    textAlign: "center",
-    marginBottom: 24,
-    lineHeight: 20,
-  },
-  features: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    width: "100%",
-    marginTop: 8,
-  },
+  logo: { fontSize: 22, fontWeight: "800", color: "white", marginBottom: 20, opacity: 0.95 },
+  heroTitle: { fontSize: 30, fontWeight: "800", color: "white", lineHeight: 36, marginBottom: 14 },
+  heroSubtitle: { fontSize: 15, color: "white", opacity: 0.85, lineHeight: 22, marginBottom: 28 },
+
+  features: { flexDirection: "row", gap: 10 },
   feature: {
-    alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    padding: 16,
+    flex: 1,
+    backgroundColor: "rgba(255,255,255,0.15)",
     borderRadius: 12,
-    minWidth: 100,
+    padding: 14,
+    alignItems: "center",
+    gap: 6,
   },
-  featureText: {
-    color: "white",
-    fontSize: 12,
-    marginTop: 8,
-    fontWeight: "600",
-  },
-  formContainer: {
+  featureIcon: { fontSize: 22 },
+  featureText: { color: "white", fontSize: 11, fontWeight: "600", textAlign: "center" },
+
+  form: {
     backgroundColor: "white",
     marginTop: -20,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 24,
-    paddingTop: 32,
-    paddingBottom: 24,
+    paddingTop: 36,
+    paddingBottom: 32,
+    flex: 1,
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: -2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 6,
   },
-  formTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#2D2D2D",
-    marginBottom: 24,
-    textAlign: "center",
-  },
-  input: {
-    marginBottom: 16,
-    backgroundColor: "white",
-  },
-  forgotButton: {
-    alignSelf: "flex-end",
-    marginTop: -8,
-    marginBottom: 8,
-  },
-  forgotButtonLabel: {
-    fontSize: 12,
-    color: "#2B6CB0",
-  },
-  button: {
-    marginTop: 8,
-    paddingVertical: 8,
-    backgroundColor: "#2B6CB0",
-  },
-  buttonLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  signupButton: {
-    marginTop: 16,
-  },
-  signupButtonLabel: {
-    fontSize: 14,
-    color: "#2B6CB0",
-  },
+  formTitle: { fontSize: 26, fontWeight: "800", color: "#1a202c", marginBottom: 4 },
+  formSubtitle: { fontSize: 14, color: "#718096", marginBottom: 24 },
+
+  input: { marginBottom: 14, backgroundColor: "white" },
+
+  forgotRow: { alignSelf: "flex-end", marginBottom: 20 },
+  forgotText: { fontSize: 13, color: "#2B6CB0", fontWeight: "600" },
+
+  loginBtn: { borderRadius: 12, paddingVertical: 4, marginBottom: 20 },
+  loginBtnLabel: { fontSize: 16, fontWeight: "700", letterSpacing: 0.3 },
+
+  signupRow: { alignItems: "center" },
+  signupText: { fontSize: 14, color: "#718096" },
+  signupLink: { color: "#2B6CB0", fontWeight: "700" },
 });

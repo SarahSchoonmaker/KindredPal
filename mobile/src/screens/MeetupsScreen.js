@@ -25,10 +25,7 @@ export default function MeetupsScreen({ navigation, route }) {
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error("Request timeout")), 10000),
       );
-      const response = await Promise.race([
-        api.get("/meetups"),
-        timeoutPromise,
-      ]);
+      const response = await Promise.race([api.get("/meetups"), timeoutPromise]);
       const data = response.data || [];
       setMeetups(data);
 
@@ -50,6 +47,13 @@ export default function MeetupsScreen({ navigation, route }) {
   useEffect(() => {
     fetchMeetups();
   }, [fetchMeetups]);
+
+  // Refresh when returning from detail screen after delete
+  useEffect(() => {
+    if (route?.params?.refresh) {
+      fetchMeetups();
+    }
+  }, [route?.params?.refresh]);
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -74,13 +78,10 @@ export default function MeetupsScreen({ navigation, route }) {
   }, [fetchMeetups]);
 
   const renderMeetup = ({ item }) => {
-    const goingCount =
-      item.rsvps?.filter((r) => r.status === "going").length || 0;
+    const goingCount = item.rsvps?.filter((r) => r.status === "going").length || 0;
     return (
       <TouchableOpacity
-        onPress={() =>
-          navigation.navigate("MeetupDetails", { meetupId: item._id })
-        }
+        onPress={() => navigation.navigate("MeetupDetails", { meetupId: item._id })}
       >
         <Card style={styles.card}>
           <Card.Content>
@@ -94,15 +95,11 @@ export default function MeetupsScreen({ navigation, route }) {
             <View style={styles.details}>
               <View style={styles.detail}>
                 <Calendar color="#2B6CB0" size={18} />
-                <Text style={styles.detailText}>
-                  {formatDate(item.dateTime)}
-                </Text>
+                <Text style={styles.detailText}>{formatDate(item.dateTime)}</Text>
               </View>
               <View style={styles.detail}>
                 <Clock color="#2B6CB0" size={18} />
-                <Text style={styles.detailText}>
-                  {formatTime(item.dateTime)}
-                </Text>
+                <Text style={styles.detailText}>{formatTime(item.dateTime)}</Text>
               </View>
               {item.location && (
                 <View style={styles.detail}>
@@ -119,10 +116,7 @@ export default function MeetupsScreen({ navigation, route }) {
               </Text>
             )}
             <View style={styles.creator}>
-              <Avatar.Image
-                size={32}
-                source={{ uri: item.creator?.profilePhoto }}
-              />
+              <Avatar.Image size={32} source={{ uri: item.creator?.profilePhoto }} />
               <Text style={styles.creatorText}>by {item.creator?.name}</Text>
             </View>
           </Card.Content>
@@ -155,9 +149,7 @@ export default function MeetupsScreen({ navigation, route }) {
           renderItem={renderMeetup}
           keyExtractor={(item) => item._id}
           contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         />
       )}
       <FAB
@@ -192,12 +184,7 @@ const styles = StyleSheet.create({
   details: { gap: 8, marginBottom: 12 },
   detail: { flexDirection: "row", alignItems: "center", gap: 8 },
   detailText: { color: "#666", fontSize: 14 },
-  description: {
-    color: "#666",
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 12,
-  },
+  description: { color: "#666", fontSize: 14, lineHeight: 20, marginBottom: 12 },
   creator: {
     flexDirection: "row",
     alignItems: "center",
@@ -207,24 +194,8 @@ const styles = StyleSheet.create({
     borderTopColor: "#E2E8F0",
   },
   creatorText: { color: "#666", fontSize: 14 },
-  emptyState: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 40,
-  },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#2D2D2D",
-    marginTop: 16,
-    marginBottom: 8,
-  },
+  emptyState: { flex: 1, justifyContent: "center", alignItems: "center", padding: 40 },
+  emptyTitle: { fontSize: 24, fontWeight: "bold", color: "#2D2D2D", marginTop: 16, marginBottom: 8 },
   emptyText: { fontSize: 16, color: "#666", textAlign: "center" },
-  fab: {
-    position: "absolute",
-    right: 16,
-    bottom: 16,
-    backgroundColor: "#2B6CB0",
-  },
+  fab: { position: "absolute", right: 16, bottom: 16, backgroundColor: "#2B6CB0" },
 });

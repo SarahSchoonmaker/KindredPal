@@ -276,8 +276,18 @@ export default function ProfileScreen({ navigation }) {
           <Card.Content>
             <View style={styles.infoRow}>
               <User color="#2B6CB0" size={20} />
-              <Text style={styles.infoText}>{user.age} • {user.gender}</Text>
+              <Text style={styles.infoText}>{user.age}{user.gender ? ` • ${user.gender}` : ""}</Text>
             </View>
+            <TouchableOpacity
+              style={styles.emailRow}
+              onPress={() => navigation.navigate("EditProfile", { focusEmail: true })}
+            >
+              <View style={styles.emailLeft}>
+                <Text style={styles.emailLabel}>Email</Text>
+                <Text style={styles.emailValue}>{user.email}</Text>
+              </View>
+              <ChevronRight size={16} color="#a0aec0" />
+            </TouchableOpacity>
             {user.bio && (
               <View style={styles.bioContainer}>
                 <Text style={styles.bio}>{user.bio}</Text>
@@ -371,9 +381,6 @@ export default function ProfileScreen({ navigation }) {
       </View>
 
       <View style={styles.actionsSection}>
-        <Button mode="outlined" onPress={() => navigation.navigate("Preferences")} style={styles.actionButton}>
-          Search Preferences
-        </Button>
         <Button mode="contained" onPress={handleLogout} style={[styles.actionButton, styles.logoutButton]} buttonColor="#E53E3E">
           Logout
         </Button>
@@ -420,6 +427,18 @@ const styles = StyleSheet.create({
   photoActions: { position: "absolute", bottom: 8, right: 8, flexDirection: "row", gap: 8 },
   photoActionButton: { backgroundColor: "rgba(43, 108, 176, 0.9)", padding: 8, borderRadius: 20 },
   deleteButton: { backgroundColor: "rgba(229, 62, 62, 0.9)" },
+  emailRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
+    marginTop: 4,
+  },
+  emailLeft: { flex: 1 },
+  emailLabel: { fontSize: 12, fontWeight: "600", color: "#718096", marginBottom: 2, textTransform: "uppercase", letterSpacing: 0.5 },
+  emailValue: { fontSize: 15, color: "#2D3748" },
   photoHint: { fontSize: 12, color: "#718096", textAlign: "center", fontStyle: "italic" },
   card: { backgroundColor: "white" },
   infoRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },

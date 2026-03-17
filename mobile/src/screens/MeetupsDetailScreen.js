@@ -1,21 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert,
 } from "react-native";
 import { Avatar, Button, Divider } from "react-native-paper";
-import {
-  Calendar,
-  MapPin,
-  Users,
-  Clock,
-  Edit,
-  Trash2,
-} from "lucide-react-native";
+import { Calendar, MapPin, Users, Clock, Edit, Trash2 } from "lucide-react-native";
 import * as SecureStore from "expo-secure-store";
 import api from "../services/api";
 
@@ -53,7 +41,7 @@ export default function MeetupDetailsScreen({ route, navigation }) {
   const getUserRSVP = useCallback(() => {
     if (!meetup || !currentUserId) return null;
     const rsvp = meetup.rsvps.find(
-      (r) => r.user._id?.toString() === currentUserId.toString(),
+      (r) => r.user._id?.toString() === currentUserId.toString()
     );
     return rsvp ? rsvp.status : null;
   }, [meetup, currentUserId]);
@@ -77,64 +65,43 @@ export default function MeetupDetailsScreen({ route, navigation }) {
   };
 
   const handleDelete = () => {
-    Alert.alert(
-      "Delete Meetup",
-      "Are you sure you want to delete this meetup?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await api.delete(`/meetups/${meetupId}`);
-              navigation.goBack();
-            } catch (error) {
-              Alert.alert("Error", "Failed to delete meetup");
-            }
-          },
+    Alert.alert("Delete Meetup", "Are you sure you want to delete this meetup?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete", style: "destructive",
+        onPress: async () => {
+          try {
+            await api.delete(`/meetups/${meetupId}`);
+            // Pass deleted flag back so MeetupsScreen refreshes
+            navigation.navigate("Meetups", { refresh: Date.now() });
+          } catch (error) {
+            Alert.alert("Error", "Failed to delete meetup");
+          }
         },
-      ],
-    );
+      },
+    ]);
   };
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    });
+    return date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
   };
 
   const formatTime = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-    });
+    return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
   };
 
   if (loading) {
-    return (
-      <View style={styles.centerContainer}>
-        <Text>Loading...</Text>
-      </View>
-    );
+    return <View style={styles.centerContainer}><Text>Loading...</Text></View>;
   }
 
   if (!meetup) {
-    return (
-      <View style={styles.centerContainer}>
-        <Text>Meetup not found</Text>
-      </View>
-    );
+    return <View style={styles.centerContainer}><Text>Meetup not found</Text></View>;
   }
 
   // ✅ Fixed: .toString() on both sides for reliable comparison
-  const isCreator =
-    currentUserId?.toString() === meetup.creator._id?.toString();
+  const isCreator = currentUserId?.toString() === meetup.creator._id?.toString();
   const userRSVP = getUserRSVP();
   const goingCount = meetup.rsvps.filter((r) => r.status === "going").length;
   const maybeCount = meetup.rsvps.filter((r) => r.status === "maybe").length;
@@ -146,21 +113,14 @@ export default function MeetupDetailsScreen({ route, navigation }) {
         <View style={styles.headerContent}>
           <Text style={styles.title}>{meetup.title}</Text>
           <View style={styles.creatorInfo}>
-            <Avatar.Image
-              size={40}
-              source={{ uri: meetup.creator.profilePhoto }}
-            />
+            <Avatar.Image size={40} source={{ uri: meetup.creator.profilePhoto }} />
             <Text style={styles.hostedBy}>Hosted by {meetup.creator.name}</Text>
           </View>
         </View>
         {isCreator && (
           <View style={styles.creatorActions}>
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={() =>
-                Alert.alert("Edit", "Edit functionality coming soon!")
-              }
-            >
+            <TouchableOpacity style={styles.iconButton}
+              onPress={() => Alert.alert("Edit", "Edit functionality coming soon!")}>
               <Edit color="#2B6CB0" size={24} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.iconButton} onPress={handleDelete}>
@@ -193,12 +153,8 @@ export default function MeetupDetailsScreen({ route, navigation }) {
             <MapPin color="#2B6CB0" size={24} />
             <View style={styles.infoText}>
               <Text style={styles.infoLabel}>Location</Text>
-              {meetup.location.address && (
-                <Text style={styles.infoValue}>{meetup.location.address}</Text>
-              )}
-              <Text style={styles.infoValue}>
-                {meetup.location.city}, {meetup.location.state}
-              </Text>
+              {meetup.location.address && <Text style={styles.infoValue}>{meetup.location.address}</Text>}
+              <Text style={styles.infoValue}>{meetup.location.city}, {meetup.location.state}</Text>
             </View>
           </View>
         )}
@@ -231,38 +187,23 @@ export default function MeetupDetailsScreen({ route, navigation }) {
               mode={userRSVP === "going" ? "contained" : "outlined"}
               onPress={() => handleRSVP("going")}
               disabled={rsvpLoading}
-              style={[
-                styles.rsvpButton,
-                userRSVP === "going" && styles.rsvpButtonGoing,
-              ]}
+              style={[styles.rsvpButton, userRSVP === "going" && styles.rsvpButtonGoing]}
               labelStyle={styles.rsvpButtonLabel}
-            >
-              ✓ Going
-            </Button>
+            >✓ Going</Button>
             <Button
               mode={userRSVP === "maybe" ? "contained" : "outlined"}
               onPress={() => handleRSVP("maybe")}
               disabled={rsvpLoading}
-              style={[
-                styles.rsvpButton,
-                userRSVP === "maybe" && styles.rsvpButtonMaybe,
-              ]}
+              style={[styles.rsvpButton, userRSVP === "maybe" && styles.rsvpButtonMaybe]}
               labelStyle={styles.rsvpButtonLabel}
-            >
-              ? Maybe
-            </Button>
+            >? Maybe</Button>
             <Button
               mode={userRSVP === "not-going" ? "contained" : "outlined"}
               onPress={() => handleRSVP("not-going")}
               disabled={rsvpLoading}
-              style={[
-                styles.rsvpButton,
-                userRSVP === "not-going" && styles.rsvpButtonNotGoing,
-              ]}
+              style={[styles.rsvpButton, userRSVP === "not-going" && styles.rsvpButtonNotGoing]}
               labelStyle={styles.rsvpButtonLabel}
-            >
-              ✗ Can't Go
-            </Button>
+            >✗ Can't Go</Button>
           </View>
         </View>
       )}
@@ -274,34 +215,24 @@ export default function MeetupDetailsScreen({ route, navigation }) {
         {goingCount > 0 && (
           <View style={styles.guestCategory}>
             <Text style={styles.categoryTitle}>Going ({goingCount})</Text>
-            {meetup.rsvps
-              .filter((r) => r.status === "going")
-              .map((rsvp) => (
-                <View key={rsvp.user._id} style={styles.guestItem}>
-                  <Avatar.Image
-                    size={48}
-                    source={{ uri: rsvp.user.profilePhoto }}
-                  />
-                  <Text style={styles.guestName}>{rsvp.user.name}</Text>
-                </View>
-              ))}
+            {meetup.rsvps.filter((r) => r.status === "going").map((rsvp) => (
+              <View key={rsvp.user._id} style={styles.guestItem}>
+                <Avatar.Image size={48} source={{ uri: rsvp.user.profilePhoto }} />
+                <Text style={styles.guestName}>{rsvp.user.name}</Text>
+              </View>
+            ))}
           </View>
         )}
 
         {maybeCount > 0 && (
           <View style={styles.guestCategory}>
             <Text style={styles.categoryTitle}>Maybe ({maybeCount})</Text>
-            {meetup.rsvps
-              .filter((r) => r.status === "maybe")
-              .map((rsvp) => (
-                <View key={rsvp.user._id} style={styles.guestItem}>
-                  <Avatar.Image
-                    size={48}
-                    source={{ uri: rsvp.user.profilePhoto }}
-                  />
-                  <Text style={styles.guestName}>{rsvp.user.name}</Text>
-                </View>
-              ))}
+            {meetup.rsvps.filter((r) => r.status === "maybe").map((rsvp) => (
+              <View key={rsvp.user._id} style={styles.guestItem}>
+                <Avatar.Image size={48} source={{ uri: rsvp.user.profilePhoto }} />
+                <Text style={styles.guestName}>{rsvp.user.name}</Text>
+              </View>
+            ))}
           </View>
         )}
 
@@ -309,12 +240,7 @@ export default function MeetupDetailsScreen({ route, navigation }) {
           <Text style={styles.categoryTitle}>Invited</Text>
           {meetup.invitedUsers
             // ✅ Fixed: .toString() comparison here too
-            .filter(
-              (u) =>
-                !meetup.rsvps.some(
-                  (r) => r.user._id?.toString() === u._id?.toString(),
-                ),
-            )
+            .filter((u) => !meetup.rsvps.some((r) => r.user._id?.toString() === u._id?.toString()))
             .map((u) => (
               <View key={u._id} style={styles.guestItem}>
                 <Avatar.Image size={48} source={{ uri: u.profilePhoto }} />
@@ -333,19 +259,9 @@ export default function MeetupDetailsScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F7FAFC" },
   centerContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    padding: 20,
-    backgroundColor: "white",
-  },
+  header: { flexDirection: "row", justifyContent: "space-between", padding: 20, backgroundColor: "white" },
   headerContent: { flex: 1 },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#2D2D2D",
-    marginBottom: 12,
-  },
+  title: { fontSize: 28, fontWeight: "bold", color: "#2D2D2D", marginBottom: 12 },
   creatorInfo: { flexDirection: "row", alignItems: "center", gap: 10 },
   hostedBy: { fontSize: 15, color: "#666" },
   creatorActions: { flexDirection: "row", gap: 8 },
@@ -353,21 +269,10 @@ const styles = StyleSheet.create({
   infoSection: { padding: 20, backgroundColor: "white", gap: 16 },
   infoCard: { flexDirection: "row", gap: 12 },
   infoText: { flex: 1 },
-  infoLabel: {
-    fontSize: 12,
-    color: "#999",
-    textTransform: "uppercase",
-    fontWeight: "600",
-    marginBottom: 4,
-  },
+  infoLabel: { fontSize: 12, color: "#999", textTransform: "uppercase", fontWeight: "600", marginBottom: 4 },
   infoValue: { fontSize: 15, color: "#2D2D2D", fontWeight: "500" },
   section: { padding: 20, backgroundColor: "white", marginTop: 8 },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#2D2D2D",
-    marginBottom: 16,
-  },
+  sectionTitle: { fontSize: 20, fontWeight: "600", color: "#2D2D2D", marginBottom: 16 },
   description: { fontSize: 15, color: "#666", lineHeight: 22 },
   rsvpSection: { padding: 20, backgroundColor: "#F7FAFC", marginTop: 8 },
   rsvpButtons: { flexDirection: "row", gap: 8 },
@@ -377,21 +282,8 @@ const styles = StyleSheet.create({
   rsvpButtonNotGoing: { backgroundColor: "#E53E3E" },
   rsvpButtonLabel: { fontSize: 13 },
   guestCategory: { marginBottom: 24 },
-  categoryTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#666",
-    marginBottom: 12,
-  },
-  guestItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    padding: 12,
-    backgroundColor: "#F7FAFC",
-    borderRadius: 8,
-    marginBottom: 8,
-  },
+  categoryTitle: { fontSize: 16, fontWeight: "600", color: "#666", marginBottom: 12 },
+  guestItem: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12, backgroundColor: "#F7FAFC", borderRadius: 8, marginBottom: 8 },
   guestName: { fontSize: 15, fontWeight: "600", color: "#2D2D2D" },
   guestStatus: { fontSize: 13, color: "#999" },
 });

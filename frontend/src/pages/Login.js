@@ -18,7 +18,6 @@ const Login = () => {
     const result = await login(formData.email, formData.password);
 
     if (result.success) {
-      // Redirect to onboarding if first login, otherwise groups
       const user = result.user;
       if (user && !user.onboardingComplete) {
         navigate("/onboarding");
@@ -38,10 +37,48 @@ const Login = () => {
 
   return (
     <div className="auth-page">
-      <div className="auth-container">
+      <div className="auth-container auth-container-wide">
+
+        {/* Left panel — brand + value prop */}
+        <div className="auth-hero">
+          <div className="auth-hero-inner">
+            <div className="auth-logo">💜 KindredPal</div>
+            <h1 className="auth-hero-title">Find your people.<br />For real this time.</h1>
+            <p className="auth-hero-subtitle">
+              KindredPal connects you with groups of like-minded people who share
+              your faith, values, life stage, and interests — so you can build
+              real friendships in your community.
+            </p>
+            <div className="auth-features">
+              <div className="auth-feature">
+                <span className="auth-feature-icon">🙏</span>
+                <div>
+                  <strong>Values-first groups</strong>
+                  <p>Find people who share your faith, politics, and life outlook</p>
+                </div>
+              </div>
+              <div className="auth-feature">
+                <span className="auth-feature-icon">📅</span>
+                <div>
+                  <strong>Real-life events</strong>
+                  <p>RSVP to meetups and get off the app — that's the point</p>
+                </div>
+              </div>
+              <div className="auth-feature">
+                <span className="auth-feature-icon">💬</span>
+                <div>
+                  <strong>Group & direct chat</strong>
+                  <p>Stay connected with your people between events</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right panel — login form */}
         <div className="auth-card">
-          <h2>Log In to KindredPal</h2>
-          <p className="auth-subtitle">Log in to continue your journey</p>
+          <h2>Welcome back</h2>
+          <p className="auth-subtitle">Log in to find your community</p>
 
           {error && <div className="error-message">{error}</div>}
 
@@ -55,6 +92,7 @@ const Login = () => {
                 value={formData.email}
                 onChange={handleChange}
                 required
+                autoFocus
               />
             </div>
             <div className="form-group">
@@ -81,12 +119,13 @@ const Login = () => {
           </form>
 
           <p className="auth-link">
-            Don't have an account? <Link to="/signup">Sign up</Link>
+            New to KindredPal? <Link to="/signup"><strong>Create an account</strong></Link>
           </p>
           <p className="auth-link">
             <Link to="/">← Back to home</Link>
           </p>
         </div>
+
       </div>
     </div>
   );
