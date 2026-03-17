@@ -76,7 +76,7 @@ const Login = () => {
         {/* Right — form panel */}
         <div className="auth-form-panel">
           <div className="auth-form-inner">
-            <h2 className="auth-form-title">Welcome back</h2>
+            <h2 className="auth-form-title">Welcome</h2>
             <p className="auth-form-sub">Log in to find your community</p>
 
             {error && <div className="auth-error">{error}</div>}

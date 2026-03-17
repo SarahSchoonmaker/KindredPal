@@ -62,7 +62,7 @@ export default function LoginScreen({ navigation }) {
 
         {/* Form */}
         <View style={styles.form}>
-          <Text style={styles.formTitle}>Welcome back</Text>
+          <Text style={styles.formTitle}>Welcome!</Text>
           <Text style={styles.formSubtitle}>Log in to find your community</Text>
 
           <TextInput
