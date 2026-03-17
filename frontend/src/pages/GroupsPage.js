@@ -11,7 +11,7 @@ const CATEGORIES = [
   "All","Sports & Fitness","Faith & Spirituality","Parents",
   "Hobbies & Interests","Volunteers & Causes","Support & Wellness",
   "Professional & Networking","Arts, Culture & Book Clubs","Outdoor & Adventure",
-  "Food & Dining","Learning & Education","Neighborhood & Local","Life Transitions",
+  "Food & Dining","Learning & Education","Neighborhood & Local","Life Transitions","Social Outings",
 ];
 
 const CATEGORY_ICONS = {
@@ -21,7 +21,7 @@ const CATEGORY_ICONS = {
   "Outdoor & Adventure":"🏕️","Food & Dining":"🍽️","Learning & Education":"🎓",
   "Neighborhood & Local":"🏘️","New to the Area":"📍",
   "Business Owners & Entrepreneurs":"🚀","Sober & Clean Living":"🌿",
-  "Single Parents":"👨‍👧‍👦","Aging Gracefully":"🌻","Life Transitions":"🌿",
+  "Single Parents":"👨‍👧‍👦","Aging Gracefully":"🌻","Life Transitions":"🌿","Social Outings":"🥂",
 };
 
 const RELIGION_OPTIONS = [
@@ -44,11 +44,37 @@ const FAMILY_OPTIONS = [
   "Teenagers","Adult children","Grandchildren","Homeschooling",
 ];
 
-function GroupCard({ group, onClick }) {
+function GroupCard({ group, onClick, currentUser }) {
+  // Compute "people like me" tags based on shared values with current user
+  const peopleLikeMeTags = [];
+  if (currentUser && group.memberValues) {
+    const mv = group.memberValues;
+    if (currentUser.religion && (mv.religions || []).includes(currentUser.religion)) {
+      peopleLikeMeTags.push({ icon: "🙏", label: "Others share your faith" });
+    }
+    if (currentUser.politicalBeliefs && (mv.politics || []).includes(currentUser.politicalBeliefs)) {
+      peopleLikeMeTags.push({ icon: "🗳️", label: "Similar values here" });
+    }
+    const sharedStages = (currentUser.lifeStage || []).filter(s => (mv.lifeStages || []).includes(s));
+    if (sharedStages.length > 0) {
+      const label = sharedStages[0];
+      peopleLikeMeTags.push({ icon: "👥", label: `${label} in this group` });
+    }
+    const sharedFamily = (currentUser.familySituation || []).filter(f => (mv.families || []).includes(f));
+    if (sharedFamily.length > 0) {
+      peopleLikeMeTags.push({ icon: "👨‍👧", label: `${sharedFamily[0]} here` });
+    }
+  }
+
   return (
     <div className="group-card" onClick={() => onClick(group._id)}>
       <div className="group-card-header">
-        <div className="group-icon">{CATEGORY_ICONS[group.category] || "✨"}</div>
+        <div className="group-icon">
+          {group.coverPhoto
+            ? <img src={group.coverPhoto} alt={group.name} className="group-card-photo" />
+            : CATEGORY_ICONS[group.category] || "✨"
+          }
+        </div>
         <div className="group-card-info">
           <div className="group-card-title-row">
             <h3 className="group-name">{group.name}</h3>
@@ -64,6 +90,15 @@ function GroupCard({ group, onClick }) {
         </div>
       </div>
       <p className="group-description">{group.description}</p>
+      {peopleLikeMeTags.length > 0 && (
+        <div className="people-like-me-tags">
+          {peopleLikeMeTags.slice(0, 2).map((tag, i) => (
+            <span key={i} className="plm-tag">
+              {tag.icon} {tag.label}
+            </span>
+          ))}
+        </div>
+      )}
       <div className="group-card-footer">
         <div className="member-count">
           <Users size={14} />
@@ -392,6 +427,7 @@ export default function GroupsPage() {
               key={group._id}
               group={group}
               onClick={(id) => navigate(`/groups/${id}`)}
+              currentUser={user}
             />
           ))}
         </div>

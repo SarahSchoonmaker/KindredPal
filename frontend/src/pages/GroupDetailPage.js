@@ -26,6 +26,7 @@ const CATEGORY_ICONS = {
   "Neighborhood & Local": "🏘️", "New to the Area": "📍",
   "Business Owners & Entrepreneurs": "🚀", "Sober & Clean Living": "🌿",
   "Single Parents": "👨‍👧‍👦", "Aging Gracefully": "🌻", "Life Transitions": "🌿",
+  "Social Outings": "🥂",
 };
 
 const CATEGORIES = Object.keys(CATEGORY_ICONS);

@@ -12,7 +12,6 @@ const US_STATES = [
 ];
 
 
-
 const CATEGORIES = [
   "Sports & Fitness",
   "Faith & Spirituality",
@@ -27,6 +26,8 @@ const CATEGORIES = [
   "Learning & Education",
   "Neighborhood & Local",
   "Life Transitions",
+  "Social Outings",
+  "Social Gatherings",
   "New to the Area",
   "Business Owners & Entrepreneurs",
   "Sober & Clean Living",

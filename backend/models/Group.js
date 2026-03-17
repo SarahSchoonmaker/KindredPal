@@ -35,6 +35,7 @@ const groupSchema = new mongoose.Schema(
         "Single Parents",
         "Aging Gracefully",
         "Life Transitions",
+        "Social Outings",
       ],
     },
     // Location
