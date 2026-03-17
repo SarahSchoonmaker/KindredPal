@@ -23,7 +23,7 @@
   align-items: center;
   margin-bottom: 24px;
 }
-.ob-logo { font-size: 18px; font-weight: 800; color: #4c1d95; }
+.ob-logo { font-size: 18px; font-weight: 800; color: #1a56a0; }
 .ob-skip {
   background: none;
   border: none;
@@ -49,9 +49,9 @@
   background: #e2e8f0;
   transition: all 0.2s;
 }
-.ob-progress-dot.done { background: #7c3aed; }
+.ob-progress-dot.done { background: #2B6CB0; }
 .ob-progress-dot.active {
-  background: #7c3aed;
+  background: #2B6CB0;
   width: 24px;
   border-radius: 4px;
 }
@@ -87,7 +87,7 @@
   box-sizing: border-box;
 }
 .ob-field input:focus,
-.ob-select:focus { outline: none; border-color: #7c3aed; }
+.ob-select:focus { outline: none; border-color: #2B6CB0; }
 .ob-input-short { max-width: 100px !important; }
 
 .ob-location-row { display: flex; gap: 10px; }
@@ -100,7 +100,7 @@
   font-size: 15px;
   background: white;
 }
-.ob-state-input:focus { outline: none; border-color: #7c3aed; }
+.ob-state-input:focus { outline: none; border-color: #2B6CB0; }
 
 /* Chips */
 .ob-chips { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -116,10 +116,10 @@
   transition: all 0.15s;
   white-space: nowrap;
 }
-.ob-chip:hover:not(.disabled) { border-color: #7c3aed; color: #7c3aed; }
+.ob-chip:hover:not(.disabled) { border-color: #2B6CB0; color: #2B6CB0; }
 .ob-chip.active {
-  background: #7c3aed;
-  border-color: #7c3aed;
+  background: #2B6CB0;
+  border-color: #2B6CB0;
   color: white;
   font-weight: 600;
 }
@@ -138,8 +138,8 @@
   cursor: pointer;
   transition: all 0.15s;
 }
-.ob-politics-btn:hover { border-color: #7c3aed; color: #7c3aed; }
-.ob-politics-btn.active { background: #7c3aed; border-color: #7c3aed; color: white; font-weight: 600; }
+.ob-politics-btn:hover { border-color: #2B6CB0; color: #2B6CB0; }
+.ob-politics-btn.active { background: #2B6CB0; border-color: #2B6CB0; color: white; font-weight: 600; }
 
 /* Max hint */
 .ob-max-hint {
@@ -185,7 +185,7 @@
 .ob-btn-back:hover { border-color: #a0aec0; color: #4a5568; }
 .ob-btn-next {
   flex: 1;
-  background: linear-gradient(135deg, #7c3aed, #4c1d95);
+  background: linear-gradient(135deg, #2B6CB0, #1a56a0);
   color: white;
   border: none;
   border-radius: 12px;
@@ -194,7 +194,7 @@
   font-weight: 700;
   cursor: pointer;
   transition: opacity 0.15s;
-  box-shadow: 0 4px 15px rgba(124,58,237,0.4);
+  box-shadow: 0 4px 15px rgba(43,108,176,0.4);
 }
 .ob-btn-next:hover:not(:disabled) { opacity: 0.9; }
 .ob-btn-next:disabled { opacity: 0.6; cursor: not-allowed; }
