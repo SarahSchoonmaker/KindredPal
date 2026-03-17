@@ -28,6 +28,7 @@ const CATEGORIES = [
   "Single Parents",
   "Aging Gracefully",
   "Life Transitions",
+  "Social Outings",
 ];
 
 const CATEGORY_ICONS = {
@@ -50,6 +51,8 @@ const CATEGORY_ICONS = {
   "Single Parents": "👨‍👧‍👦",
   "Aging Gracefully": "🌻",
   "Life Transitions": "🔄",
+  "Social Outings": "🎉",
+  "Social Outings": "🥂",
 };
 
 function GroupCard({ group, onPress }) {
@@ -209,15 +212,25 @@ export default function GroupsScreen({ navigation }) {
             {CATEGORIES.map(cat => (
               <TouchableOpacity
                 key={cat}
-                style={[styles.chip, selectedCategory === cat && styles.chipActive]}
+                style={[styles.catTile, selectedCategory === cat && styles.catTileActive]}
                 onPress={() => setSelectedCategory(cat)}
+                activeOpacity={0.7}
               >
-                <Text style={styles.chipEmoji}>{CATEGORY_ICONS[cat]}</Text>
-                <Text style={[styles.chipText, selectedCategory === cat && styles.chipTextActive]} numberOfLines={1}>
+                <Text style={styles.catTileEmoji}>{CATEGORY_ICONS[cat]}</Text>
+                <Text
+                  style={[styles.catTileText, selectedCategory === cat && styles.catTileTextActive]}
+                  numberOfLines={2}
+                >
                   {cat === "All" ? "All Groups" : cat}
                 </Text>
+                {selectedCategory === cat && (
+                  <View style={styles.catTileCheck}>
+                    <Text style={{ color: "white", fontSize: 10, fontWeight: "700" }}>✓</Text>
+                  </View>
+                )}
               </TouchableOpacity>
             ))}
+            <View style={styles.catSpacer} />
           </View>
         ) : null}
         ListEmptyComponent={() => (
@@ -293,26 +306,53 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     padding: 10,
-    gap: 8,
+    gap: 10,
     backgroundColor: "#F7FAFC",
   },
-  chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
+  catTile: {
+    width: "30%",
+    flexGrow: 1,
+    minWidth: 100,
     backgroundColor: "white",
-    borderWidth: 1,
+    borderRadius: 14,
+    padding: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
     borderColor: "#E2E8F0",
-    minWidth: "47%",
-    flex: 0,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+    position: "relative",
+    minHeight: 90,
   },
-  chipActive: { backgroundColor: "#2B6CB0", borderColor: "#2B6CB0" },
-  chipEmoji: { fontSize: 16 },
-  chipText: { fontSize: 13, fontWeight: "500", color: "#4A5568", flex: 1 },
-  chipTextActive: { color: "white", fontWeight: "600" },
+  catTileActive: {
+    backgroundColor: "#EBF4FF",
+    borderColor: "#2B6CB0",
+  },
+  catTileEmoji: { fontSize: 28, marginBottom: 6 },
+  catTileText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#4A5568",
+    textAlign: "center",
+    lineHeight: 14,
+  },
+  catTileTextActive: { color: "#2B6CB0" },
+  catTileCheck: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#2B6CB0",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  catSpacer: { width: "30%", flexGrow: 1, minWidth: 100 },
 
   listContent: { padding: 12 },
 
