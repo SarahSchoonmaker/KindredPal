@@ -788,4 +788,12 @@
   border-left: none;
   border-right: none;
   border-top: none;
+  /* Fixed height so it never causes page scroll */
+  height: 560px;
+  max-height: 60vh;
+}
+.group-chat-section .gc-messages {
+  /* Internal scroll only — page stays put */
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }

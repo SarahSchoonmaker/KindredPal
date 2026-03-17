@@ -715,7 +715,16 @@ export default function GroupDetailPage() {
           Members ({group.members?.length || 0})
         </button>
         {(group.isMember || group.isAdmin) && (
-          <button className={`gd-tab ${activeTab === "chat" ? "active" : ""}`} onClick={() => setActiveTab("chat")}>
+          <button
+            className={`gd-tab ${activeTab === "chat" ? "active" : ""}`}
+            onClick={() => {
+              setActiveTab("chat");
+              // Scroll to tabs, not bottom
+              setTimeout(() => {
+                document.querySelector(".group-detail-tabs")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }, 50);
+            }}
+          >
             <MessageSquare size={15} /> Chat
           </button>
         )}

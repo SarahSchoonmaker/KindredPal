@@ -80,6 +80,7 @@ export default function GroupChat({ groupId, group, events = [] }) {
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const listRef = useRef(null);
+  const isInitialLoad = useRef(true);
 
   const activeEvent = events.find(e => e._id === activeThread);
 
@@ -98,7 +99,11 @@ export default function GroupChat({ groupId, group, events = [] }) {
         setMessages(prev => [...fetched, ...prev]);
       } else {
         setMessages(fetched);
-        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "auto" }), 50);
+        // Don't auto-scroll on initial load — let user start at top
+        if (!isInitialLoad.current) {
+          setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "auto" }), 50);
+        }
+        isInitialLoad.current = false;
       }
       setHasMore(fetched.length === 40);
     } catch (err) {
@@ -108,7 +113,10 @@ export default function GroupChat({ groupId, group, events = [] }) {
     }
   }, [groupId, activeThread]);
 
-  useEffect(() => { loadMessages(); }, [loadMessages]);
+  useEffect(() => {
+    isInitialLoad.current = true;
+    loadMessages();
+  }, [loadMessages]);
 
   // ── Socket: join room & listen ────────────────────────────────
   useEffect(() => {

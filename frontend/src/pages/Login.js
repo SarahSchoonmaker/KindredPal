@@ -14,9 +14,7 @@ const Login = () => {
     e.preventDefault();
     setError("");
     setLoading(true);
-
     const result = await login(formData.email, formData.password);
-
     if (result.success) {
       const user = result.user;
       if (user && !user.onboardingComplete) {
@@ -27,7 +25,6 @@ const Login = () => {
     } else {
       setError(result.error);
     }
-
     setLoading(false);
   };
 
@@ -37,93 +34,93 @@ const Login = () => {
 
   return (
     <div className="auth-page">
-      <div className="auth-container auth-container-wide">
+      <div className="auth-split">
 
-        {/* Left panel — brand + value prop */}
-        <div className="auth-hero">
-          <div className="auth-hero-inner">
-            <div className="auth-logo">💜 KindredPal</div>
-            <h1 className="auth-hero-title">Find your people.<br />For real this time.</h1>
-            <p className="auth-hero-subtitle">
-              KindredPal connects you with groups of like-minded people who share
-              your faith, values, life stage, and interests — so you can build
-              real friendships in your community.
+        {/* Left — brand panel */}
+        <div className="auth-brand-panel">
+          <div className="auth-brand-content">
+            <div className="auth-brand-logo">🤝 KindredPal</div>
+            <h1 className="auth-brand-headline">
+              Find your people.<br />For real this time.
+            </h1>
+            <p className="auth-brand-sub">
+              Groups built around shared faith, values, and life stage —
+              so you walk in already knowing you belong.
             </p>
-            <div className="auth-features">
-              <div className="auth-feature">
-                <span className="auth-feature-icon">🙏</span>
+            <div className="auth-brand-features">
+              <div className="auth-brand-feature">
+                <span>🙏</span>
                 <div>
                   <strong>Values-first groups</strong>
-                  <p>Find people who share your faith, politics, and life outlook</p>
+                  <p>See who's in a group before you join</p>
                 </div>
               </div>
-              <div className="auth-feature">
-                <span className="auth-feature-icon">📅</span>
+              <div className="auth-brand-feature">
+                <span>📅</span>
                 <div>
                   <strong>Real-life events</strong>
-                  <p>RSVP to meetups and get off the app — that's the point</p>
+                  <p>RSVP and meet people in person</p>
                 </div>
               </div>
-              <div className="auth-feature">
-                <span className="auth-feature-icon">💬</span>
+              <div className="auth-brand-feature">
+                <span>💬</span>
                 <div>
                   <strong>Group & direct chat</strong>
-                  <p>Stay connected with your people between events</p>
+                  <p>Stay connected between meetups</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Right panel — login form */}
-        <div className="auth-card">
-          <h2>Welcome back</h2>
-          <p className="auth-subtitle">Log in to find your community</p>
+        {/* Right — form panel */}
+        <div className="auth-form-panel">
+          <div className="auth-form-inner">
+            <h2 className="auth-form-title">Welcome back</h2>
+            <p className="auth-form-sub">Log in to find your community</p>
 
-          {error && <div className="error-message">{error}</div>}
+            {error && <div className="auth-error">{error}</div>}
 
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label className="form-label">Email</label>
-              <input
-                type="email"
-                name="email"
-                className="form-input"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                autoFocus
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Password</label>
-              <input
-                type="password"
-                name="password"
-                className="form-input"
-                value={formData.password}
-                onChange={handleChange}
-                required
-              />
-            </div>
-            <div className="form-link">
-              <Link to="/forgot-password">Forgot password?</Link>
-            </div>
-            <button
-              type="submit"
-              className="btn btn-primary btn-full"
-              disabled={loading}
-            >
-              {loading ? "Logging in..." : "Log In"}
-            </button>
-          </form>
+            <form onSubmit={handleSubmit} className="auth-form">
+              <div className="auth-field">
+                <label>Email</label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                  autoFocus
+                  placeholder="your@email.com"
+                />
+              </div>
+              <div className="auth-field">
+                <label>Password</label>
+                <input
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                  placeholder="••••••••"
+                />
+              </div>
+              <div className="auth-forgot">
+                <Link to="/forgot-password">Forgot password?</Link>
+              </div>
+              <button type="submit" className="auth-submit-btn" disabled={loading}>
+                {loading ? "Logging in..." : "Log In"}
+              </button>
+            </form>
 
-          <p className="auth-link">
-            New to KindredPal? <Link to="/signup"><strong>Create an account</strong></Link>
-          </p>
-          <p className="auth-link">
-            <Link to="/">← Back to home</Link>
-          </p>
+            <p className="auth-switch">
+              New to KindredPal?{" "}
+              <Link to="/signup"><strong>Create an account</strong></Link>
+            </p>
+            <p className="auth-switch">
+              <Link to="/">← Back to home</Link>
+            </p>
+          </div>
         </div>
 
       </div>
