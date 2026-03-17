@@ -35,6 +35,8 @@ const groupSchema = new mongoose.Schema(
         "Single Parents",
         "Aging Gracefully",
         "Life Transitions",
+        "Single & Childfree",
+        "Caregiver Support",
         "Social Outings",
       ],
     },

@@ -28,6 +28,8 @@ const CATEGORIES = [
   "Single Parents",
   "Aging Gracefully",
   "Life Transitions",
+  "Single & Childfree",
+  "Caregiver Support",
   "Social Outings",
 ];
 
@@ -51,6 +53,8 @@ const CATEGORY_ICONS = {
   "Single Parents": "👨‍👧‍👦",
   "Aging Gracefully": "🌻",
   "Life Transitions": "🔄",
+  "Single & Childfree": "🌟",
+  "Caregiver Support": "🤲",
   "Social Outings": "🎉",
   "Social Outings": "🥂",
 };

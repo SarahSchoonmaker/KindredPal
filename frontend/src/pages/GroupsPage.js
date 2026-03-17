@@ -11,7 +11,9 @@ const CATEGORIES = [
   "All","Sports & Fitness","Faith & Spirituality","Parents",
   "Hobbies & Interests","Volunteers & Causes","Support & Wellness",
   "Professional & Networking","Arts, Culture & Book Clubs","Outdoor & Adventure",
-  "Food & Dining","Learning & Education","Neighborhood & Local","Life Transitions","Social Outings",
+  "Food & Dining","Learning & Education","Neighborhood & Local","Life Transitions",
+  "Single & Childfree",
+  "Caregiver Support","Social Outings",
 ];
 
 const CATEGORY_ICONS = {

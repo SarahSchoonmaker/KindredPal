@@ -126,8 +126,20 @@ export default function GroupChat({ groupId, group, events = [] }) {
     const handleMsg = (msg) => {
       const msgThread = msg.eventId || null;
       if (msgThread === activeThread) {
-        setMessages(prev => [...prev, msg]);
-        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+        setMessages(prev => {
+          // Replace optimistic message if it exists (same sender, same content)
+          const hasOptimistic = prev.some(m =>
+            m._id?.startsWith("opt_") &&
+            m.content === msg.content &&
+            (m.sender?._id === msg.sender?._id || m.sender?._id === currentUserId)
+          );
+          if (hasOptimistic) {
+            return prev.map(m =>
+              m._id?.startsWith("opt_") && m.content === msg.content ? msg : m
+            );
+          }
+          return [...prev, msg];
+        });
       }
     };
 
@@ -154,7 +166,7 @@ export default function GroupChat({ groupId, group, events = [] }) {
       eventId: activeThread,
     };
     setMessages(prev => [...prev, optimistic]);
-    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 30);
+    // Don't auto-scroll on send — user controls their position
 
     try {
       if (socket?.connected) {
