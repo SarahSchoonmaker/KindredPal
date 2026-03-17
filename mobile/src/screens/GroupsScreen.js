@@ -195,30 +195,7 @@ export default function GroupsScreen({ navigation }) {
         ))}
       </View>
 
-      {/* Category chips — compact horizontal scroll */}
-      {activeTab === "discover" && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.categoryScroll}
-          contentContainerStyle={styles.categoryContent}
-        >
-          {CATEGORIES.map(cat => (
-            <TouchableOpacity
-              key={cat}
-              style={[styles.chip, selectedCategory === cat && styles.chipActive]}
-              onPress={() => setSelectedCategory(cat)}
-            >
-              <Text style={styles.chipEmoji}>{CATEGORY_ICONS[cat]}</Text>
-              <Text style={[styles.chipText, selectedCategory === cat && styles.chipTextActive]}>
-                {cat === "All" ? "All" : cat}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      )}
-
-      {/* Group list */}
+      {/* Group list with category filter as header */}
       <FlatList
         data={displayedGroups}
         keyExtractor={item => item._id}
@@ -227,6 +204,22 @@ export default function GroupsScreen({ navigation }) {
         )}
         contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        ListHeaderComponent={activeTab === "discover" ? (
+          <View style={styles.categoryGrid}>
+            {CATEGORIES.map(cat => (
+              <TouchableOpacity
+                key={cat}
+                style={[styles.chip, selectedCategory === cat && styles.chipActive]}
+                onPress={() => setSelectedCategory(cat)}
+              >
+                <Text style={styles.chipEmoji}>{CATEGORY_ICONS[cat]}</Text>
+                <Text style={[styles.chipText, selectedCategory === cat && styles.chipTextActive]} numberOfLines={1}>
+                  {cat === "All" ? "All Groups" : cat}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : null}
         ListEmptyComponent={() => (
           <View style={styles.empty}>
             <Text style={styles.emptyIcon}>👥</Text>
@@ -296,34 +289,30 @@ const styles = StyleSheet.create({
   tabText: { fontSize: 13, fontWeight: "600", color: "#718096" },
   tabTextActive: { color: "#2B6CB0" },
 
-  categoryScroll: {
-    backgroundColor: "white",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
-    maxHeight: 52,
-  },
-  categoryContent: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+  categoryGrid: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
+    flexWrap: "wrap",
+    padding: 10,
+    gap: 8,
+    backgroundColor: "#F7FAFC",
   },
   chip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 16,
-    backgroundColor: "#F7FAFC",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: "white",
     borderWidth: 1,
     borderColor: "#E2E8F0",
+    minWidth: "47%",
+    flex: 0,
   },
   chipActive: { backgroundColor: "#2B6CB0", borderColor: "#2B6CB0" },
-  chipEmoji: { fontSize: 13 },
-  chipText: { fontSize: 12, fontWeight: "500", color: "#718096", whiteSpace: "nowrap" },
-  chipTextActive: { color: "white" },
+  chipEmoji: { fontSize: 16 },
+  chipText: { fontSize: 13, fontWeight: "500", color: "#4A5568", flex: 1 },
+  chipTextActive: { color: "white", fontWeight: "600" },
 
   listContent: { padding: 12 },
 
