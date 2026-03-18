@@ -10,7 +10,7 @@ const Landing = () => {
       {/* Nav */}
       <header className="landing-header">
         <div className="landing-logo">
-          <span className="landing-logo-icon">💙</span>
+          <img src="data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAmACIDASIAAhEBAxEB/8QAGgABAAIDAQAAAAAAAAAAAAAAAAYHAQIDBf/EACoQAAEDAwMDAwQDAAAAAAAAAAECAwQABREGEiEHMUEiQoEIEyNhMlGR/8QAGgEAAgIDAAAAAAAAAAAAAAAAAAQBAwIGB//EACIRAAIBAwQCAwAAAAAAAAAAAAEDAAIREyExUZEk8EFhcf/aAAwDAQACEQMRAD8AhhJJJJJJ7k0pVjaVs+mtH3G03fXckuvPbXW7SyyHS2hWdrj+TgJ920ZJ4/oiulOcFDa5+ANzNAUosPA54lc0q2NaxdF9QNTuDRctMC5BkJbjuRvssT1AE/jPBSv24UADgY8k1S824y8tl1CkONqKFpUMFJBwQahDw0aix4O8yckrOhuORAdcAwHFf7StaVfKZOeisHTE/Vwa1M41tSgKiNOubEOvbhhJPn9Jzz257HzOq62XOpN+WxJekpMo5W7ncFYG5PIHCVZSP0B371GQSCCCQRyCPFWNaTp7qJdIUe7uyLXf1JCHZDKApudtHnJ9LhSO/IJ+BSTKcTsxJItb899+mqKsisQABv3ILYiwm9wFSpDsZgSWy681/NtO4ZUnHkDkVZH1FQ9NR7+1Itjjabu+oquDTa8gekbVKT7VH4z3xzmuN+tukund/Ehtcu73ENh2FDfCdkdXhbqhjdyMhIA7c+DVbz5UifOfnTHS7IkOFx1Z8qJyaijyG0upJAA7vJqOFdSqgCSerTjSlKeikVlKlJUFJUUqByCDgg0pRCZcWt1wuOrW4s91KOSfmtaUohFKUohP/9k=" alt="KindredPal" className="landing-logo-img" />
           <span className="landing-logo-text">KindredPal</span>
         </div>
         <nav className="landing-nav">
@@ -24,7 +24,7 @@ const Landing = () => {
         <div className="landing-hero-inner">
           <div className="landing-hero-text">
             <div className="landing-hero-badge">Values-Based Community Groups</div>
-            <h1>Find your people.<br />For real this time.</h1>
+            <h1>Find your people.</h1>
             <p>
               KindredPal connects you with local groups built around shared
               faith, values, and life stage — so you walk in already knowing
@@ -36,20 +36,25 @@ const Landing = () => {
             </div>
           </div>
           <div className="landing-hero-visual">
-            <div className="landing-group-preview">
-              <div className="lgp-header">
-                <span className="lgp-icon">🙏</span>
-                <div>
-                  <div className="lgp-name">Sunday Morning Bible Study</div>
-                  <div className="lgp-meta">Faith & Spirituality · Boca Raton, FL</div>
-                </div>
+            <div className="landing-hero-card">
+              <div className="landing-hero-card-title">Find groups built around</div>
+              <div className="landing-hero-tags">
+                <span className="landing-hero-tag">🙏 Faith &amp; Spirituality</span>
+                <span className="landing-hero-tag">👩‍👧 Parents</span>
+                <span className="landing-hero-tag">🌿 Life Transitions</span>
+                <span className="landing-hero-tag">🏃 Sports &amp; Fitness</span>
+                <span className="landing-hero-tag">🤲 Caregiver Support</span>
+                <span className="landing-hero-tag">🌟 Single &amp; Childfree</span>
+                <span className="landing-hero-tag">🎯 Hobbies &amp; Interests</span>
+                <span className="landing-hero-tag">🏘️ Neighborhood &amp; Local</span>
+                <span className="landing-hero-tag">💼 Professional &amp; Networking</span>
+                <span className="landing-hero-tag">🌻 Aging Gracefully</span>
+                <span className="landing-hero-tag">🚀 Entrepreneurs</span>
+                <span className="landing-hero-tag">📍 New to the Area</span>
               </div>
-              <div className="lgp-members">
-                <div className="lgp-member-tag">🙏 Christian (Evangelical)</div>
-                <div className="lgp-member-tag">👨‍👩‍👧 Parents in this group</div>
-                <div className="lgp-member-tag">✅ 12 members going</div>
+              <div className="landing-hero-card-footer">
+                18 categories · Public &amp; private groups
               </div>
-              <div className="lgp-footer">Public group · Join instantly</div>
             </div>
           </div>
         </div>

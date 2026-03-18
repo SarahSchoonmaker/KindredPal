@@ -323,3 +323,45 @@
   .landing-hero-text h1 { font-size: 30px; }
   .landing-cta h2 { font-size: 28px; }
 }
+
+/* Hero category card */
+.landing-hero-card {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 20px;
+  padding: 24px;
+  backdrop-filter: blur(10px);
+}
+
+.landing-hero-card-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 16px;
+}
+
+.landing-hero-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.landing-hero-tag {
+  background: rgba(255,255,255,0.15);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.landing-hero-card-footer {
+  font-size: 12px;
+  color: rgba(255,255,255,0.55);
+  padding-top: 14px;
+  border-top: 1px solid rgba(255,255,255,0.15);
+}
