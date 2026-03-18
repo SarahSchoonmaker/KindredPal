@@ -60,7 +60,7 @@ export default function LoginScreen({ navigation }) {
           {/* Headline */}
           <Text style={styles.headline}>Find your people.</Text>
           <Text style={styles.subheadline}>
-            Groups built around shared faith, values, and life stage —
+            Groups built around shared values and life stage —
             so you walk in already knowing you belong.
           </Text>
 
