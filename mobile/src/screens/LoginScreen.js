@@ -7,6 +7,11 @@ import {
 import { authAPI } from "../services/api";
 import * as SecureStore from "expo-secure-store";
 
+const LOGO_URI = "data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAmACIDASIAAhEBAxEB/8QAGgABAAIDAQAAAAAAAAAAAAAAAAYHAQIDBf/EACoQAAEDAwMDAwQDAAAAAAAAAAECAwQABREGEiEHMUEiQoEIEyNhMlGR/8QAGgEAAgIDAAAAAAAAAAAAAAAAAAQBAwIGB//EACIRAAIBAwQCAwAAAAAAAAAAAAEDAAIREyExUZEk8EFhcf/aAAwDAQACEQMRAD8AhhJJJJJJ7k0pVjaVs+mtH3G03fXckuvPbXW7SyyHS2hWdrj+TgJ920ZJ4/oiulOcFDa5+ANzNAUosPA54lc0q2NaxdF9QNTuDRctMC5BkJbjuRvssT1AE/jPBSv24UADgY8k1S824y8tl1CkONqKFpUMFJBwQahDw0aix4O8yckrOhuORAdcAwHFf7StaVfKZOeisHTE/Vwa1M41tSgKiNOubEOvbhhJPn9Jzz257HzOq62XOpN+WxJekpMo5W7ncFYG5PIHCVZSP0B371GQSCCCQRyCPFWNaTp7qJdIUe7uyLXf1JCHZDKApudtHnJ9LhSO/IJ+BSTKcTsxJItb899+mqKsisQABv3ILYiwm9wFSpDsZgSWy681/NtO4ZUnHkDkVZH1FQ9NR7+1Itjjabu+oquDTa8gekbVKT7VH4z3xzmuN+tukund/Ehtcu73ENh2FDfCdkdXhbqhjdyMhIA7c+DVbz5UifOfnTHS7IkOFx1Z8qJyaijyG0upJAA7vJqOFdSqgCSerTjSlKeikVlKlJUFJUUqByCDgg0pRCZcWt1wuOrW4s91KOSfmtaUohFKUohP/9k=";
+
+const DARK_GREEN = "#1a4731";
+const MID_GREEN = "#276749";
+
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -40,13 +45,13 @@ export default function LoginScreen({ navigation }) {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Hero ── */}
-        <View style={styles.hero}>
+        {/* ── Brand Panel ── */}
+        <View style={styles.brandPanel}>
 
-          {/* Logo row */}
+          {/* Logo */}
           <View style={styles.logoRow}>
             <Image
-              source={require("../../assets/icon.png")}
+              source={{ uri: LOGO_URI }}
               style={styles.logoIcon}
             />
             <Text style={styles.logoText}>KindredPal</Text>
@@ -54,40 +59,36 @@ export default function LoginScreen({ navigation }) {
 
           {/* Headline */}
           <Text style={styles.headline}>Find your people.</Text>
-          <Text style={styles.headlineAccent}>For real this time.</Text>
-
           <Text style={styles.subheadline}>
             Groups built around shared faith, values, and life stage —
             so you walk in already knowing you belong.
           </Text>
 
           {/* Value props */}
-          <View style={styles.valueProps}>
+          <View style={styles.features}>
             {[
               { emoji: "🙏", title: "Values-first groups", desc: "See who's in a group before you join" },
               { emoji: "📅", title: "Real-life events",    desc: "RSVP and meet people in person" },
               { emoji: "💬", title: "Group & direct chat", desc: "Stay connected between meetups" },
             ].map((item, i) => (
-              <View key={i} style={styles.valueProp}>
-                <View style={styles.valuePropIcon}>
-                  <Text style={styles.valuePropEmoji}>{item.emoji}</Text>
-                </View>
-                <View style={styles.valuePropText}>
-                  <Text style={styles.valuePropTitle}>{item.title}</Text>
-                  <Text style={styles.valuePropDesc}>{item.desc}</Text>
+              <View key={i} style={styles.feature}>
+                <Text style={styles.featureEmoji}>{item.emoji}</Text>
+                <View style={styles.featureText}>
+                  <Text style={styles.featureTitle}>{item.title}</Text>
+                  <Text style={styles.featureDesc}>{item.desc}</Text>
                 </View>
               </View>
             ))}
           </View>
         </View>
 
-        {/* ── Form ── */}
-        <View style={styles.form}>
+        {/* ── Form Panel ── */}
+        <View style={styles.formPanel}>
           <Text style={styles.formTitle}>Welcome back</Text>
-          <Text style={styles.formSubtitle}>Sign in to your community</Text>
+          <Text style={styles.formSub}>Log in to find your community</Text>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Email</Text>
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>Email</Text>
             <TextInput
               style={styles.input}
               value={email}
@@ -100,8 +101,8 @@ export default function LoginScreen({ navigation }) {
             />
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Password</Text>
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>Password</Text>
             <View style={styles.passwordRow}>
               <TextInput
                 style={[styles.input, styles.passwordInput]}
@@ -111,10 +112,7 @@ export default function LoginScreen({ navigation }) {
                 placeholder="••••••••"
                 placeholderTextColor="#a0aec0"
               />
-              <TouchableOpacity
-                style={styles.eyeBtn}
-                onPress={() => setShowPassword(!showPassword)}
-              >
+              <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPassword(!showPassword)}>
                 <Text style={styles.eyeText}>{showPassword ? "Hide" : "Show"}</Text>
               </TouchableOpacity>
             </View>
@@ -158,18 +156,15 @@ export default function LoginScreen({ navigation }) {
   );
 }
 
-const BLUE = "#1a4280";
-const BLUE_DARK = "#0f3060";
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BLUE_DARK },
+  container: { flex: 1, backgroundColor: DARK_GREEN },
   scroll: { flexGrow: 1 },
 
-  // ── Hero ──
-  hero: {
-    backgroundColor: BLUE_DARK,
+  // ── Brand Panel ──
+  brandPanel: {
+    backgroundColor: DARK_GREEN,
     paddingTop: 64,
-    paddingBottom: 56,
+    paddingBottom: 52,
     paddingHorizontal: 28,
   },
 
@@ -177,78 +172,65 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginBottom: 36,
+    marginBottom: 32,
   },
   logoIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 10,
   },
   logoText: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: "800",
     color: "white",
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
   },
 
   headline: {
-    fontSize: 36,
+    fontSize: 34,
     fontWeight: "800",
     color: "white",
+    lineHeight: 40,
     letterSpacing: -0.5,
-    lineHeight: 42,
-  },
-  headlineAccent: {
-    fontSize: 36,
-    fontWeight: "800",
-    color: "rgba(255,255,255,0.65)",
-    letterSpacing: -0.5,
-    lineHeight: 42,
-    marginBottom: 16,
+    marginBottom: 14,
   },
   subheadline: {
     fontSize: 15,
-    color: "rgba(255,255,255,0.75)",
-    lineHeight: 23,
-    marginBottom: 36,
-    fontWeight: "400",
+    color: "rgba(255,255,255,0.8)",
+    lineHeight: 22,
+    marginBottom: 32,
   },
 
-  valueProps: { gap: 18 },
-  valueProp: {
+  features: { gap: 18 },
+  feature: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 14,
   },
-  valuePropIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.14)",
-    justifyContent: "center",
-    alignItems: "center",
-    flexShrink: 0,
+  featureEmoji: {
+    fontSize: 22,
+    marginTop: 1,
+    width: 28,
+    textAlign: "center",
   },
-  valuePropEmoji: { fontSize: 20 },
-  valuePropText: { flex: 1 },
-  valuePropTitle: {
-    fontSize: 15,
+  featureText: { flex: 1 },
+  featureTitle: {
+    fontSize: 14,
     fontWeight: "700",
     color: "white",
     marginBottom: 2,
-    letterSpacing: -0.2,
   },
-  valuePropDesc: {
+  featureDesc: {
     fontSize: 13,
-    color: "rgba(255,255,255,0.65)",
+    color: "rgba(255,255,255,0.7)",
     lineHeight: 17,
   },
 
-  // ── Form ──
-  form: {
+  // ── Form Panel ──
+  formPanel: {
     backgroundColor: "white",
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     paddingHorizontal: 28,
     paddingTop: 40,
     paddingBottom: 52,
@@ -260,35 +242,34 @@ const styles = StyleSheet.create({
   },
 
   formTitle: {
-    fontSize: 30,
+    fontSize: 28,
     fontWeight: "800",
-    color: "#0f1923",
+    color: "#1a202c",
     marginBottom: 4,
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
   },
-  formSubtitle: {
+  formSub: {
     fontSize: 15,
     color: "#718096",
-    marginBottom: 30,
-    fontWeight: "400",
+    marginBottom: 28,
   },
 
-  inputGroup: { marginBottom: 18 },
-  inputLabel: {
-    fontSize: 11,
+  field: { marginBottom: 16 },
+  fieldLabel: {
+    fontSize: 12,
     fontWeight: "700",
     color: "#4a5568",
-    marginBottom: 8,
+    marginBottom: 7,
     textTransform: "uppercase",
-    letterSpacing: 0.8,
+    letterSpacing: 0.6,
   },
   input: {
-    backgroundColor: "#f7fafc",
+    backgroundColor: "#f8fafc",
     borderWidth: 1.5,
     borderColor: "#e2e8f0",
     borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 13,
     fontSize: 16,
     color: "#1a202c",
   },
@@ -301,20 +282,20 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: "center",
   },
-  eyeText: { fontSize: 13, color: BLUE, fontWeight: "700" },
+  eyeText: { fontSize: 13, color: MID_GREEN, fontWeight: "700" },
 
-  forgotRow: { alignSelf: "flex-end", marginBottom: 24, marginTop: -6 },
-  forgotText: { fontSize: 13, color: BLUE, fontWeight: "600" },
+  forgotRow: { alignSelf: "flex-end", marginBottom: 22, marginTop: -4 },
+  forgotText: { fontSize: 13, color: MID_GREEN, fontWeight: "600" },
 
   loginBtn: {
-    backgroundColor: BLUE,
+    backgroundColor: MID_GREEN,
     borderRadius: 14,
-    paddingVertical: 17,
+    paddingVertical: 16,
     alignItems: "center",
-    marginBottom: 26,
-    shadowColor: BLUE_DARK,
+    marginBottom: 24,
+    shadowColor: DARK_GREEN,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 5,
   },
@@ -333,19 +314,18 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   divider: { flex: 1, height: 1, backgroundColor: "#edf2f7" },
-  dividerText: { fontSize: 12, color: "#a0aec0", fontWeight: "600", letterSpacing: 0.3 },
+  dividerText: { fontSize: 12, color: "#a0aec0", fontWeight: "600" },
 
   signupBtn: {
     borderWidth: 2,
-    borderColor: BLUE,
+    borderColor: MID_GREEN,
     borderRadius: 14,
     paddingVertical: 15,
     alignItems: "center",
   },
   signupBtnText: {
-    color: BLUE,
+    color: MID_GREEN,
     fontSize: 16,
     fontWeight: "700",
-    letterSpacing: 0.2,
   },
 });
