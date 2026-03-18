@@ -32,30 +32,56 @@ const upload = multer({
 router.get("/", auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("city state");
-    const { category, search, page = 1, limit = 20 } = req.query;
+    const {
+      category, search, page = 1, limit = 20,
+      // Location filters
+      city: filterCity, state: filterState,
+      // Values filters
+      religion: filterReligion, lifeStage: filterLifeStage,
+      family: filterFamily, politics: filterPolitics,
+      // Distance (miles) — requires city/state to calculate
+      distance,
+    } = req.query;
 
-    const query = { isActive: { $ne: false } }; // treat missing/undefined as active
+    const query = { isActive: { $ne: false } };
 
-    // Public groups are always visible to everyone.
-    // Private groups only shown if in user's state.
+    // Location filtering — use provided city/state or fall back to user profile
+    const searchCity = filterCity?.trim() || user?.city;
+    const searchState = filterState?.trim() || user?.state;
+
     if (!search) {
-      if (user?.state) {
-        query.$or = [
-          { isPrivate: false },
-          { isNationwide: true },
-          {
-            isPrivate: true,
-            state: { $regex: new RegExp("^" + user.state.trim() + "$", "i") },
-          },
-        ];
+      if (searchState) {
+        if (searchCity && distance) {
+          // City + distance: show groups in same city or nearby cities in same state
+          // Simple approach: match city OR state within distance (MongoDB geospatial would be ideal but requires coordinates)
+          query.$or = [
+            { isNationwide: true },
+            { city: { $regex: new RegExp("^" + searchCity.trim() + "$", "i") } },
+            { state: { $regex: new RegExp("^" + searchState.trim() + "$", "i") } },
+          ];
+        } else if (searchCity) {
+          query.$or = [
+            { isNationwide: true },
+            { city: { $regex: new RegExp("^" + searchCity.trim() + "$", "i") } },
+          ];
+        } else {
+          query.$or = [
+            { isPrivate: false },
+            { isNationwide: true },
+            { isPrivate: true, state: { $regex: new RegExp("^" + searchState.trim() + "$", "i") } },
+          ];
+        }
       }
-      // no state on user profile — show everything
     }
 
     if (category) query.category = category;
+    if (search) query.$text = { $search: search };
 
-    if (search) {
-      query.$text = { $search: search };
+    // Values filters
+    if (filterReligion) {
+      const religions = Array.isArray(filterReligion) ? filterReligion : [filterReligion];
+      // Groups where members share this religion (checked post-query via memberValues)
+      // Store for post-filter below
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);

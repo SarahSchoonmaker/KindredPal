@@ -121,6 +121,22 @@ function GroupCard({ group, onClick, currentUser }) {
 }
 
 // Filter drawer component
+const US_STATES_FILTER = [
+  "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA",
+  "KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
+  "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT",
+  "VA","WA","WV","WI","WY","DC",
+];
+
+const DISTANCE_OPTIONS = [
+  { label: "Same city", value: "city" },
+  { label: "25 miles", value: "25" },
+  { label: "50 miles", value: "50" },
+  { label: "100 miles", value: "100" },
+  { label: "Statewide", value: "state" },
+  { label: "Anywhere", value: "anywhere" },
+];
+
 function FilterDrawer({ filters, onChange, onClose, userProfile }) {
   const toggle = (field, val) => {
     const current = filters[field] || [];
@@ -132,7 +148,17 @@ function FilterDrawer({ filters, onChange, onClose, userProfile }) {
     });
   };
 
-  const activeCount = Object.values(filters).flat().length;
+  const set = (field, val) => onChange({ ...filters, [field]: val });
+
+  const activeCount = [
+    ...(filters.religion || []),
+    ...(filters.politics || []),
+    ...(filters.lifeStage || []),
+    ...(filters.family || []),
+    filters.city ? [1] : [],
+    filters.state ? [1] : [],
+    filters.distance ? [1] : [],
+  ].flat().length;
 
   return (
     <div className="filter-drawer">
@@ -148,8 +174,55 @@ function FilterDrawer({ filters, onChange, onClose, userProfile }) {
         </div>
       </div>
 
+      {/* ── Location ── */}
       <div className="filter-section">
-        <h4>Faith / Religion</h4>
+        <h4>📍 Location</h4>
+        <div className="filter-location-row">
+          <input
+            type="text"
+            className="filter-city-input"
+            placeholder="City"
+            value={filters.city || ""}
+            onChange={e => set("city", e.target.value)}
+          />
+          <select
+            className="filter-state-select"
+            value={filters.state || ""}
+            onChange={e => set("state", e.target.value)}
+          >
+            <option value="">Any state</option>
+            {US_STATES_FILTER.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+        {userProfile?.city && (
+          <button
+            className="btn-use-my-location"
+            onClick={() => onChange({ ...filters, city: userProfile.city, state: userProfile.state })}
+          >
+            📍 Use my location ({userProfile.city}, {userProfile.state})
+          </button>
+        )}
+      </div>
+
+      {/* ── Distance ── */}
+      <div className="filter-section">
+        <h4>📏 Distance / Range</h4>
+        <div className="filter-chips">
+          {DISTANCE_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              className={`filter-chip ${filters.distance === opt.value ? "active" : ""}`}
+              onClick={() => set("distance", filters.distance === opt.value ? null : opt.value)}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Faith ── */}
+      <div className="filter-section">
+        <h4>🙏 Faith / Religion</h4>
         <div className="filter-chips">
           {RELIGION_OPTIONS.map((r) => (
             <button
@@ -163,8 +236,9 @@ function FilterDrawer({ filters, onChange, onClose, userProfile }) {
         </div>
       </div>
 
+      {/* ── Politics ── */}
       <div className="filter-section">
-        <h4>Political Views</h4>
+        <h4>🗳️ Political Views</h4>
         <div className="filter-chips">
           {POLITICS_OPTIONS.map((p) => (
             <button
@@ -178,8 +252,9 @@ function FilterDrawer({ filters, onChange, onClose, userProfile }) {
         </div>
       </div>
 
+      {/* ── Life Stage ── */}
       <div className="filter-section">
-        <h4>Life Stage</h4>
+        <h4>🌱 Life Stage</h4>
         <div className="filter-chips">
           {LIFE_STAGE_OPTIONS.map((l) => (
             <button
@@ -193,8 +268,9 @@ function FilterDrawer({ filters, onChange, onClose, userProfile }) {
         </div>
       </div>
 
+      {/* ── Family ── */}
       <div className="filter-section">
-        <h4>Family Situation</h4>
+        <h4>👨‍👧 Family Situation</h4>
         <div className="filter-chips">
           {FAMILY_OPTIONS.map((f) => (
             <button
@@ -212,13 +288,16 @@ function FilterDrawer({ filters, onChange, onClose, userProfile }) {
         <button
           className="btn-match-my-values"
           onClick={() => onChange({
+            city: userProfile.city || "",
+            state: userProfile.state || "",
+            distance: "state",
             religion: userProfile.religion ? [userProfile.religion] : [],
             politics: userProfile.politicalBeliefs ? [userProfile.politicalBeliefs] : [],
             lifeStage: userProfile.lifeStage || [],
             family: userProfile.familySituation || [],
           })}
         >
-          ✨ Match My Values
+          ✨ Match My Values &amp; Location
         </button>
       )}
     </div>
@@ -264,6 +343,13 @@ export default function GroupsPage() {
     try {
       const params = {};
       if (selectedCategory !== "All") params.category = selectedCategory;
+      if (filters.city) params.city = filters.city;
+      if (filters.state) params.state = filters.state;
+      if (filters.distance) params.distance = filters.distance;
+      if (filters.religion?.length) params.religion = filters.religion;
+      if (filters.politics?.length) params.politics = filters.politics;
+      if (filters.lifeStage?.length) params.lifeStage = filters.lifeStage;
+      if (filters.family?.length) params.family = filters.family;
       if (search) params.search = search;
 
       const [discoverRes, myRes] = await Promise.all([

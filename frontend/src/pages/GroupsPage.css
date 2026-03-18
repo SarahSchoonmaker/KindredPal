@@ -444,3 +444,41 @@
   font-weight: 600;
   cursor: pointer;
 }
+
+/* ── Location filter ── */
+.filter-location-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.filter-city-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #2d3748;
+  background: #f8fafc;
+}
+.filter-city-input:focus { outline: none; border-color: #2563eb; }
+.filter-state-select {
+  width: 90px;
+  padding: 8px 10px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #f8fafc;
+  color: #2d3748;
+}
+.filter-state-select:focus { outline: none; border-color: #2563eb; }
+.btn-use-my-location {
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: #2563eb;
+  cursor: pointer;
+  padding: 2px 0;
+  text-align: left;
+  font-weight: 500;
+}
+.btn-use-my-location:hover { text-decoration: underline; }

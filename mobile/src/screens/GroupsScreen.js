@@ -1,12 +1,41 @@
 import React, { useState, useCallback } from "react";
 import {
   View, ScrollView, TouchableOpacity, StyleSheet,
-  RefreshControl, TextInput, Image, FlatList,
+  RefreshControl, TextInput, Image, FlatList, Modal,
 } from "react-native";
 import { Text, ActivityIndicator } from "react-native-paper";
-import { Users, Search, Plus, Lock, Globe, SlidersHorizontal } from "lucide-react-native";
+import { Users, Search, Plus, Lock, Globe, SlidersHorizontal, X } from "lucide-react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import api from "../services/api";
+
+const US_STATES_F = [
+  "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA",
+  "KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
+  "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT",
+  "VA","WA","WV","WI","WY","DC",
+];
+
+const DISTANCE_OPTS = [
+  { label: "Same city", value: "city" },
+  { label: "25 miles", value: "25" },
+  { label: "50 miles", value: "50" },
+  { label: "100 miles", value: "100" },
+  { label: "Statewide", value: "state" },
+  { label: "Anywhere", value: "anywhere" },
+];
+
+const RELIGION_OPTS = [
+  "None","Spiritual but not religious","Christian (Catholic)","Christian (Protestant)",
+  "Christian (Evangelical)","Christian (Orthodox)","Jewish","Muslim","Hindu",
+  "Buddhist","Mormon / LDS","Other",
+];
+
+const POLITICS_OPTS = ["Conservative","Moderate","Liberal","Prefer not to say"];
+
+const LIFE_STAGE_OPTS = [
+  "Single","In a relationship","Married","Divorced","Widowed",
+  "Empty nester","Retired","Caregiver","Aging Alone","New Career","New To Town",
+];
 
 const CATEGORIES = [
   "All",
@@ -117,12 +146,21 @@ export default function GroupsScreen({ navigation }) {
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [activeTab, setActiveTab] = useState("discover");
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    city: "", state: "", distance: "", religion: [], lifeStage: [],
+  });
 
   const fetchGroups = useCallback(async () => {
     try {
       const params = {};
       if (selectedCategory !== "All") params.category = selectedCategory;
       if (search) params.search = search;
+      if (filters.city) params.city = filters.city;
+      if (filters.state) params.state = filters.state;
+      if (filters.distance) params.distance = filters.distance;
+      if (filters.religion?.length) params.religion = filters.religion;
+      if (filters.lifeStage?.length) params.lifeStage = filters.lifeStage;
 
       const [discoverRes, myRes] = await Promise.all([
         api.get("/groups", { params }),
@@ -179,6 +217,12 @@ export default function GroupsScreen({ navigation }) {
             placeholderTextColor="#a0aec0"
           />
         </View>
+        <TouchableOpacity
+          style={[styles.filterBtn, Object.values(filters).flat().filter(Boolean).length > 0 && styles.filterBtnActive]}
+          onPress={() => setShowFilters(true)}
+        >
+          <SlidersHorizontal size={18} color={Object.values(filters).flat().filter(Boolean).length > 0 ? "white" : "#4a5568"} />
+        </TouchableOpacity>
         <TouchableOpacity
           style={styles.createBtn}
           onPress={() => navigation.navigate("CreateGroup")}
@@ -252,6 +296,121 @@ export default function GroupsScreen({ navigation }) {
         )}
         ListFooterComponent={<View style={{ height: 80 }} />}
       />
+
+      {/* Filter Modal */}
+      <Modal visible={showFilters} animationType="slide" presentationStyle="pageSheet">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Filter Groups</Text>
+            <TouchableOpacity onPress={() => setShowFilters(false)}>
+              <X size={22} color="#4a5568" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+
+            {/* Location */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>📍 Location</Text>
+              <View style={styles.locationRow}>
+                <TextInput
+                  style={[styles.filterInput, { flex: 1 }]}
+                  placeholder="City"
+                  value={filters.city}
+                  onChangeText={v => setFilters(f => ({ ...f, city: v }))}
+                  placeholderTextColor="#a0aec0"
+                />
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.stateScroll}>
+                  {US_STATES_F.map(s => (
+                    <TouchableOpacity
+                      key={s}
+                      style={[styles.stateChip, filters.state === s && styles.stateChipActive]}
+                      onPress={() => setFilters(f => ({ ...f, state: f.state === s ? "" : s }))}
+                    >
+                      <Text style={[styles.stateChipText, filters.state === s && styles.stateChipTextActive]}>{s}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </View>
+
+            {/* Distance */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>📏 Distance / Range</Text>
+              <View style={styles.chipRow}>
+                {DISTANCE_OPTS.map(opt => (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[styles.filterChip, filters.distance === opt.value && styles.filterChipActive]}
+                    onPress={() => setFilters(f => ({ ...f, distance: f.distance === opt.value ? "" : opt.value }))}
+                  >
+                    <Text style={[styles.filterChipText, filters.distance === opt.value && styles.filterChipTextActive]}>
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Faith */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>🙏 Faith / Religion</Text>
+              <View style={styles.chipRow}>
+                {RELIGION_OPTS.map(r => (
+                  <TouchableOpacity
+                    key={r}
+                    style={[styles.filterChip, (filters.religion || []).includes(r) && styles.filterChipActive]}
+                    onPress={() => {
+                      const cur = filters.religion || [];
+                      setFilters(f => ({ ...f, religion: cur.includes(r) ? cur.filter(v => v !== r) : [...cur, r] }));
+                    }}
+                  >
+                    <Text style={[styles.filterChipText, (filters.religion || []).includes(r) && styles.filterChipTextActive]}>{r}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Life Stage */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>🌱 Life Stage</Text>
+              <View style={styles.chipRow}>
+                {LIFE_STAGE_OPTS.map(l => (
+                  <TouchableOpacity
+                    key={l}
+                    style={[styles.filterChip, (filters.lifeStage || []).includes(l) && styles.filterChipActive]}
+                    onPress={() => {
+                      const cur = filters.lifeStage || [];
+                      setFilters(f => ({ ...f, lifeStage: cur.includes(l) ? cur.filter(v => v !== l) : [...cur, l] }));
+                    }}
+                  >
+                    <Text style={[styles.filterChipText, (filters.lifeStage || []).includes(l) && styles.filterChipTextActive]}>{l}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={{ height: 20 }} />
+          </ScrollView>
+
+          {/* Modal footer buttons */}
+          <View style={styles.modalFooter}>
+            <TouchableOpacity
+              style={styles.btnClearFilters}
+              onPress={() => setFilters({ city: "", state: "", distance: "", religion: [], lifeStage: [] })}
+            >
+              <Text style={styles.btnClearFiltersText}>Clear All</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.btnApplyFilters}
+              onPress={() => { setShowFilters(false); setLoading(true); fetchGroups(); }}
+            >
+              <Text style={styles.btnApplyFiltersText}>Apply Filters</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }
@@ -400,4 +559,59 @@ const styles = StyleSheet.create({
   emptyIcon: { fontSize: 48, marginBottom: 12 },
   emptyTitle: { fontSize: 18, fontWeight: "700", color: "#2D3748", marginBottom: 6 },
   emptyText: { fontSize: 14, color: "#718096", textAlign: "center", paddingHorizontal: 32 },
+
+  filterBtn: {
+    width: 40, height: 40, borderRadius: 10,
+    backgroundColor: "#f7fafc", borderWidth: 1, borderColor: "#e2e8f0",
+    justifyContent: "center", alignItems: "center",
+  },
+  filterBtnActive: { backgroundColor: "#2B6CB0", borderColor: "#2B6CB0" },
+
+  // Modal
+  modalContainer: { flex: 1, backgroundColor: "white" },
+  modalHeader: {
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    padding: 20, borderBottomWidth: 1, borderBottomColor: "#e2e8f0",
+  },
+  modalTitle: { fontSize: 18, fontWeight: "700", color: "#1a202c" },
+  modalScroll: { flex: 1, padding: 16 },
+  filterSection: { marginBottom: 24 },
+  filterSectionTitle: { fontSize: 14, fontWeight: "700", color: "#2d3748", marginBottom: 12 },
+  locationRow: { gap: 10 },
+  filterInput: {
+    borderWidth: 1.5, borderColor: "#e2e8f0", borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 10, fontSize: 14,
+    color: "#2d3748", backgroundColor: "#f8fafc", marginBottom: 8,
+  },
+  stateScroll: { flexGrow: 0 },
+  stateChip: {
+    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16,
+    backgroundColor: "#f7fafc", borderWidth: 1, borderColor: "#e2e8f0",
+    marginRight: 6,
+  },
+  stateChipActive: { backgroundColor: "#2B6CB0", borderColor: "#2B6CB0" },
+  stateChipText: { fontSize: 12, fontWeight: "600", color: "#718096" },
+  stateChipTextActive: { color: "white" },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  filterChip: {
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16,
+    backgroundColor: "#f7fafc", borderWidth: 1.5, borderColor: "#e2e8f0",
+  },
+  filterChipActive: { backgroundColor: "#2B6CB0", borderColor: "#2B6CB0" },
+  filterChipText: { fontSize: 13, fontWeight: "500", color: "#4a5568" },
+  filterChipTextActive: { color: "white", fontWeight: "600" },
+  modalFooter: {
+    flexDirection: "row", gap: 12, padding: 16,
+    borderTopWidth: 1, borderTopColor: "#e2e8f0",
+  },
+  btnClearFilters: {
+    flex: 1, paddingVertical: 13, borderRadius: 12,
+    borderWidth: 1.5, borderColor: "#e2e8f0", alignItems: "center",
+  },
+  btnClearFiltersText: { fontSize: 15, fontWeight: "600", color: "#718096" },
+  btnApplyFilters: {
+    flex: 2, paddingVertical: 13, borderRadius: 12,
+    backgroundColor: "#2B6CB0", alignItems: "center",
+  },
+  btnApplyFiltersText: { fontSize: 15, fontWeight: "700", color: "white" },
 });
