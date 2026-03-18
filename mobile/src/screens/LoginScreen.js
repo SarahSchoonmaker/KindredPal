@@ -9,8 +9,8 @@ import * as SecureStore from "expo-secure-store";
 
 const LOGO_URI = "data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAmACIDASIAAhEBAxEB/8QAGgABAAIDAQAAAAAAAAAAAAAAAAYHAQIDBf/EACoQAAEDAwMDAwQDAAAAAAAAAAECAwQABREGEiEHMUEiQoEIEyNhMlGR/8QAGgEAAgIDAAAAAAAAAAAAAAAAAAQBAwIGB//EACIRAAIBAwQCAwAAAAAAAAAAAAEDAAIREyExUZEk8EFhcf/aAAwDAQACEQMRAD8AhhJJJJJJ7k0pVjaVs+mtH3G03fXckuvPbXW7SyyHS2hWdrj+TgJ920ZJ4/oiulOcFDa5+ANzNAUosPA54lc0q2NaxdF9QNTuDRctMC5BkJbjuRvssT1AE/jPBSv24UADgY8k1S824y8tl1CkONqKFpUMFJBwQahDw0aix4O8yckrOhuORAdcAwHFf7StaVfKZOeisHTE/Vwa1M41tSgKiNOubEOvbhhJPn9Jzz257HzOq62XOpN+WxJekpMo5W7ncFYG5PIHCVZSP0B371GQSCCCQRyCPFWNaTp7qJdIUe7uyLXf1JCHZDKApudtHnJ9LhSO/IJ+BSTKcTsxJItb899+mqKsisQABv3ILYiwm9wFSpDsZgSWy681/NtO4ZUnHkDkVZH1FQ9NR7+1Itjjabu+oquDTa8gekbVKT7VH4z3xzmuN+tukund/Ehtcu73ENh2FDfCdkdXhbqhjdyMhIA7c+DVbz5UifOfnTHS7IkOFx1Z8qJyaijyG0upJAA7vJqOFdSqgCSerTjSlKeikVlKlJUFJUUqByCDgg0pRCZcWt1wuOrW4s91KOSfmtaUohFKUohP/9k=";
 
-const DARK_GREEN = "#1a4731";
-const MID_GREEN = "#276749";
+const MEDIUM_BLUE = "#1e4d8c";
+const BLUE = "#2d6abf";
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
@@ -157,12 +157,12 @@ export default function LoginScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: DARK_GREEN },
+  container: { flex: 1, backgroundColor: MEDIUM_BLUE },
   scroll: { flexGrow: 1 },
 
   // ── Brand Panel ──
   brandPanel: {
-    backgroundColor: DARK_GREEN,
+    backgroundColor: MEDIUM_BLUE,
     paddingTop: 64,
     paddingBottom: 52,
     paddingHorizontal: 28,
@@ -282,18 +282,18 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: "center",
   },
-  eyeText: { fontSize: 13, color: MID_GREEN, fontWeight: "700" },
+  eyeText: { fontSize: 13, color: BLUE, fontWeight: "700" },
 
   forgotRow: { alignSelf: "flex-end", marginBottom: 22, marginTop: -4 },
-  forgotText: { fontSize: 13, color: MID_GREEN, fontWeight: "600" },
+  forgotText: { fontSize: 13, color: BLUE, fontWeight: "600" },
 
   loginBtn: {
-    backgroundColor: MID_GREEN,
+    backgroundColor: BLUE,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: "center",
     marginBottom: 24,
-    shadowColor: DARK_GREEN,
+    shadowColor: MEDIUM_BLUE,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
@@ -318,13 +318,13 @@ const styles = StyleSheet.create({
 
   signupBtn: {
     borderWidth: 2,
-    borderColor: MID_GREEN,
+    borderColor: BLUE,
     borderRadius: 14,
     paddingVertical: 15,
     alignItems: "center",
   },
   signupBtnText: {
-    color: MID_GREEN,
+    color: BLUE,
     fontSize: 16,
     fontWeight: "700",
   },

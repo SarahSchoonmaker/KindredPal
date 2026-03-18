@@ -45,32 +45,38 @@ router.get("/", auth, async (req, res) => {
 
     const query = { isActive: { $ne: false } };
 
-    // Location filtering — use provided city/state or fall back to user profile
-    const searchCity = filterCity?.trim() || user?.city;
-    const searchState = filterState?.trim() || user?.state;
+    // Location filtering — ONLY filter when user has explicitly provided filter params
+    // No filter = show all public groups nationwide
+    const searchCity = filterCity?.trim();
+    const searchState = filterState?.trim();
 
     if (!search) {
-      if (searchState) {
-        if (searchCity && distance) {
-          // City + distance: show groups in same city or nearby cities in same state
-          // Simple approach: match city OR state within distance (MongoDB geospatial would be ideal but requires coordinates)
-          query.$or = [
-            { isNationwide: true },
-            { city: { $regex: new RegExp("^" + searchCity.trim() + "$", "i") } },
-            { state: { $regex: new RegExp("^" + searchState.trim() + "$", "i") } },
-          ];
-        } else if (searchCity) {
-          query.$or = [
-            { isNationwide: true },
-            { city: { $regex: new RegExp("^" + searchCity.trim() + "$", "i") } },
-          ];
-        } else {
-          query.$or = [
-            { isPrivate: false },
-            { isNationwide: true },
-            { isPrivate: true, state: { $regex: new RegExp("^" + searchState.trim() + "$", "i") } },
-          ];
-        }
+      if (searchCity && searchState) {
+        // Explicit city + state filter — show public groups in that city/state
+        query.$or = [
+          { isNationwide: true, isPrivate: false },
+          {
+            isPrivate: false,
+            city: { $regex: new RegExp("^" + searchCity + "$", "i") },
+            state: { $regex: new RegExp("^" + searchState + "$", "i") },
+          },
+        ];
+      } else if (searchState) {
+        // State-only filter
+        query.$or = [
+          { isNationwide: true, isPrivate: false },
+          { isPrivate: false, state: { $regex: new RegExp("^" + searchState + "$", "i") } },
+        ];
+      } else if (searchCity) {
+        // City-only filter
+        query.$or = [
+          { isNationwide: true, isPrivate: false },
+          { isPrivate: false, city: { $regex: new RegExp("^" + searchCity + "$", "i") } },
+        ];
+      } else {
+        // No location filter — show ALL public groups nationwide
+        // Private groups only shown to members (handled in group detail)
+        query.isPrivate = false;
       }
     }
 
