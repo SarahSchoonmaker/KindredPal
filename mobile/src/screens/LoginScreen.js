@@ -54,7 +54,7 @@ export default function LoginScreen({ navigation }) {
           </View>
 
           {/* Headline */}
-          <Text style={styles.headline}>Find your people.{"\n"}For real this time.</Text>
+          <Text style={styles.headline}>Find your people.{"\n"}</Text>
           <Text style={styles.subheadline}>
             Groups built around shared faith, values, and life stage.
             Walk in already knowing you belong.
