@@ -15,7 +15,7 @@
 /* ── Brand panel (left) ── */
 .auth-brand-panel {
   flex: 1;
-  background: linear-gradient(150deg, #0d2b1e 0%, #276749 100%);
+  background: linear-gradient(150deg, #1e4d8c 0%, #2d6abf 100%);
   display: flex;
   align-items: center;
   justify-content: center;
