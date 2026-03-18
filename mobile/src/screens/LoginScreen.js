@@ -4,7 +4,6 @@ import {
   KeyboardAvoidingView, Platform, TouchableOpacity,
   Text, Image, TextInput,
 } from "react-native";
-import { Button } from "react-native-paper";
 import { authAPI } from "../services/api";
 import * as SecureStore from "expo-secure-store";
 
@@ -44,7 +43,7 @@ export default function LoginScreen({ navigation }) {
         {/* ── Hero ── */}
         <View style={styles.hero}>
 
-          {/* Logo */}
+          {/* Logo row */}
           <View style={styles.logoRow}>
             <Image
               source={require("../../assets/icon.png")}
@@ -54,41 +53,31 @@ export default function LoginScreen({ navigation }) {
           </View>
 
           {/* Headline */}
-          <Text style={styles.headline}>Find your people.{"\n"}</Text>
+          <Text style={styles.headline}>Find your people.</Text>
+          <Text style={styles.headlineAccent}>For real this time.</Text>
+
           <Text style={styles.subheadline}>
-            Groups built around shared faith, values, and life stage.
-            Walk in already knowing you belong.
+            Groups built around shared faith, values, and life stage —
+            so you walk in already knowing you belong.
           </Text>
 
           {/* Value props */}
           <View style={styles.valueProps}>
-            <View style={styles.valueProp}>
-              <View style={styles.valuePropIcon}>
-                <Text style={styles.valuePropEmoji}>🙏</Text>
+            {[
+              { emoji: "🙏", title: "Values-first groups", desc: "See who's in a group before you join" },
+              { emoji: "📅", title: "Real-life events",    desc: "RSVP and meet people in person" },
+              { emoji: "💬", title: "Group & direct chat", desc: "Stay connected between meetups" },
+            ].map((item, i) => (
+              <View key={i} style={styles.valueProp}>
+                <View style={styles.valuePropIcon}>
+                  <Text style={styles.valuePropEmoji}>{item.emoji}</Text>
+                </View>
+                <View style={styles.valuePropText}>
+                  <Text style={styles.valuePropTitle}>{item.title}</Text>
+                  <Text style={styles.valuePropDesc}>{item.desc}</Text>
+                </View>
               </View>
-              <View style={styles.valuePropText}>
-                <Text style={styles.valuePropTitle}>Values-first groups</Text>
-                <Text style={styles.valuePropDesc}>See who's in a group before you join</Text>
-              </View>
-            </View>
-            <View style={styles.valueProp}>
-              <View style={styles.valuePropIcon}>
-                <Text style={styles.valuePropEmoji}>📅</Text>
-              </View>
-              <View style={styles.valuePropText}>
-                <Text style={styles.valuePropTitle}>Real-life events</Text>
-                <Text style={styles.valuePropDesc}>RSVP and meet people in person</Text>
-              </View>
-            </View>
-            <View style={styles.valueProp}>
-              <View style={styles.valuePropIcon}>
-                <Text style={styles.valuePropEmoji}>💬</Text>
-              </View>
-              <View style={styles.valuePropText}>
-                <Text style={styles.valuePropTitle}>Group & direct chat</Text>
-                <Text style={styles.valuePropDesc}>Stay connected between meetups</Text>
-              </View>
-            </View>
+            ))}
           </View>
         </View>
 
@@ -142,6 +131,7 @@ export default function LoginScreen({ navigation }) {
             style={[styles.loginBtn, (!email || !password || loading) && styles.loginBtnDisabled]}
             onPress={handleLogin}
             disabled={!email || !password || loading}
+            activeOpacity={0.85}
           >
             <Text style={styles.loginBtnText}>
               {loading ? "Signing in..." : "Sign In"}
@@ -157,6 +147,7 @@ export default function LoginScreen({ navigation }) {
           <TouchableOpacity
             style={styles.signupBtn}
             onPress={() => navigation.navigate("Signup")}
+            activeOpacity={0.85}
           >
             <Text style={styles.signupBtnText}>Create a Free Account</Text>
           </TouchableOpacity>
@@ -167,60 +158,73 @@ export default function LoginScreen({ navigation }) {
   );
 }
 
+const BLUE = "#1a4280";
+const BLUE_DARK = "#0f3060";
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#1a56a0" },
+  container: { flex: 1, backgroundColor: BLUE_DARK },
   scroll: { flexGrow: 1 },
 
   // ── Hero ──
   hero: {
-    backgroundColor: "#1a56a0",
-    paddingTop: 60,
-    paddingBottom: 52,
+    backgroundColor: BLUE_DARK,
+    paddingTop: 64,
+    paddingBottom: 56,
     paddingHorizontal: 28,
   },
 
   logoRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    marginBottom: 32,
+    gap: 12,
+    marginBottom: 36,
   },
-  logoIcon: { width: 44, height: 44, borderRadius: 12 },
+  logoIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+  },
   logoText: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: "800",
     color: "white",
     letterSpacing: -0.5,
   },
 
   headline: {
-    fontSize: 34,
+    fontSize: 36,
     fontWeight: "800",
     color: "white",
-    lineHeight: 40,
-    marginBottom: 14,
     letterSpacing: -0.5,
+    lineHeight: 42,
+  },
+  headlineAccent: {
+    fontSize: 36,
+    fontWeight: "800",
+    color: "rgba(255,255,255,0.65)",
+    letterSpacing: -0.5,
+    lineHeight: 42,
+    marginBottom: 16,
   },
   subheadline: {
     fontSize: 15,
-    color: "rgba(255,255,255,0.8)",
-    lineHeight: 22,
-    marginBottom: 32,
+    color: "rgba(255,255,255,0.75)",
+    lineHeight: 23,
+    marginBottom: 36,
+    fontWeight: "400",
   },
 
-  valueProps: {
-    gap: 16,
-  },
+  valueProps: { gap: 18 },
   valueProp: {
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
   },
   valuePropIcon: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.18)",
+    backgroundColor: "rgba(255,255,255,0.14)",
     justifyContent: "center",
     alignItems: "center",
     flexShrink: 0,
@@ -228,66 +232,68 @@ const styles = StyleSheet.create({
   valuePropEmoji: { fontSize: 20 },
   valuePropText: { flex: 1 },
   valuePropTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "700",
     color: "white",
     marginBottom: 2,
+    letterSpacing: -0.2,
   },
   valuePropDesc: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.72)",
-    lineHeight: 16,
+    fontSize: 13,
+    color: "rgba(255,255,255,0.65)",
+    lineHeight: 17,
   },
 
   // ── Form ──
   form: {
     backgroundColor: "white",
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     paddingHorizontal: 28,
-    paddingTop: 36,
-    paddingBottom: 48,
+    paddingTop: 40,
+    paddingBottom: 52,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 10,
   },
 
   formTitle: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: "800",
-    color: "#1a202c",
+    color: "#0f1923",
     marginBottom: 4,
-    letterSpacing: -0.3,
+    letterSpacing: -0.5,
   },
   formSubtitle: {
     fontSize: 15,
     color: "#718096",
-    marginBottom: 28,
+    marginBottom: 30,
+    fontWeight: "400",
   },
 
-  inputGroup: { marginBottom: 16 },
+  inputGroup: { marginBottom: 18 },
   inputLabel: {
-    fontSize: 13,
-    fontWeight: "600",
+    fontSize: 11,
+    fontWeight: "700",
     color: "#4a5568",
-    marginBottom: 7,
+    marginBottom: 8,
     textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
   input: {
-    backgroundColor: "#f8fafc",
+    backgroundColor: "#f7fafc",
     borderWidth: 1.5,
     borderColor: "#e2e8f0",
     borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 13,
+    paddingVertical: 14,
     fontSize: 16,
     color: "#1a202c",
   },
   passwordRow: { position: "relative" },
-  passwordInput: { paddingRight: 64 },
+  passwordInput: { paddingRight: 68 },
   eyeBtn: {
     position: "absolute",
     right: 14,
@@ -295,24 +301,24 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: "center",
   },
-  eyeText: { fontSize: 13, color: "#2B6CB0", fontWeight: "600" },
+  eyeText: { fontSize: 13, color: BLUE, fontWeight: "700" },
 
-  forgotRow: { alignSelf: "flex-end", marginBottom: 24, marginTop: -4 },
-  forgotText: { fontSize: 13, color: "#2B6CB0", fontWeight: "600" },
+  forgotRow: { alignSelf: "flex-end", marginBottom: 24, marginTop: -6 },
+  forgotText: { fontSize: 13, color: BLUE, fontWeight: "600" },
 
   loginBtn: {
-    backgroundColor: "#2B6CB0",
+    backgroundColor: BLUE,
     borderRadius: 14,
-    paddingVertical: 16,
+    paddingVertical: 17,
     alignItems: "center",
-    marginBottom: 24,
-    shadowColor: "#2B6CB0",
+    marginBottom: 26,
+    shadowColor: BLUE_DARK,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 5,
   },
-  loginBtnDisabled: { opacity: 0.55, shadowOpacity: 0 },
+  loginBtnDisabled: { opacity: 0.5, shadowOpacity: 0 },
   loginBtnText: {
     color: "white",
     fontSize: 17,
@@ -323,21 +329,21 @@ const styles = StyleSheet.create({
   dividerRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
     marginBottom: 20,
   },
-  divider: { flex: 1, height: 1, backgroundColor: "#e2e8f0" },
-  dividerText: { fontSize: 13, color: "#a0aec0", fontWeight: "500" },
+  divider: { flex: 1, height: 1, backgroundColor: "#edf2f7" },
+  dividerText: { fontSize: 12, color: "#a0aec0", fontWeight: "600", letterSpacing: 0.3 },
 
   signupBtn: {
     borderWidth: 2,
-    borderColor: "#2B6CB0",
+    borderColor: BLUE,
     borderRadius: 14,
-    paddingVertical: 14,
+    paddingVertical: 15,
     alignItems: "center",
   },
   signupBtnText: {
-    color: "#2B6CB0",
+    color: BLUE,
     fontSize: 16,
     fontWeight: "700",
     letterSpacing: 0.2,

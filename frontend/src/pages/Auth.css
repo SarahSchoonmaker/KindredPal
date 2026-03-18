@@ -15,7 +15,7 @@
 /* ── Brand panel (left) ── */
 .auth-brand-panel {
   flex: 1;
-  background: linear-gradient(150deg, #1a4731 0%, #276749 100%);
+  background: linear-gradient(150deg, #0d2b1e 0%, #276749 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -25,12 +25,16 @@
 .auth-brand-content { max-width: 400px; }
 
 .auth-brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-size: 20px;
   font-weight: 800;
   color: white;
   margin-bottom: 32px;
   opacity: 0.95;
 }
+.auth-brand-logo-img { width: 36px; height: 36px; border-radius: 8px; object-fit: contain; }
 
 .auth-brand-headline {
   font-size: 36px;
@@ -138,7 +142,7 @@
 }
 
 .auth-field input:focus {
-  border-color: #2B6CB0;
+  border-color: #1a4280;
   background: white;
 }
 
@@ -149,7 +153,7 @@
 
 .auth-forgot a {
   font-size: 13px;
-  color: #2B6CB0;
+  color: #1a4280;
   text-decoration: none;
   font-weight: 500;
 }
@@ -157,7 +161,7 @@
 .auth-submit-btn {
   width: 100%;
   padding: 13px;
-  background: #2B6CB0;
+  background: #1a4280;
   color: white;
   border: none;
   border-radius: 10px;
@@ -168,7 +172,7 @@
   margin-top: 4px;
 }
 
-.auth-submit-btn:hover:not(:disabled) { background: #1a56a0; }
+.auth-submit-btn:hover:not(:disabled) { background: #0f3460; }
 .auth-submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .auth-switch {
@@ -178,7 +182,7 @@
   margin-top: 16px;
 }
 
-.auth-switch a { color: #2B6CB0; text-decoration: none; }
+.auth-switch a { color: #1a4280; text-decoration: none; }
 .auth-switch a:hover { text-decoration: underline; }
 
 /* ── Responsive ── */
