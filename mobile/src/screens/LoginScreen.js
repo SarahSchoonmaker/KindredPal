@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   View, StyleSheet, ScrollView, Alert,
-  KeyboardAvoidingView, Platform, TouchableOpacity, Text,
+  KeyboardAvoidingView, Platform, TouchableOpacity, Text, Image,
 } from "react-native";
 import { TextInput, Button, ActivityIndicator } from "react-native-paper";
 import { authAPI } from "../services/api";
@@ -37,8 +37,11 @@ export default function LoginScreen({ navigation }) {
 
         {/* Hero */}
         <View style={styles.hero}>
-          <Text style={styles.logo}>💜 KindredPal</Text>
-          <Text style={styles.heroTitle}>Find your people.{"\n"}</Text>
+          <View style={styles.logoRow}>
+            <Image source={require("../../assets/icon.png")} style={styles.logoIcon} />
+            <Text style={styles.logoText}>KindredPal</Text>
+          </View>
+          <Text style={styles.heroTitle}>Find your people.{"\n"}For real this time.</Text>
           <Text style={styles.heroSubtitle}>
             Groups built around shared values, faith, and life stage — so you can
             meet people who actually get you.
@@ -62,7 +65,7 @@ export default function LoginScreen({ navigation }) {
 
         {/* Form */}
         <View style={styles.form}>
-          <Text style={styles.formTitle}>Welcome!</Text>
+          <Text style={styles.formTitle}>Welcome back</Text>
           <Text style={styles.formSubtitle}>Log in to find your community</Text>
 
           <TextInput
@@ -128,7 +131,9 @@ const styles = StyleSheet.create({
     paddingBottom: 48,
     paddingHorizontal: 28,
   },
-  logo: { fontSize: 22, fontWeight: "800", color: "white", marginBottom: 20, opacity: 0.95 },
+  logoRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 20 },
+  logoIcon: { width: 40, height: 40, borderRadius: 10 },
+  logoText: { fontSize: 22, fontWeight: "800", color: "white", opacity: 0.95 },
   heroTitle: { fontSize: 30, fontWeight: "800", color: "white", lineHeight: 36, marginBottom: 14 },
   heroSubtitle: { fontSize: 15, color: "white", opacity: 0.85, lineHeight: 22, marginBottom: 28 },
 

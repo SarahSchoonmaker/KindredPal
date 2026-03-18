@@ -18,7 +18,7 @@ import api from "../services/api";
 
 const CATEGORY_ICONS = {
   "Sports & Fitness": "🏃", "Faith & Spirituality": "🙏", "Life Stage": "🌱",
-  "Hobbies & Interests": "🎯", "Social & Singles": "👥", "Support & Wellness": "💙",
+  "Hobbies & Interests": "🎯", "Social & Singles": "👥", "Support & Wellness": "🌿",
   "Professional & Networking": "💼", "Arts & Culture": "🎨",
   "Outdoor & Adventure": "🏕️", "Other": "✨",
 };

@@ -40,7 +40,7 @@ const CATEGORY_ICONS = {
   "Parents": "👩‍👧",
   "Hobbies & Interests": "🎯",
   "Volunteers & Causes": "🤝",
-  "Support & Wellness": "💙",
+  "Support & Wellness": "🌿",
   "Professional & Networking": "💼",
   "Arts, Culture & Book Clubs": "🎨",
   "Outdoor & Adventure": "🏕️",
