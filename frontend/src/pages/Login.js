@@ -44,7 +44,7 @@ const Login = () => {
               Find your people.<br />
             </h1>
             <p className="auth-brand-sub">
-              Groups built around shared faith, values, and life stage —
+              Groups built around shared values and life stage —
               so you walk in already knowing you belong.
             </p>
             <div className="auth-brand-features">

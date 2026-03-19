@@ -404,7 +404,7 @@ export default function GroupsPage() {
           <LayoutGrid size={28} className="groups-header-icon" />
           <div>
             <h1>Community Groups</h1>
-            <p>Find your people — connect through shared values, faith, and life stage</p>
+            <p>Find your people — connect through shared values and life stage</p>
           </div>
         </div>
         <button className="btn-create-group" onClick={() => navigate("/groups/create")}>
