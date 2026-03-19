@@ -211,24 +211,25 @@ export default function App() {
                 animation: "slide_from_right",
                 animationDuration: 200,
                 gestureEnabled: true,
+                headerBackTitle: "Back",
               }}>
               <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-              <Stack.Screen name="Signup" component={SignupScreen} options={{ title: "Create Account", ...headerStyle }} />
+              <Stack.Screen name="Signup" component={SignupScreen} options={{ title: "Create Account", headerBackTitle: "Back", ...headerStyle }} />
               <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
 
               {/* Group screens */}
               <Stack.Screen name="GroupDetail" component={GroupDetailScreen} options={{ title: "Group", headerBackTitle: "Back", ...headerStyle }} />
-              <Stack.Screen name="CreateGroup" component={CreateGroupScreen} options={{ title: "Create Group", ...headerStyle }} />
-              <Stack.Screen name="MemberProfile" component={MemberProfileScreen} options={{ title: "Profile", ...headerStyle }} />
+              <Stack.Screen name="CreateGroup" component={CreateGroupScreen} options={{ title: "Create Group", headerBackTitle: "Back", ...headerStyle }} />
+              <Stack.Screen name="MemberProfile" component={MemberProfileScreen} options={{ title: "Profile", headerBackTitle: "Back", ...headerStyle }} />
 
               {/* Other screens */}
-              <Stack.Screen name="Chat" component={ChatScreen} options={{ title: "Chat", ...headerStyle }} />
-              <Stack.Screen name="Preferences" component={PreferencesScreen} options={{ title: "Search Preferences", ...headerStyle }} />
-              <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: "Edit Profile", ...headerStyle }} />
-              <Stack.Screen name="MeetupDetails" component={MeetupDetailsScreen} options={{ title: "Meetup Details", ...headerStyle }} />
-              <Stack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: "Profile", ...headerStyle }} />
-              <Stack.Screen name="BlockedUsers" component={BlockedUsersScreen} options={{ title: "Blocked Users", ...headerStyle }} />
-              <Stack.Screen name="WebView" component={WebViewScreen} options={({ route }) => ({ title: route.params?.title || "KindredPal", ...headerStyle })} />
+              <Stack.Screen name="Chat" component={ChatScreen} options={({ navigation }) => ({ title: "Chat", headerBackTitle: "Back", headerBackButtonMenuEnabled: false, ...headerStyle })} />
+              <Stack.Screen name="Preferences" component={PreferencesScreen} options={{ title: "Search Preferences", headerBackTitle: "Back", ...headerStyle }} />
+              <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: "Edit Profile", headerBackTitle: "Back", ...headerStyle }} />
+              <Stack.Screen name="MeetupDetails" component={MeetupDetailsScreen} options={{ title: "Meetup Details", headerBackTitle: "Back", headerBackButtonMenuEnabled: false, ...headerStyle }} />
+              <Stack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: "Profile", headerBackTitle: "Back", ...headerStyle }} />
+              <Stack.Screen name="BlockedUsers" component={BlockedUsersScreen} options={{ title: "Blocked Users", headerBackTitle: "Back", ...headerStyle }} />
+              <Stack.Screen name="WebView" component={WebViewScreen} options={({ route }) => ({ title: route.params?.title || "KindredPal", headerBackTitle: "Back", ...headerStyle })} />
             </Stack.Navigator>
           </NavigationContainer>
           </SocketProvider>
