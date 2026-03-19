@@ -97,10 +97,17 @@ export default function GroupDetailScreen({ route, navigation }) {
     }
   }, [groupId]);
 
-  useFocusEffect(useCallback(() => {
-    setLoading(true);
+  // Load once on mount
+  useEffect(() => {
     fetchGroup();
-  }, [fetchGroup]));
+  }, [fetchGroup]);
+
+  // On re-focus: silent refresh only if group already loaded
+  useFocusEffect(
+    useCallback(() => {
+      if (!loading) fetchGroup();
+    }, [fetchGroup, loading])
+  );
 
   // ── Fetch connection statuses after group + currentUserId are both ready ──
   useEffect(() => {

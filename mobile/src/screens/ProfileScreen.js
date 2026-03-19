@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -48,13 +48,16 @@ export default function ProfileScreen({ navigation }) {
     }
   }, []);
 
+  // Load once on mount
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
+
+  // Silent refresh on re-focus — no wipe, no spinner
   useFocusEffect(
     useCallback(() => {
-      setUser(null);
-      setPhotos([]);
-      setLoading(true);
-      fetchProfile();
-    }, [fetchProfile])
+      if (!loading) fetchProfile();
+    }, [fetchProfile, loading])
   );
 
   const onRefresh = () => {

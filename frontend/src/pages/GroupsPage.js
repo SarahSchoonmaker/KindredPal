@@ -317,6 +317,9 @@ export default function GroupsPage() {
   const [searchInput, setSearchInput] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({});
+  const [locationCity, setLocationCity] = useState("");
+  const [locationState, setLocationState] = useState("");
+  const [locationDistance, setLocationDistance] = useState("");
 
   const fetchingRef = useRef(false);
   const fetchTimerRef = useRef(null);
@@ -343,9 +346,13 @@ export default function GroupsPage() {
     try {
       const params = {};
       if (selectedCategory !== "All") params.category = selectedCategory;
-      if (filters.city) params.city = filters.city;
-      if (filters.state) params.state = filters.state;
-      if (filters.distance) params.distance = filters.distance;
+      // Location search bar takes priority over filter drawer values
+      const activeCity = locationCity.trim() || filters.city;
+      const activeState = locationState.trim() || filters.state;
+      const activeDist = locationDistance || filters.distance;
+      if (activeCity) params.city = activeCity;
+      if (activeState) params.state = activeState;
+      if (activeDist) params.distance = activeDist;
       if (filters.religion?.length) params.religion = filters.religion;
       if (filters.politics?.length) params.politics = filters.politics;
       if (filters.lifeStage?.length) params.lifeStage = filters.lifeStage;
@@ -380,7 +387,7 @@ export default function GroupsPage() {
       setLoading(false);
       fetchingRef.current = false;
     }
-  }, [selectedCategory, search, user]);
+  }, [selectedCategory, search, user, locationCity, locationState, locationDistance]);
 
   useEffect(() => {
     if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current);
@@ -404,7 +411,7 @@ export default function GroupsPage() {
           <LayoutGrid size={28} className="groups-header-icon" />
           <div>
             <h1>Community Groups</h1>
-            <p>Find your people — connect through shared values and life stage</p>
+            <p>Find your people — connect through shared values, faith, and life stage</p>
           </div>
         </div>
         <button className="btn-create-group" onClick={() => navigate("/groups/create")}>
@@ -433,6 +440,64 @@ export default function GroupsPage() {
           <SlidersHorizontal size={18} />
           Filters {activeFilterCount > 0 ? `(${activeFilterCount})` : ""}
         </button>
+      </div>
+
+      {/* Location Search Bar */}
+      <div className="location-search-bar">
+        <div className="location-search-inner">
+          <div className="location-search-label">📍 Search by location</div>
+          <div className="location-search-fields">
+            <input
+              type="text"
+              className="location-city-field"
+              placeholder="City"
+              value={locationCity}
+              onChange={e => setLocationCity(e.target.value)}
+            />
+            <select
+              className="location-state-field"
+              value={locationState}
+              onChange={e => setLocationState(e.target.value)}
+            >
+              <option value="">Any state</option>
+              {["AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA",
+                "KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
+                "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT",
+                "VA","WA","WV","WI","WY","DC"].map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            <select
+              className="location-distance-field"
+              value={locationDistance}
+              onChange={e => setLocationDistance(e.target.value)}
+            >
+              <option value="">Any distance</option>
+              <option value="city">Same city</option>
+              <option value="25">Within 25 miles</option>
+              <option value="50">Within 50 miles</option>
+              <option value="100">Within 100 miles</option>
+              <option value="state">Statewide</option>
+              <option value="anywhere">Anywhere</option>
+            </select>
+            {(locationCity || locationState || locationDistance) && (
+              <button
+                className="location-clear-btn"
+                onClick={() => { setLocationCity(""); setLocationState(""); setLocationDistance(""); }}
+              >
+                Clear
+              </button>
+            )}
+            {user?.city && !locationCity && (
+              <button
+                className="location-use-mine-btn"
+                onClick={() => { setLocationCity(user.city); setLocationState(user.state || ""); }}
+              >
+                Use my location
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Filter Drawer */}

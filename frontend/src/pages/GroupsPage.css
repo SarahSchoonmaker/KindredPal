@@ -482,3 +482,98 @@
   font-weight: 500;
 }
 .btn-use-my-location:hover { text-decoration: underline; }
+
+
+/* ── Location search bar ──────────────────────────────── */
+.location-search-bar {
+  background: #f0f6ff;
+  border-top: 1px solid #dbeafe;
+  border-bottom: 1px solid #dbeafe;
+  padding: 14px 20px;
+}
+
+.location-search-inner {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.location-search-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e4d8c;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+}
+
+.location-search-fields {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.location-city-field {
+  flex: 1;
+  min-width: 140px;
+  max-width: 240px;
+  padding: 9px 14px;
+  border: 1.5px solid #bfdbfe;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1e3a5f;
+  background: white;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.location-city-field:focus { border-color: #2563eb; }
+
+.location-state-field,
+.location-distance-field {
+  padding: 9px 12px;
+  border: 1.5px solid #bfdbfe;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1e3a5f;
+  background: white;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.location-state-field { width: 90px; }
+.location-distance-field { min-width: 150px; }
+.location-state-field:focus,
+.location-distance-field:focus { border-color: #2563eb; }
+
+.location-clear-btn {
+  padding: 8px 14px;
+  background: white;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #718096;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.location-clear-btn:hover { border-color: #e53e3e; color: #e53e3e; }
+
+.location-use-mine-btn {
+  padding: 8px 14px;
+  background: #1e4d8c;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.location-use-mine-btn:hover { background: #163d70; }
+
+@media (max-width: 600px) {
+  .location-search-fields { flex-direction: column; align-items: stretch; }
+  .location-city-field { max-width: 100%; }
+  .location-state-field,
+  .location-distance-field { width: 100%; }
+}

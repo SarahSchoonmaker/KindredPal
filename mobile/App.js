@@ -94,6 +94,7 @@ function MainTabs() {
 
   return (
     <Tab.Navigator
+      sceneContainerStyle={{ backgroundColor: "transparent" }}
       screenOptions={{
         tabBarActiveTintColor: "#2B6CB0",
         tabBarInactiveTintColor: "#999",
@@ -205,7 +206,12 @@ export default function App() {
         <PaperProvider theme={theme}>
           <SocketProvider>
           <NavigationContainer ref={navigationRef}>
-            <Stack.Navigator>
+            <Stack.Navigator
+              screenOptions={{
+                animation: "slide_from_right",
+                animationDuration: 200,
+                gestureEnabled: true,
+              }}>
               <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
               <Stack.Screen name="Signup" component={SignupScreen} options={{ title: "Create Account", ...headerStyle }} />
               <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />

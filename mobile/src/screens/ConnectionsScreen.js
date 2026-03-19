@@ -1,6 +1,6 @@
 // mobile/src/screens/ConnectionsScreen.js
 // Shows: accepted connections + pending requests received
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   FlatList,
@@ -100,7 +100,9 @@ export default function ConnectionsScreen({ navigation }) {
         api.get("/connections"),
         api.get("/connections/requests"),
       ]);
-      setConnections(connRes.data.connections || []);
+      const conns = connRes.data.connections || [];
+      console.log("✅ Connections loaded:", conns.length);
+      setConnections(conns);
       setRequests(reqRes.data.requests || []);
     } catch (err) {
       console.error("ConnectionsScreen fetch error:", err);
@@ -110,11 +112,16 @@ export default function ConnectionsScreen({ navigation }) {
     }
   }, []);
 
+  // Load once on mount
+  useEffect(() => {
+    fetchAll();
+  }, [fetchAll]);
+
+  // Silent refresh on re-focus
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
-      fetchAll();
-    }, [fetchAll]),
+      if (!loading) fetchAll();
+    }, [fetchAll])
   );
 
   const handleAccept = async (connectionId) => {
@@ -184,12 +191,7 @@ export default function ConnectionsScreen({ navigation }) {
           style={[styles.tab, activeTab === "connections" && styles.tabActive]}
           onPress={() => setActiveTab("connections")}
         >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "connections" && styles.tabTextActive,
-            ]}
-          >
+          <Text style={[styles.tabText, activeTab === "connections" && styles.tabTextActive]}>
             Connections ({connections.length})
           </Text>
         </TouchableOpacity>
@@ -197,12 +199,7 @@ export default function ConnectionsScreen({ navigation }) {
           style={[styles.tab, activeTab === "requests" && styles.tabActive]}
           onPress={() => setActiveTab("requests")}
         >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "requests" && styles.tabTextActive,
-            ]}
-          >
+          <Text style={[styles.tabText, activeTab === "requests" && styles.tabTextActive]}>
             Requests {pendingCount > 0 ? `(${pendingCount})` : ""}
           </Text>
           {pendingCount > 0 && <View style={styles.dot} />}
@@ -214,23 +211,14 @@ export default function ConnectionsScreen({ navigation }) {
         <FlatList
           data={requests}
           keyExtractor={(item) => item._id}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => {
-                setRefreshing(true);
-                fetchAll();
-              }}
-            />
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchAll(); }} />}
           contentContainerStyle={styles.list}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyIcon}>📬</Text>
               <Text style={styles.emptyTitle}>No Pending Requests</Text>
               <Text style={styles.emptyText}>
-                When someone from your groups sends you a connection request, it
-                will appear here.
+                When someone from your groups sends you a connection request, it will appear here.
               </Text>
             </View>
           }
@@ -249,23 +237,14 @@ export default function ConnectionsScreen({ navigation }) {
         <FlatList
           data={connections}
           keyExtractor={(item) => item.connectionId}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => {
-                setRefreshing(true);
-                fetchAll();
-              }}
-            />
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchAll(); }} />}
           contentContainerStyle={styles.list}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Users size={48} color="#CBD5E0" />
               <Text style={styles.emptyTitle}>No Connections Yet</Text>
               <Text style={styles.emptyText}>
-                Join groups and send connection requests to people who share
-                your values and life stage.
+                Join groups and send connection requests to people who share your values and life stage.
               </Text>
               <TouchableOpacity
                 style={styles.emptyBtn}
@@ -338,12 +317,7 @@ const styles = StyleSheet.create({
   },
   newBadgeText: { fontSize: 11, fontWeight: "700", color: "#2B6CB0" },
   personRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
-  photo: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "#E2E8F0",
-  },
+  photo: { width: 52, height: 52, borderRadius: 26, backgroundColor: "#E2E8F0" },
   personInfo: { flex: 1, marginLeft: 12 },
   personName: { fontSize: 16, fontWeight: "700", color: "#2D3748" },
   personLocation: { fontSize: 13, color: "#718096", marginTop: 1 },
@@ -407,19 +381,8 @@ const styles = StyleSheet.create({
   // Empty state
   empty: { alignItems: "center", paddingVertical: 60, paddingHorizontal: 32 },
   emptyIcon: { fontSize: 52, marginBottom: 16 },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#2D3748",
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: "#718096",
-    textAlign: "center",
-    lineHeight: 20,
-    marginBottom: 20,
-  },
+  emptyTitle: { fontSize: 20, fontWeight: "700", color: "#2D3748", marginBottom: 8 },
+  emptyText: { fontSize: 14, color: "#718096", textAlign: "center", lineHeight: 20, marginBottom: 20 },
   emptyBtn: {
     backgroundColor: "#2B6CB0",
     paddingHorizontal: 24,

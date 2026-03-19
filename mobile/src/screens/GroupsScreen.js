@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View, ScrollView, TouchableOpacity, StyleSheet,
   RefreshControl, TextInput, Image, FlatList, Modal,
@@ -150,20 +150,29 @@ export default function GroupsScreen({ navigation }) {
   const [filters, setFilters] = useState({
     city: "", state: "", distance: "", religion: [], lifeStage: [],
   });
+  // Visible location search bar (separate from filter modal)
+  const [locationCity, setLocationCity] = useState("");
+  const [locationState, setLocationState] = useState("");
+  const [locationDistance, setLocationDistance] = useState("");
+  const [showStateList, setShowStateList] = useState(false);
+  const [showDistanceList, setShowDistanceList] = useState(false);
 
   const fetchGroups = useCallback(async () => {
     try {
       const params = {};
       if (selectedCategory !== "All") params.category = selectedCategory;
       if (search) params.search = search;
-      if (filters.city) params.city = filters.city;
-      if (filters.state) params.state = filters.state;
-      if (filters.distance) params.distance = filters.distance;
+      const activeCity = locationCity.trim() || filters.city;
+      const activeState = locationState.trim() || filters.state;
+      const activeDist = locationDistance || filters.distance;
+      if (activeCity) params.city = activeCity;
+      if (activeState) params.state = activeState;
+      if (activeDist) params.distance = activeDist;
       if (filters.religion?.length) params.religion = filters.religion;
       if (filters.lifeStage?.length) params.lifeStage = filters.lifeStage;
 
       const [discoverRes, myRes] = await Promise.all([
-        api.get("/groups", { params }),
+        api.get("/groups", { params: { ...params, limit: 100 } }),
         api.get("/groups/my"),
       ]);
 
@@ -175,11 +184,16 @@ export default function GroupsScreen({ navigation }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedCategory, search]);
+  }, [selectedCategory, search, locationCity, locationState, locationDistance]);
 
+  // Load once on mount
+  useEffect(() => {
+    fetchGroups();
+  }, [fetchGroups]);
+
+  // On re-focus: silent background refresh (no spinner, no wipe)
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
       fetchGroups();
     }, [fetchGroups])
   );
@@ -202,6 +216,89 @@ export default function GroupsScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+
+      {/* Location search bar */}
+      <View style={styles.locationBar}>
+        <View style={styles.locationBarTop}>
+          <Text style={styles.locationBarLabel}>📍 Search by location</Text>
+          {(locationCity || locationState || locationDistance) && (
+            <TouchableOpacity onPress={() => { setLocationCity(""); setLocationState(""); setLocationDistance(""); }}>
+              <Text style={styles.locationClearBtn}>Clear</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        <View style={styles.locationFields}>
+          <TextInput
+            style={styles.locationCityInput}
+            placeholder="City"
+            placeholderTextColor="#a0aec0"
+            value={locationCity}
+            onChangeText={setLocationCity}
+            returnKeyType="done"
+            onSubmitEditing={fetchGroups}
+          />
+          {/* State picker */}
+          <TouchableOpacity
+            style={styles.locationStateBtn}
+            onPress={() => { setShowStateList(true); setShowDistanceList(false); }}
+          >
+            <Text style={[styles.locationBtnText, !locationState && { color: "#a0aec0" }]}>
+              {locationState || "State"}
+            </Text>
+          </TouchableOpacity>
+          {/* Distance picker */}
+          <TouchableOpacity
+            style={styles.locationDistanceBtn}
+            onPress={() => { setShowDistanceList(true); setShowStateList(false); }}
+          >
+            <Text style={[styles.locationBtnText, !locationDistance && { color: "#a0aec0" }]}>
+              {locationDistance
+                ? DISTANCE_OPTS.find(d => d.value === locationDistance)?.label || locationDistance
+                : "Distance"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* State dropdown */}
+        {showStateList && (
+          <Modal transparent animationType="fade" onRequestClose={() => setShowStateList(false)}>
+            <TouchableOpacity style={styles.pickerOverlay} activeOpacity={1} onPress={() => setShowStateList(false)}>
+              <View style={styles.pickerDropdown}>
+                <ScrollView style={{ maxHeight: 300 }}>
+                  <TouchableOpacity style={styles.pickerItem} onPress={() => { setLocationState(""); setShowStateList(false); }}>
+                    <Text style={styles.pickerItemText}>Any state</Text>
+                  </TouchableOpacity>
+                  {US_STATES_F.map(s => (
+                    <TouchableOpacity key={s} style={[styles.pickerItem, locationState === s && styles.pickerItemActive]} onPress={() => { setLocationState(s); setShowStateList(false); }}>
+                      <Text style={[styles.pickerItemText, locationState === s && styles.pickerItemTextActive]}>{s}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </TouchableOpacity>
+          </Modal>
+        )}
+
+        {/* Distance dropdown */}
+        {showDistanceList && (
+          <Modal transparent animationType="fade" onRequestClose={() => setShowDistanceList(false)}>
+            <TouchableOpacity style={styles.pickerOverlay} activeOpacity={1} onPress={() => setShowDistanceList(false)}>
+              <View style={styles.pickerDropdown}>
+                <ScrollView>
+                  <TouchableOpacity style={styles.pickerItem} onPress={() => { setLocationDistance(""); setShowDistanceList(false); }}>
+                    <Text style={styles.pickerItemText}>Any distance</Text>
+                  </TouchableOpacity>
+                  {DISTANCE_OPTS.map(opt => (
+                    <TouchableOpacity key={opt.value} style={[styles.pickerItem, locationDistance === opt.value && styles.pickerItemActive]} onPress={() => { setLocationDistance(opt.value); setShowDistanceList(false); }}>
+                      <Text style={[styles.pickerItemText, locationDistance === opt.value && styles.pickerItemTextActive]}>{opt.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </TouchableOpacity>
+          </Modal>
+        )}
+      </View>
 
       {/* Search */}
       <View style={styles.searchRow}>
@@ -554,6 +651,79 @@ const styles = StyleSheet.create({
   badgePending: { backgroundColor: "#FEFCBF" },
   badgeJoin: { backgroundColor: "#EBF4FF", borderWidth: 1, borderColor: "#2B6CB0" },
   badgeText: { fontSize: 11, fontWeight: "700" },
+
+  // Location search bar
+  locationBar: {
+    backgroundColor: "#EBF4FF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#BEE3F8",
+    padding: 12,
+  },
+  locationBarTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  locationBarLabel: { fontSize: 12, fontWeight: "700", color: "#1e4d8c", textTransform: "uppercase", letterSpacing: 0.5 },
+  locationClearBtn: { fontSize: 13, color: "#e53e3e", fontWeight: "600" },
+  locationFields: { flexDirection: "row", gap: 8, alignItems: "center" },
+  locationCityInput: {
+    flex: 1,
+    backgroundColor: "white",
+    borderWidth: 1.5,
+    borderColor: "#BEE3F8",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    color: "#1e3a5f",
+  },
+  locationStateBtn: {
+    backgroundColor: "white",
+    borderWidth: 1.5,
+    borderColor: "#BEE3F8",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    minWidth: 58,
+    alignItems: "center",
+  },
+  locationDistanceBtn: {
+    backgroundColor: "white",
+    borderWidth: 1.5,
+    borderColor: "#BEE3F8",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    minWidth: 80,
+    alignItems: "center",
+  },
+  locationBtnText: { fontSize: 13, color: "#1e3a5f", fontWeight: "600" },
+
+  // Picker modal
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  pickerDropdown: {
+    backgroundColor: "white",
+    borderRadius: 14,
+    width: 260,
+    maxHeight: 340,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  pickerItem: { paddingVertical: 13, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: "#f0f4f8" },
+  pickerItemActive: { backgroundColor: "#EBF4FF" },
+  pickerItemText: { fontSize: 15, color: "#2d3748" },
+  pickerItemTextActive: { color: "#2B6CB0", fontWeight: "700" },
 
   empty: { alignItems: "center", paddingVertical: 60 },
   emptyIcon: { fontSize: 48, marginBottom: 12 },
