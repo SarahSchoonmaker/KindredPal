@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useCallback, useRef, useEffect, useLayoutEffect } from "react";
 import {
   View, ScrollView, FlatList, TouchableOpacity, StyleSheet,
   Alert, Image, RefreshControl, TextInput, KeyboardAvoidingView, Platform,
@@ -59,6 +59,10 @@ function MemberCard({ member, isCurrentUser, connectionStatus, onPress, onMessag
 export default function GroupDetailScreen({ route, navigation }) {
   const { groupId } = route.params;
 
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerBackTitle: "Back", headerBackButtonMenuEnabled: false });
+  }, []);
+
   const [group, setGroup] = useState(null);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
@@ -87,7 +91,7 @@ export default function GroupDetailScreen({ route, navigation }) {
     try {
       const res = await api.get(`/groups/${groupId}`);
       setGroup(res.data);
-      navigation.setOptions({ title: res.data.name });
+      navigation.setOptions({ title: res.data.name, headerBackTitle: "Back", headerBackButtonMenuEnabled: false });
     } catch (err) {
       console.error("fetchGroup error:", err);
       Alert.alert("Error", "Could not load group");

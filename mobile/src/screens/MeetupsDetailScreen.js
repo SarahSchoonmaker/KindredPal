@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useLayoutEffect } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   Alert, Modal, TextInput, KeyboardAvoidingView, Platform,
@@ -241,6 +241,15 @@ export default function MeetupDetailsScreen({ route, navigation }) {
   }, [meetupId]);
 
   useEffect(() => { fetchMeetupDetails(); }, [fetchMeetupDetails]);
+
+  // Force back title before first paint — prevents MainTabs flash
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerBackTitle: "Back",
+      headerBackButtonMenuEnabled: false,
+      title: "Meetup Details",
+    });
+  }, []); // empty deps — run once, before render
 
   const getUserRSVP = useCallback(() => {
     if (!meetup || !currentUserId) return null;

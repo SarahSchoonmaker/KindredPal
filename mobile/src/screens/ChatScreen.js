@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import {
   View, StyleSheet, KeyboardAvoidingView, Platform,
   FlatList, TouchableOpacity, TextInput, Modal,
@@ -28,15 +28,22 @@ export default function ChatScreen({ route, navigation }) {
   const hasLoaded = useRef(false);
   const { socket } = useSocket();
 
+  // Set Back title before first render
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerBackTitle: "Back" });
+  }, [navigation]);
+
   // Get current user ID once
   useEffect(() => {
     SecureStore.getItemAsync("userId").then(id => setCurrentUserId(id));
   }, []);
 
   // Header with three-dot button
-  useEffect(() => {
+  useLayoutEffect(() => {
     navigation.setOptions({
       headerTitle: chatUserName,
+      headerBackTitle: "Back",
+      headerBackButtonMenuEnabled: false,
       headerRight: () => (
         <TouchableOpacity
           style={styles.menuButton}

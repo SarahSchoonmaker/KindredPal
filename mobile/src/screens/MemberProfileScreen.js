@@ -1,7 +1,7 @@
 // mobile/src/screens/MemberProfileScreen.js
 // View a group member's profile + send connection request
 // Reached from GroupDetailScreen member list
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useLayoutEffect } from "react";
 import {
   View,
   ScrollView,
@@ -34,6 +34,10 @@ function TagPill({ label, color = "#EBF4FF", textColor = "#2B6CB0" }) {
 export default function MemberProfileScreen({ route, navigation }) {
   const { userId, sharedGroups = [] } = route.params;
 
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerBackTitle: "Back", headerBackButtonMenuEnabled: false });
+  }, []);
+
   const [profile, setProfile] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState("none"); // none | pending | accepted
   const [connectionId, setConnectionId] = useState(null);
@@ -54,7 +58,7 @@ export default function MemberProfileScreen({ route, navigation }) {
         setConnectionStatus(statusRes.data.status || "none");
         setConnectionId(statusRes.data.connectionId);
         setIsSender(statusRes.data.isSender);
-        navigation.setOptions({ title: profileRes.data.name });
+        navigation.setOptions({ title: profileRes.data.name, headerBackTitle: "Back", headerBackButtonMenuEnabled: false });
       } catch (err) {
         console.error("MemberProfile fetch error:", err);
       } finally {
