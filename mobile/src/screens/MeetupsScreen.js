@@ -48,12 +48,12 @@ export default function MeetupsScreen({ navigation, route }) {
     fetchMeetups();
   }, [fetchMeetups]);
 
-  // Refresh when returning from detail screen after delete
-  useEffect(() => {
-    if (route?.params?.refresh) {
+  // Silent refresh when returning to screen (e.g. after delete)
+  useFocusEffect(
+    useCallback(() => {
       fetchMeetups();
-    }
-  }, [route?.params?.refresh]);
+    }, [fetchMeetups])
+  );
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);

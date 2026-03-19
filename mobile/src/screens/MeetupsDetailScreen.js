@@ -269,7 +269,7 @@ export default function MeetupDetailsScreen({ route, navigation }) {
         onPress: async () => {
           try {
             await api.delete(`/meetups/${meetupId}`);
-            navigation.navigate("Meetups", { refresh: Date.now() });
+            navigation.goBack();
           } catch {
             Alert.alert("Error", "Failed to delete meetup");
           }
