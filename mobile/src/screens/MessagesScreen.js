@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   StyleSheet,
@@ -16,11 +16,13 @@ import {
 } from "react-native-paper";
 import { MessageCircle } from "lucide-react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import { useSocket } from "../context/SocketContext";
 
 export default function MessagesScreen({ navigation }) {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const { socket } = useSocket();
 
   const fetchMatches = useCallback(async () => {
     try {
@@ -50,9 +52,7 @@ export default function MessagesScreen({ navigation }) {
       const filteredMatches = matchData.filter(
         (match) => !blockedUserIds.includes(match._id),
       );
-      console.log(
-        `✅ ${filteredMatches.length} matches after filtering blocked`,
-      );
+      console.log(`✅ ${filteredMatches.length} matches after filtering blocked`);
 
       const conversations =
         conversationsResponse.status === "fulfilled"
@@ -89,16 +89,59 @@ export default function MessagesScreen({ navigation }) {
     }
   }, []);
 
-  // ✅ useFocusEffect re-fetches every time screen comes into focus
-  // Replaces both useEffect + navigation.addListener("focus") pattern
-  // Ensures fresh data after login/logout with a different user
+  // Initial load only — no wipe on re-focus
+  useEffect(() => {
+    fetchMatches();
+  }, [fetchMatches]);
+
+  // On focus: only refresh last messages/unread counts, don't wipe list
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
-      setMatches([]);
-      fetchMatches();
-    }, [fetchMatches]),
+      // Silently update conversations in background without clearing state
+      messageAPI.getConversations().then(res => {
+        const conversations = res.data || [];
+        setMatches(prev => prev.map(match => {
+          const conv = conversations.find(c => c._id === match._id);
+          if (!conv) return match;
+          return {
+            ...match,
+            lastMessage: conv.lastMessage?.content || match.lastMessage,
+            timestamp: conv.lastMessage?.createdAt || match.timestamp,
+            unreadCount: conv.unreadCount || 0,
+          };
+        }));
+      }).catch(() => {});
+    }, [])
   );
+
+  // Socket — update last message preview in real time without full reload
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewMessage = (msg) => {
+      const senderId = msg.sender?._id || msg.sender;
+      const recipientId = msg.recipient?._id || msg.recipient;
+      const otherId = senderId || recipientId;
+
+      setMatches(prev => prev.map(match => {
+        const matchId = match._id || match.id;
+        if (matchId?.toString() === otherId?.toString() ||
+            matchId?.toString() === senderId?.toString() ||
+            matchId?.toString() === recipientId?.toString()) {
+          return {
+            ...match,
+            lastMessage: msg.content,
+            timestamp: msg.createdAt || new Date().toISOString(),
+            unreadCount: (match.unreadCount || 0) + 1,
+          };
+        }
+        return match;
+      }));
+    };
+
+    socket.on("new-message", handleNewMessage);
+    return () => socket.off("new-message", handleNewMessage);
+  }, [socket]);
 
   const onRefresh = () => {
     setRefreshing(true);

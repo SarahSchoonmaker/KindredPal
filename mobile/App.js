@@ -1,26 +1,15 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
+import { SocketProvider } from "./src/context/SocketContext";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { PaperProvider, MD3LightTheme } from "react-native-paper";
-import {
-  MessageCircle,
-  User,
-  Calendar,
-  Users,
-  LayoutGrid,
-} from "lucide-react-native";
+import { MessageCircle, User, Calendar, Users, LayoutGrid } from "lucide-react-native";
 import { AppState } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
-import {
-  SafeAreaProvider,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
-import {
-  registerForPushNotifications,
-  setupNotificationListeners,
-} from "./src/services/pushNotifications";
+import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
+import { registerForPushNotifications, setupNotificationListeners } from "./src/services/pushNotifications";
 import api from "./src/services/api";
 
 // Auth
@@ -65,11 +54,7 @@ const headerStyle = {
   headerTitleStyle: { fontWeight: "bold" },
 };
 
-const BADGE_STYLE = {
-  backgroundColor: "#E53E3E",
-  color: "white",
-  fontSize: 11,
-};
+const BADGE_STYLE = { backgroundColor: "#E53E3E", color: "white", fontSize: 11 };
 
 function MainTabs() {
   const insets = useSafeAreaInsets();
@@ -85,10 +70,9 @@ function MainTabs() {
       const meetupKey = userId ? `seen_meetups_${userId}` : "seen_meetups";
       const seenMeetupRaw = await AsyncStorage.getItem(meetupKey);
       const seenMeetupIds = seenMeetupRaw ? JSON.parse(seenMeetupRaw) : [];
-      const unseenMeetups =
-        meetupInviteIds.length > 0
-          ? meetupInviteIds.filter((id) => !seenMeetupIds.includes(id)).length
-          : (meetups ?? 0);
+      const unseenMeetups = meetupInviteIds.length > 0
+        ? meetupInviteIds.filter((id) => !seenMeetupIds.includes(id)).length
+        : (meetups ?? 0);
       setCounts({ unread, meetups: unseenMeetups });
     } catch (err) {}
   }, []);
@@ -132,9 +116,7 @@ function MainTabs() {
         options={{
           tabBarLabel: "Groups",
           title: "Community Groups",
-          tabBarIcon: ({ color, size }) => (
-            <LayoutGrid color={color} size={size} />
-          ),
+          tabBarIcon: ({ color, size }) => <LayoutGrid color={color} size={size} />,
         }}
       />
 
@@ -156,25 +138,19 @@ function MainTabs() {
           tabBarLabel: "Messages",
           tabBarBadge: badge(counts.unread),
           tabBarBadgeStyle: BADGE_STYLE,
-          tabBarIcon: ({ color, size }) => (
-            <MessageCircle color={color} size={size} />
-          ),
+          tabBarIcon: ({ color, size }) => <MessageCircle color={color} size={size} />,
         }}
       />
 
       <Tab.Screen
         name="Meetups"
         component={MeetupsScreen}
-        listeners={{
-          tabPress: async () => setCounts((c) => ({ ...c, meetups: 0 })),
-        }}
+        listeners={{ tabPress: async () => setCounts((c) => ({ ...c, meetups: 0 })) }}
         options={{
           tabBarLabel: "Meetups",
           tabBarBadge: badge(counts.meetups),
           tabBarBadgeStyle: BADGE_STYLE,
-          tabBarIcon: ({ color, size }) => (
-            <Calendar color={color} size={size} />
-          ),
+          tabBarIcon: ({ color, size }) => <Calendar color={color} size={size} />,
         }}
       />
 
@@ -191,42 +167,17 @@ function MainTabs() {
 }
 
 class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
+  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
   render() {
     if (this.state.hasError) {
       const { View, Text, ScrollView } = require("react-native");
       return (
-        <View
-          style={{
-            flex: 1,
-            padding: 40,
-            paddingTop: 80,
-            backgroundColor: "#fff",
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 20,
-              fontWeight: "bold",
-              color: "red",
-              marginBottom: 16,
-            }}
-          >
-            App Crashed
-          </Text>
+        <View style={{ flex: 1, padding: 40, paddingTop: 80, backgroundColor: "#fff" }}>
+          <Text style={{ fontSize: 20, fontWeight: "bold", color: "red", marginBottom: 16 }}>App Crashed</Text>
           <ScrollView>
-            <Text
-              style={{ fontSize: 13, color: "#333", fontFamily: "monospace" }}
-            >
-              {this.state.error?.toString()}
-              {"\n\n"}
-              {this.state.error?.stack}
+            <Text style={{ fontSize: 13, color: "#333", fontFamily: "monospace" }}>
+              {this.state.error?.toString()}{"\n\n"}{this.state.error?.stack}
             </Text>
           </ScrollView>
         </View>
@@ -243,96 +194,38 @@ export default function App() {
   useEffect(() => {
     registerForPushNotifications();
     if (navigationRef.current) {
-      notificationSubscription.current = setupNotificationListeners(
-        navigationRef.current,
-      );
+      notificationSubscription.current = setupNotificationListeners(navigationRef.current);
     }
-    return () => {
-      if (notificationSubscription.current)
-        notificationSubscription.current.remove();
-    };
+    return () => { if (notificationSubscription.current) notificationSubscription.current.remove(); };
   }, []);
 
   return (
     <ErrorBoundary>
       <SafeAreaProvider>
         <PaperProvider theme={theme}>
+          <SocketProvider>
           <NavigationContainer ref={navigationRef}>
             <Stack.Navigator>
-              <Stack.Screen
-                name="Login"
-                component={LoginScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="Signup"
-                component={SignupScreen}
-                options={{ title: "Create Account", ...headerStyle }}
-              />
-              <Stack.Screen
-                name="MainTabs"
-                component={MainTabs}
-                options={{ headerShown: false }}
-              />
+              <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+              <Stack.Screen name="Signup" component={SignupScreen} options={{ title: "Create Account", ...headerStyle }} />
+              <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
 
               {/* Group screens */}
-              <Stack.Screen
-                name="GroupDetail"
-                component={GroupDetailScreen}
-                options={{ title: "Group", ...headerStyle }}
-              />
-              <Stack.Screen
-                name="CreateGroup"
-                component={CreateGroupScreen}
-                options={{ title: "Create Group", ...headerStyle }}
-              />
-              <Stack.Screen
-                name="MemberProfile"
-                component={MemberProfileScreen}
-                options={{ title: "Profile", ...headerStyle }}
-              />
+              <Stack.Screen name="GroupDetail" component={GroupDetailScreen} options={{ title: "Group", ...headerStyle }} />
+              <Stack.Screen name="CreateGroup" component={CreateGroupScreen} options={{ title: "Create Group", ...headerStyle }} />
+              <Stack.Screen name="MemberProfile" component={MemberProfileScreen} options={{ title: "Profile", ...headerStyle }} />
 
               {/* Other screens */}
-              <Stack.Screen
-                name="Chat"
-                component={ChatScreen}
-                options={{ title: "Chat", ...headerStyle }}
-              />
-              <Stack.Screen
-                name="Preferences"
-                component={PreferencesScreen}
-                options={{ title: "Search Preferences", ...headerStyle }}
-              />
-              <Stack.Screen
-                name="EditProfile"
-                component={EditProfileScreen}
-                options={{ title: "Edit Profile", ...headerStyle }}
-              />
-              <Stack.Screen
-                name="MeetupDetails"
-                component={MeetupDetailsScreen}
-                options={{ title: "Meetup Details", ...headerStyle }}
-              />
-              <Stack.Screen
-                name="UserProfile"
-                component={UserProfileScreen}
-                options={{ title: "Profile", ...headerStyle }}
-              />
-              <Stack.Screen
-                name="BlockedUsers"
-                component={BlockedUsersScreen}
-                options={{ title: "Blocked Users", ...headerStyle }}
-              />
-              <Stack.Screen
-                name="WebView"
-                component={WebViewScreen}
-                options={({ route }) => ({
-                  title: route.params?.title || "KindredPal",
-                  ...headerStyle,
-                })}
-              />
+              <Stack.Screen name="Chat" component={ChatScreen} options={{ title: "Chat", ...headerStyle }} />
+              <Stack.Screen name="Preferences" component={PreferencesScreen} options={{ title: "Search Preferences", ...headerStyle }} />
+              <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: "Edit Profile", ...headerStyle }} />
+              <Stack.Screen name="MeetupDetails" component={MeetupDetailsScreen} options={{ title: "Meetup Details", ...headerStyle }} />
+              <Stack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: "Profile", ...headerStyle }} />
+              <Stack.Screen name="BlockedUsers" component={BlockedUsersScreen} options={{ title: "Blocked Users", ...headerStyle }} />
+              <Stack.Screen name="WebView" component={WebViewScreen} options={({ route }) => ({ title: route.params?.title || "KindredPal", ...headerStyle })} />
             </Stack.Navigator>
           </NavigationContainer>
+          </SocketProvider>
         </PaperProvider>
       </SafeAreaProvider>
     </ErrorBoundary>

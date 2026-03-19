@@ -1,100 +1,143 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
-  View,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  FlatList,
-  TouchableOpacity,
-  Alert,
+  View, StyleSheet, KeyboardAvoidingView, Platform,
+  FlatList, TouchableOpacity, TextInput, Modal,
+  Alert, Text,
 } from "react-native";
-import { Text, TextInput, ActivityIndicator, Menu } from "react-native-paper";
+import { ActivityIndicator } from "react-native-paper";
 import { Send, MoreVertical } from "lucide-react-native";
+import * as SecureStore from "expo-secure-store";
 import { messageAPI, userAPI } from "../services/api";
+import { useSocket } from "../context/SocketContext";
+
+const BLUE = "#2B6CB0";
 
 export default function ChatScreen({ route, navigation }) {
-  const { match, userId, userName, userPhoto } = route.params;
+  const { match, userId, userName } = route.params;
+
+  const chatUserId = match?._id || match?.id || userId;
+  const chatUserName = match?.name || userName || "Chat";
+
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
-  const [menuAnchor, setMenuAnchor] = useState({ x: 0, y: 0 });
+  const [currentUserId, setCurrentUserId] = useState(null);
   const flatListRef = useRef(null);
+  const hasLoaded = useRef(false);
+  const { socket } = useSocket();
 
-  const chatUserId = match?._id || userId;
-  const chatUserName = match?.name || userName;
+  // Get current user ID once
+  useEffect(() => {
+    SecureStore.getItemAsync("userId").then(id => setCurrentUserId(id));
+  }, []);
 
+  // Header with three-dot button
   useEffect(() => {
     navigation.setOptions({
-      headerTitle: chatUserName || "Chat",
+      headerTitle: chatUserName,
       headerRight: () => (
         <TouchableOpacity
           style={styles.menuButton}
-          onPress={(e) => {
-            // ✅ Measure button position to anchor menu just below it
-            e.target.measure((x, y, width, height, pageX, pageY) => {
-              setMenuAnchor({ x: pageX, y: pageY + height });
-              setMenuVisible(true);
-            });
-          }}
+          onPress={() => setMenuVisible(true)}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <MoreVertical size={24} color="white" />
+          <MoreVertical size={22} color="white" />
         </TouchableOpacity>
       ),
     });
   }, [navigation, chatUserName]);
 
-  useEffect(() => {
-    if (chatUserId) {
-      fetchMessages();
-    }
-  }, [chatUserId]);
-
-  const fetchMessages = async () => {
+  // Fetch messages — only once per chat partner
+  const fetchMessages = useCallback(async () => {
+    if (!chatUserId) return;
     try {
-      const response = await messageAPI.getMessages(chatUserId);
-      setMessages(response.data || []);
-    } catch (error) {
-      console.error("Error fetching messages:", error);
+      const res = await messageAPI.getMessages(chatUserId);
+      setMessages(res.data || []);
+      hasLoaded.current = true;
+    } catch (err) {
+      console.error("fetchMessages error:", err);
     } finally {
       setLoading(false);
     }
+  }, [chatUserId]);
+
+  useEffect(() => {
+    fetchMessages();
+  }, [fetchMessages]);
+
+  // Real-time incoming messages via socket
+  useEffect(() => {
+    if (!socket || !chatUserId || !currentUserId) return;
+
+    const handleNewMessage = (msg) => {
+      const senderId = msg.sender?._id || msg.sender;
+      const recipientId = msg.recipient?._id || msg.recipient;
+      // Only add if this message belongs to this conversation
+      const isThisConversation =
+        (senderId?.toString() === chatUserId && recipientId?.toString() === currentUserId) ||
+        (senderId?.toString() === currentUserId && recipientId?.toString() === chatUserId);
+
+      if (isThisConversation) {
+        setMessages(prev => {
+          // Avoid duplicates
+          if (prev.some(m => m._id === msg._id)) return prev;
+          return [...prev, msg];
+        });
+        setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+      }
+    };
+
+    socket.on("new-message", handleNewMessage);
+    return () => socket.off("new-message", handleNewMessage);
+  }, [socket, chatUserId, currentUserId]);
+
+  // ── Actions ────────────────────────────────────────────────
+  const handleViewProfile = () => {
+    setMenuVisible(false);
+    navigation.navigate("UserProfile", { userId: chatUserId });
+  };
+
+  const handleRemoveConnection = () => {
+    setMenuVisible(false);
+    Alert.alert(
+      "Remove Connection",
+      `Remove ${chatUserName} from your connections?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove", style: "destructive",
+          onPress: async () => {
+            try {
+              await userAPI.unmatch?.(chatUserId);
+              navigation.navigate("Messages");
+            } catch {
+              Alert.alert("Error", "Could not remove connection");
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleReport = () => {
     setMenuVisible(false);
-    Alert.alert(
-      "Report User",
-      "Why are you reporting this user?",
-      [
-        {
-          text: "Inappropriate messages",
-          onPress: () => submitReport("Inappropriate messages"),
-        },
-        {
-          text: "Fake profile/Catfishing",
-          onPress: () => submitReport("Fake profile/Catfishing"),
-        },
-        { text: "Harassment", onPress: () => submitReport("Harassment") },
-        { text: "Spam", onPress: () => submitReport("Spam") },
-        { text: "Other", onPress: () => submitReport("Other") },
-        { text: "Cancel", style: "cancel" },
-      ],
-      { cancelable: true },
-    );
+    Alert.alert("Report User", "Why are you reporting this user?", [
+      { text: "Inappropriate messages", onPress: () => submitReport("Inappropriate messages") },
+      { text: "Fake profile", onPress: () => submitReport("Fake profile") },
+      { text: "Harassment", onPress: () => submitReport("Harassment") },
+      { text: "Spam", onPress: () => submitReport("Spam") },
+      { text: "Cancel", style: "cancel" },
+    ]);
   };
 
   const submitReport = async (reason) => {
     try {
-      await userAPI.reportUser(chatUserId, reason);
-      Alert.alert(
-        "Report Submitted",
-        "Thank you for your report. Our team will review it shortly.",
-      );
-    } catch (error) {
-      console.error("Error reporting user:", error);
-      Alert.alert("Error", "Failed to submit report. Please try again.");
+      await userAPI.reportUser?.(chatUserId, reason);
+      Alert.alert("Reported", "Thank you. Our team will review this.");
+    } catch {
+      Alert.alert("Error", "Could not submit report");
     }
   };
 
@@ -102,116 +145,56 @@ export default function ChatScreen({ route, navigation }) {
     setMenuVisible(false);
     Alert.alert(
       "Block User",
-      `Are you sure you want to block ${chatUserName}? You won't be able to see each other's profiles or send messages.`,
+      `Block ${chatUserName}? You won't be able to message each other.`,
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Block",
-          style: "destructive",
+          text: "Block", style: "destructive",
           onPress: async () => {
             try {
               await userAPI.blockUser(chatUserId);
-              Alert.alert("User Blocked", `${chatUserName} has been blocked.`, [
+              Alert.alert("Blocked", `${chatUserName} has been blocked.`, [
                 { text: "OK", onPress: () => navigation.navigate("Messages") },
               ]);
-            } catch (error) {
-              console.error("Error blocking user:", error);
-              Alert.alert("Error", "Failed to block user. Please try again.");
+            } catch {
+              Alert.alert("Error", "Could not block user");
             }
           },
         },
-      ],
+      ]
     );
   };
 
-  const handleUnmatch = () => {
-    setMenuVisible(false);
-    Alert.alert(
-      "Unmatch",
-      `Are you sure you want to unmatch with ${chatUserName}? This cannot be undone.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Unmatch",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await userAPI.unmatch(chatUserId);
-              Alert.alert(
-                "Unmatched",
-                `You have unmatched with ${chatUserName}.`,
-                [
-                  {
-                    text: "OK",
-                    onPress: () => navigation.navigate("Messages"),
-                  },
-                ],
-              );
-            } catch (error) {
-              console.error("Error unmatching:", error);
-              Alert.alert("Error", "Failed to unmatch. Please try again.");
-            }
-          },
-        },
-      ],
-    );
-  };
-
-  const handleViewProfile = () => {
-    setMenuVisible(false);
-    navigation.navigate("UserProfile", { userId: chatUserId });
-  };
-
+  // ── Send ───────────────────────────────────────────────────
   const handleSend = async () => {
-    if (!newMessage.trim() || sending) return;
-
-    const messageText = newMessage.trim();
+    const text = newMessage.trim();
+    if (!text || sending) return;
     setNewMessage("");
     setSending(true);
-
     try {
-      const response = await messageAPI.sendMessage(chatUserId, messageText);
-      setMessages((prev) => [...prev, response.data]);
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    } catch (error) {
-      console.error("Error sending message:", error);
-      Alert.alert("Error", "Failed to send message. Please try again.");
-      setNewMessage(messageText);
+      const res = await messageAPI.sendMessage(chatUserId, text);
+      setMessages(prev => [...prev, res.data]);
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+    } catch {
+      Alert.alert("Error", "Failed to send message");
+      setNewMessage(text);
     } finally {
       setSending(false);
     }
   };
 
+  // ── Render message ─────────────────────────────────────────
   const renderMessage = ({ item }) => {
-    const isMyMessage = item.sender === "currentUser" || item.isCurrentUser;
+    const senderId = item.sender?._id || item.sender;
+    const isOwn = senderId?.toString() === currentUserId;
 
     return (
-      <View
-        style={[
-          styles.messageBubble,
-          isMyMessage ? styles.myMessage : styles.theirMessage,
-        ]}
-      >
-        <Text
-          style={[
-            styles.messageText,
-            isMyMessage ? styles.myMessageText : styles.theirMessageText,
-          ]}
-        >
+      <View style={[styles.bubble, isOwn ? styles.bubbleOwn : styles.bubbleOther]}>
+        <Text style={[styles.bubbleText, isOwn && styles.bubbleTextOwn]}>
           {item.content}
         </Text>
-        <Text
-          style={[
-            styles.timestamp,
-            isMyMessage ? styles.myTimestamp : styles.theirTimestamp,
-          ]}
-        >
-          {new Date(item.createdAt).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
+        <Text style={[styles.bubbleTime, isOwn && styles.bubbleTimeOwn]}>
+          {new Date(item.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         </Text>
       </View>
     );
@@ -219,8 +202,8 @@ export default function ChatScreen({ route, navigation }) {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2B6CB0" />
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={BLUE} />
       </View>
     );
   }
@@ -231,72 +214,79 @@ export default function ChatScreen({ route, navigation }) {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={90}
     >
-      {/* ✅ Menu rendered in component body so it positions correctly */}
-      <Menu
+      {/* ── Three-dot dropdown ── */}
+      <Modal
         visible={menuVisible}
-        onDismiss={() => setMenuVisible(false)}
-        anchor={menuAnchor}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuVisible(false)}
+        statusBarTranslucent
       >
-        <Menu.Item
-          onPress={handleViewProfile}
-          title="View Profile"
-          leadingIcon="account"
-        />
-        <Menu.Item
-          onPress={handleUnmatch}
-          title="Unmatch"
-          leadingIcon="account-remove"
-          titleStyle={styles.unmatchText}
-        />
-        <Menu.Item
-          onPress={handleReport}
-          title="Report User"
-          leadingIcon="flag"
-        />
-        <Menu.Item
-          onPress={handleBlock}
-          title="Block User"
-          leadingIcon="block-helper"
-          titleStyle={styles.blockText}
-        />
-      </Menu>
+        <TouchableOpacity
+          style={styles.menuOverlay}
+          activeOpacity={1}
+          onPress={() => setMenuVisible(false)}
+        >
+          <View style={styles.menuDropdown}>
+            <TouchableOpacity style={styles.menuItem} onPress={handleViewProfile}>
+              <Text style={styles.menuItemText}>👤  View Profile</Text>
+            </TouchableOpacity>
+            <View style={styles.menuDivider} />
+            <TouchableOpacity style={styles.menuItem} onPress={handleRemoveConnection}>
+              <Text style={[styles.menuItemText, styles.menuItemDanger]}>Remove Connection</Text>
+            </TouchableOpacity>
+            <View style={styles.menuDivider} />
+            <TouchableOpacity style={styles.menuItem} onPress={handleReport}>
+              <Text style={[styles.menuItemText, styles.menuItemDanger]}>Report User</Text>
+            </TouchableOpacity>
+            <View style={styles.menuDivider} />
+            <TouchableOpacity style={styles.menuItem} onPress={handleBlock}>
+              <Text style={[styles.menuItemText, styles.menuItemDanger]}>Block User</Text>
+            </TouchableOpacity>
+            <View style={styles.menuDivider} />
+            <TouchableOpacity style={styles.menuItem} onPress={() => setMenuVisible(false)}>
+              <Text style={[styles.menuItemText, { color: "#718096" }]}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
+      {/* ── Message list ── */}
       <FlatList
         ref={flatListRef}
         data={messages}
         renderItem={renderMessage}
-        keyExtractor={(item) => item._id}
-        contentContainerStyle={styles.messagesList}
-        onContentSizeChange={() =>
-          flatListRef.current?.scrollToEnd({ animated: false })
+        keyExtractor={item => item._id?.toString() || Math.random().toString()}
+        contentContainerStyle={styles.list}
+        onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <Text style={styles.emptyText}>No messages yet — say hello! 👋</Text>
+          </View>
         }
       />
 
-      <View style={styles.inputContainer}>
+      {/* ── Input bar ── */}
+      <View style={styles.inputBar}>
         <TextInput
-          mode="outlined"
+          style={styles.input}
           placeholder="Type a message..."
+          placeholderTextColor="#a0aec0"
           value={newMessage}
           onChangeText={setNewMessage}
-          style={styles.input}
           multiline
-          maxLength={500}
-          outlineColor="#E2E8F0"
-          activeOutlineColor="#2B6CB0"
+          maxLength={1000}
+          onSubmitEditing={handleSend}
         />
         <TouchableOpacity
-          style={[
-            styles.sendButton,
-            (!newMessage.trim() || sending) && styles.sendButtonDisabled,
-          ]}
+          style={[styles.sendBtn, (!newMessage.trim() || sending) && styles.sendBtnDisabled]}
           onPress={handleSend}
           disabled={!newMessage.trim() || sending}
         >
-          {sending ? (
-            <ActivityIndicator size="small" color="white" />
-          ) : (
-            <Send size={20} color="white" />
-          )}
+          {sending
+            ? <ActivityIndicator size="small" color="white" />
+            : <Send size={18} color="white" />
+          }
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -304,101 +294,94 @@ export default function ChatScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  container: { flex: 1, backgroundColor: "#F7FAFC" },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+
+  // Menu
+  menuButton: { paddingHorizontal: 14, paddingVertical: 8 },
+  menuOverlay: {
     flex: 1,
-    backgroundColor: "#F7FAFC",
+    backgroundColor: "rgba(0,0,0,0.35)",
+    justifyContent: "flex-start",
+    alignItems: "flex-end",
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+  menuDropdown: {
+    backgroundColor: "white",
+    borderRadius: 14,
+    marginTop: 54,
+    marginRight: 10,
+    minWidth: 210,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    elevation: 10,
+    overflow: "hidden",
   },
-  menuButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  menu: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    zIndex: 999,
-  },
-  messagesList: {
-    padding: 16,
-    paddingBottom: 8,
-  },
-  messageBubble: {
+  menuItem: { paddingVertical: 15, paddingHorizontal: 20 },
+  menuItemText: { fontSize: 15, color: "#2d3748", fontWeight: "500" },
+  menuItemDanger: { color: "#e53e3e" },
+  menuDivider: { height: 1, backgroundColor: "#f0f4f8" },
+
+  // Messages
+  list: { padding: 16, paddingBottom: 8, flexGrow: 1, justifyContent: "flex-end" },
+  empty: { flex: 1, alignItems: "center", paddingTop: 60 },
+  emptyText: { color: "#a0aec0", fontSize: 15 },
+
+  bubble: {
     maxWidth: "75%",
-    marginBottom: 12,
-    padding: 12,
-    borderRadius: 16,
+    marginBottom: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 18,
   },
-  myMessage: {
+  bubbleOwn: {
     alignSelf: "flex-end",
-    backgroundColor: "#2B6CB0",
+    backgroundColor: BLUE,
     borderBottomRightRadius: 4,
   },
-  theirMessage: {
+  bubbleOther: {
     alignSelf: "flex-start",
     backgroundColor: "white",
     borderBottomLeftRadius: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
   },
-  messageText: {
-    fontSize: 15,
-    lineHeight: 20,
-  },
-  myMessageText: {
-    color: "white",
-  },
-  theirMessageText: {
-    color: "#2D3748",
-  },
-  timestamp: {
-    fontSize: 11,
-    marginTop: 4,
-  },
-  myTimestamp: {
-    color: "rgba(255, 255, 255, 0.7)",
-    textAlign: "right",
-  },
-  theirTimestamp: {
-    color: "#A0AEC0",
-  },
-  inputContainer: {
+  bubbleText: { fontSize: 15, color: "#2d3748", lineHeight: 21 },
+  bubbleTextOwn: { color: "white" },
+  bubbleTime: { fontSize: 10, color: "#a0aec0", marginTop: 3, textAlign: "right" },
+  bubbleTimeOwn: { color: "rgba(255,255,255,0.65)" },
+
+  // Input
+  inputBar: {
     flexDirection: "row",
-    padding: 12,
+    alignItems: "flex-end",
+    padding: 10,
     backgroundColor: "white",
     borderTopWidth: 1,
-    borderTopColor: "#E2E8F0",
-    alignItems: "flex-end",
+    borderTopColor: "#e2e8f0",
     gap: 8,
   },
   input: {
     flex: 1,
-    maxHeight: 100,
-    backgroundColor: "white",
+    minHeight: 42,
+    maxHeight: 120,
+    backgroundColor: "#f8fafc",
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    borderRadius: 21,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: "#2d3748",
   },
-  sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#2B6CB0",
+  sendBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: BLUE,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 4,
   },
-  sendButtonDisabled: {
-    backgroundColor: "#CBD5E0",
-  },
-  unmatchText: {
-    color: "#E53E3E",
-  },
-  blockText: {
-    color: "#E53E3E",
-  },
+  sendBtnDisabled: { backgroundColor: "#cbd5e0" },
 });
