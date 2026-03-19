@@ -51,14 +51,7 @@ router.get("/:meetupId", auth, async (req, res) => {
 router.post("/", auth, async (req, res) => {
   try {
     logger.info("Creating meetup:", req.body);
-    const {
-      title,
-      description,
-      dateTime,
-      location,
-      invitedUsers,
-      maxAttendees,
-    } = req.body;
+    const { title, description, dateTime, location, invitedUsers, maxAttendees } = req.body;
 
     const meetup = new Meetup({
       title,
@@ -81,12 +74,9 @@ router.post("/", auth, async (req, res) => {
 
     // ✅ Send notifications to all invited users
     if (invitedUsers && invitedUsers.length > 0) {
-      const creator = await User.findById(req.userId).select(
-        "name email pushTokens",
-      );
-      const invitees = await User.find({ _id: { $in: invitedUsers } }).select(
-        "name email pushTokens emailNotifications",
-      );
+      const creator = await User.findById(req.userId).select("name email pushTokens");
+      const invitees = await User.find({ _id: { $in: invitedUsers } })
+        .select("name email pushTokens emailNotifications");
 
       // Send in background — don't block the response
       Promise.all(
@@ -99,16 +89,14 @@ router.post("/", auth, async (req, res) => {
           } catch (err) {
             logger.error("Failed to notify invitee:", invitee._id, err);
           }
-        }),
+        })
       ).catch((err) => logger.error("Notification batch error:", err));
     }
 
     res.status(201).json(meetup);
   } catch (error) {
     logger.error("Error creating meetup:", error);
-    res
-      .status(500)
-      .json({ message: "Error creating meetup", error: error.message });
+    res.status(500).json({ message: "Error creating meetup", error: error.message });
   }
 });
 
@@ -152,21 +140,46 @@ router.put("/:meetupId", auth, async (req, res) => {
       return res.status(403).json({ message: "Not authorized" });
     }
 
-    const { title, description, dateTime, location, maxAttendees } = req.body;
+    const { title, description, dateTime, location, maxAttendees, invitedUsers } = req.body;
+
+    // Track newly added invitees so we only email them, not everyone
+    const existingInviteIds = (meetup.invitedUsers || []).map(id => id.toString());
+    const newInviteeIds = invitedUsers
+      ? invitedUsers.filter(id => !existingInviteIds.includes(id.toString()))
+      : [];
 
     meetup.title = title || meetup.title;
-    meetup.description =
-      description !== undefined ? description : meetup.description;
+    meetup.description = description !== undefined ? description : meetup.description;
     meetup.dateTime = dateTime || meetup.dateTime;
     meetup.location = location || meetup.location;
-    meetup.maxAttendees =
-      maxAttendees !== undefined ? maxAttendees : meetup.maxAttendees;
+    meetup.maxAttendees = maxAttendees !== undefined ? maxAttendees : meetup.maxAttendees;
+    if (invitedUsers) {
+      meetup.invitedUsers = [...new Set([...existingInviteIds, ...invitedUsers.map(id => id.toString())])];
+    }
 
     await meetup.save();
 
     await meetup.populate("creator", "name profilePhoto");
     await meetup.populate("invitedUsers", "name profilePhoto");
     await meetup.populate("rsvps.user", "name profilePhoto");
+
+    // Send invite emails to newly added invitees only
+    if (newInviteeIds.length > 0) {
+      const creator = await User.findById(req.userId).select("name email");
+      const newInvitees = await User.find({ _id: { $in: newInviteeIds } })
+        .select("name email pushTokens emailNotifications");
+
+      Promise.all(
+        newInvitees.map(async (invitee) => {
+          try {
+            await sendMeetupInviteEmail({ invitee, creator, meetup });
+            await sendMeetupInvitePush({ invitee, creator, meetup });
+          } catch (err) {
+            logger.error("Failed to notify new invitee on edit:", invitee._id, err);
+          }
+        })
+      ).catch(err => logger.error("Edit invite notification error:", err));
+    }
 
     res.json(meetup);
   } catch (error) {
