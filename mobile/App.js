@@ -211,7 +211,7 @@ export default function App() {
               <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
 
               {/* Group screens */}
-              <Stack.Screen name="GroupDetail" component={GroupDetailScreen} options={{ title: "Group", ...headerStyle }} />
+              <Stack.Screen name="GroupDetail" component={GroupDetailScreen} options={{ title: "Group", headerBackTitle: "Back", ...headerStyle }} />
               <Stack.Screen name="CreateGroup" component={CreateGroupScreen} options={{ title: "Create Group", ...headerStyle }} />
               <Stack.Screen name="MemberProfile" component={MemberProfileScreen} options={{ title: "Profile", ...headerStyle }} />
 

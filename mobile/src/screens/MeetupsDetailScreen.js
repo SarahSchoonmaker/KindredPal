@@ -1,63 +1,260 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  Alert, Modal, TextInput, KeyboardAvoidingView, Platform,
 } from "react-native";
-import { Avatar, Button, Divider } from "react-native-paper";
-import { Calendar, MapPin, Users, Clock, Edit, Trash2 } from "lucide-react-native";
+import { Avatar, Button, Divider, ActivityIndicator } from "react-native-paper";
+import { Calendar, MapPin, Users, Clock, Edit, Trash2, X } from "lucide-react-native";
 import * as SecureStore from "expo-secure-store";
 import api from "../services/api";
 
+const BLUE = "#2B6CB0";
+
+// ── Date/time picker helper ───────────────────────────────────────────────────
+// Simple text-based input for date/time since DateTimePicker needs native module
+function DateField({ label, value, onChange }) {
+  return (
+    <View style={editStyles.field}>
+      <Text style={editStyles.label}>{label}</Text>
+      <TextInput
+        style={editStyles.input}
+        value={value}
+        onChangeText={onChange}
+        placeholder="YYYY-MM-DD HH:MM"
+        placeholderTextColor="#a0aec0"
+      />
+    </View>
+  );
+}
+
+// ── Edit Modal ────────────────────────────────────────────────────────────────
+function EditMeetupModal({ visible, meetup, onClose, onSaved }) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [dateTime, setDateTime] = useState("");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [maxAttendees, setMaxAttendees] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  // Populate fields when modal opens
+  useEffect(() => {
+    if (!meetup || !visible) return;
+    setTitle(meetup.title || "");
+    setDescription(meetup.description || "");
+    // Format dateTime to readable string for editing
+    const d = meetup.dateTime ? new Date(meetup.dateTime) : new Date();
+    const pad = n => String(n).padStart(2, "0");
+    setDateTime(
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+    );
+    setAddress(meetup.location?.address || "");
+    setCity(meetup.location?.city || "");
+    setState(meetup.location?.state || "");
+    setMaxAttendees(meetup.maxAttendees ? String(meetup.maxAttendees) : "");
+  }, [meetup, visible]);
+
+  const handleSave = async () => {
+    if (!title.trim()) return Alert.alert("Required", "Title is required");
+
+    // Parse dateTime string
+    let parsedDate;
+    try {
+      parsedDate = new Date(dateTime.trim());
+      if (isNaN(parsedDate.getTime())) throw new Error("Invalid date");
+    } catch {
+      return Alert.alert("Invalid Date", "Please use format: YYYY-MM-DD HH:MM");
+    }
+
+    setSaving(true);
+    try {
+      const res = await api.put(`/meetups/${meetup._id}`, {
+        title: title.trim(),
+        description: description.trim(),
+        dateTime: parsedDate.toISOString(),
+        location: {
+          address: address.trim(),
+          city: city.trim(),
+          state: state.trim(),
+        },
+        maxAttendees: maxAttendees ? parseInt(maxAttendees) : null,
+      });
+      onSaved(res.data);
+      onClose();
+    } catch (err) {
+      Alert.alert("Error", err.response?.data?.message || "Could not save changes");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <View style={editStyles.modalHeader}>
+          <Text style={editStyles.modalTitle}>Edit Meetup</Text>
+          <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <X size={22} color="#4a5568" />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView style={editStyles.modalScroll} keyboardShouldPersistTaps="handled">
+
+          <View style={editStyles.field}>
+            <Text style={editStyles.label}>Title *</Text>
+            <TextInput
+              style={editStyles.input}
+              value={title}
+              onChangeText={setTitle}
+              placeholder="Meetup title"
+              placeholderTextColor="#a0aec0"
+              maxLength={100}
+            />
+          </View>
+
+          <View style={editStyles.field}>
+            <Text style={editStyles.label}>Description</Text>
+            <TextInput
+              style={[editStyles.input, editStyles.inputMulti]}
+              value={description}
+              onChangeText={setDescription}
+              placeholder="What's this meetup about?"
+              placeholderTextColor="#a0aec0"
+              multiline
+              numberOfLines={4}
+              maxLength={500}
+            />
+          </View>
+
+          <View style={editStyles.field}>
+            <Text style={editStyles.label}>Date & Time</Text>
+            <TextInput
+              style={editStyles.input}
+              value={dateTime}
+              onChangeText={setDateTime}
+              placeholder="YYYY-MM-DD HH:MM  e.g. 2026-04-15 18:30"
+              placeholderTextColor="#a0aec0"
+            />
+            <Text style={editStyles.hint}>Format: YYYY-MM-DD HH:MM (24hr)</Text>
+          </View>
+
+          <View style={editStyles.field}>
+            <Text style={editStyles.label}>Address</Text>
+            <TextInput
+              style={editStyles.input}
+              value={address}
+              onChangeText={setAddress}
+              placeholder="Street address (optional)"
+              placeholderTextColor="#a0aec0"
+            />
+          </View>
+
+          <View style={editStyles.row}>
+            <View style={{ flex: 1 }}>
+              <Text style={editStyles.label}>City</Text>
+              <TextInput
+                style={editStyles.input}
+                value={city}
+                onChangeText={setCity}
+                placeholder="City"
+                placeholderTextColor="#a0aec0"
+              />
+            </View>
+            <View style={{ width: 80, marginLeft: 10 }}>
+              <Text style={editStyles.label}>State</Text>
+              <TextInput
+                style={editStyles.input}
+                value={state}
+                onChangeText={setState}
+                placeholder="FL"
+                placeholderTextColor="#a0aec0"
+                maxLength={2}
+                autoCapitalize="characters"
+              />
+            </View>
+          </View>
+
+          <View style={editStyles.field}>
+            <Text style={editStyles.label}>Max Attendees</Text>
+            <TextInput
+              style={[editStyles.input, { width: 100 }]}
+              value={maxAttendees}
+              onChangeText={setMaxAttendees}
+              placeholder="Unlimited"
+              placeholderTextColor="#a0aec0"
+              keyboardType="number-pad"
+              maxLength={4}
+            />
+          </View>
+
+          <View style={{ height: 20 }} />
+        </ScrollView>
+
+        <View style={editStyles.modalFooter}>
+          <TouchableOpacity style={editStyles.btnCancel} onPress={onClose}>
+            <Text style={editStyles.btnCancelText}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[editStyles.btnSave, saving && { opacity: 0.6 }]}
+            onPress={handleSave}
+            disabled={saving}
+          >
+            {saving
+              ? <ActivityIndicator size="small" color="white" />
+              : <Text style={editStyles.btnSaveText}>Save Changes</Text>
+            }
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+// ── Main Screen ───────────────────────────────────────────────────────────────
 export default function MeetupDetailsScreen({ route, navigation }) {
   const { meetupId } = route.params;
   const [meetup, setMeetup] = useState(null);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [rsvpLoading, setRsvpLoading] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
 
   useEffect(() => {
-    // ✅ Read userId from SecureStore (not AsyncStorage — that's where login saves it)
-    SecureStore.getItemAsync("userId").then((id) => {
+    SecureStore.getItemAsync("userId").then(id => {
       if (id) setCurrentUserId(id);
     });
   }, []);
 
   const fetchMeetupDetails = useCallback(async () => {
     try {
-      const response = await api.get(`/meetups/${meetupId}`);
-      setMeetup(response.data);
-    } catch (error) {
-      console.error("Error fetching meetup:", error);
+      const res = await api.get(`/meetups/${meetupId}`);
+      setMeetup(res.data);
+    } catch {
       Alert.alert("Error", "Failed to load meetup details");
     } finally {
       setLoading(false);
     }
   }, [meetupId]);
 
-  useEffect(() => {
-    fetchMeetupDetails();
-  }, [fetchMeetupDetails]);
+  useEffect(() => { fetchMeetupDetails(); }, [fetchMeetupDetails]);
 
-  // ✅ Fixed: use .toString() on both sides — ObjectId vs string comparison was always false
   const getUserRSVP = useCallback(() => {
     if (!meetup || !currentUserId) return null;
-    const rsvp = meetup.rsvps.find(
-      (r) => r.user._id?.toString() === currentUserId.toString()
-    );
+    const rsvp = meetup.rsvps.find(r => r.user._id?.toString() === currentUserId.toString());
     return rsvp ? rsvp.status : null;
   }, [meetup, currentUserId]);
 
   const handleRSVP = async (status) => {
-    if (rsvpLoading) return;
-    const current = getUserRSVP();
-    if (current === status) return; // already this status
+    if (rsvpLoading || getUserRSVP() === status) return;
     setRsvpLoading(true);
     try {
-      // ✅ Use response data to update state immediately — no re-fetch needed
-      const response = await api.post(`/meetups/${meetupId}/rsvp`, { status });
-      setMeetup(response.data);
-      // ✅ No Alert.alert on success — button highlight is enough feedback
-    } catch (error) {
-      console.error("Error updating RSVP:", error);
+      const res = await api.post(`/meetups/${meetupId}/rsvp`, { status });
+      setMeetup(res.data);
+    } catch {
       Alert.alert("Error", "Failed to update RSVP");
     } finally {
       setRsvpLoading(false);
@@ -72,9 +269,8 @@ export default function MeetupDetailsScreen({ route, navigation }) {
         onPress: async () => {
           try {
             await api.delete(`/meetups/${meetupId}`);
-            // Pass deleted flag back so MeetupsScreen refreshes
             navigation.navigate("Meetups", { refresh: Date.now() });
-          } catch (error) {
+          } catch {
             Alert.alert("Error", "Failed to delete meetup");
           }
         },
@@ -82,208 +278,208 @@ export default function MeetupDetailsScreen({ route, navigation }) {
     ]);
   };
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
-  };
+  const formatDate = d => new Date(d).toLocaleDateString("en-US", {
+    weekday: "long", month: "long", day: "numeric", year: "numeric",
+  });
 
-  const formatTime = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-  };
+  const formatTime = d => new Date(d).toLocaleTimeString("en-US", {
+    hour: "numeric", minute: "2-digit",
+  });
 
   if (loading) {
-    return <View style={styles.centerContainer}><Text>Loading...</Text></View>;
+    return <View style={styles.center}><ActivityIndicator size="large" color={BLUE} /></View>;
   }
 
   if (!meetup) {
-    return <View style={styles.centerContainer}><Text>Meetup not found</Text></View>;
+    return <View style={styles.center}><Text>Meetup not found</Text></View>;
   }
 
-  // ✅ Fixed: .toString() on both sides for reliable comparison
   const isCreator = currentUserId?.toString() === meetup.creator._id?.toString();
   const userRSVP = getUserRSVP();
-  const goingCount = meetup.rsvps.filter((r) => r.status === "going").length;
-  const maybeCount = meetup.rsvps.filter((r) => r.status === "maybe").length;
+  const goingCount = meetup.rsvps.filter(r => r.status === "going").length;
+  const maybeCount = meetup.rsvps.filter(r => r.status === "maybe").length;
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <Text style={styles.title}>{meetup.title}</Text>
-          <View style={styles.creatorInfo}>
-            <Avatar.Image size={40} source={{ uri: meetup.creator.profilePhoto }} />
-            <Text style={styles.hostedBy}>Hosted by {meetup.creator.name}</Text>
-          </View>
-        </View>
-        {isCreator && (
-          <View style={styles.creatorActions}>
-            <TouchableOpacity style={styles.iconButton}
-              onPress={() => Alert.alert("Edit", "Edit functionality coming soon!")}>
-              <Edit color="#2B6CB0" size={24} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.iconButton} onPress={handleDelete}>
-              <Trash2 color="#E53E3E" size={24} />
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
+    <>
+      <ScrollView style={styles.container}>
 
-      <Divider />
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerContent}>
+            <Text style={styles.title}>{meetup.title}</Text>
+            <View style={styles.creatorRow}>
+              <Avatar.Image size={36} source={{ uri: meetup.creator.profilePhoto }} />
+              <Text style={styles.hostedBy}>Hosted by {meetup.creator.name}</Text>
+            </View>
+          </View>
+          {isCreator && (
+            <View style={styles.creatorActions}>
+              <TouchableOpacity style={styles.iconBtn} onPress={() => setShowEdit(true)}>
+                <Edit color={BLUE} size={22} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.iconBtn} onPress={handleDelete}>
+                <Trash2 color="#E53E3E" size={22} />
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
 
-      {/* Info Cards */}
-      <View style={styles.infoSection}>
-        <View style={styles.infoCard}>
-          <Calendar color="#2B6CB0" size={24} />
-          <View style={styles.infoText}>
-            <Text style={styles.infoLabel}>Date</Text>
-            <Text style={styles.infoValue}>{formatDate(meetup.dateTime)}</Text>
-          </View>
-        </View>
-        <View style={styles.infoCard}>
-          <Clock color="#2B6CB0" size={24} />
-          <View style={styles.infoText}>
-            <Text style={styles.infoLabel}>Time</Text>
-            <Text style={styles.infoValue}>{formatTime(meetup.dateTime)}</Text>
-          </View>
-        </View>
-        {meetup.location && (
+        <Divider />
+
+        {/* Info */}
+        <View style={styles.infoSection}>
           <View style={styles.infoCard}>
-            <MapPin color="#2B6CB0" size={24} />
+            <Calendar color={BLUE} size={22} />
             <View style={styles.infoText}>
-              <Text style={styles.infoLabel}>Location</Text>
-              {meetup.location.address && <Text style={styles.infoValue}>{meetup.location.address}</Text>}
-              <Text style={styles.infoValue}>{meetup.location.city}, {meetup.location.state}</Text>
+              <Text style={styles.infoLabel}>Date</Text>
+              <Text style={styles.infoValue}>{formatDate(meetup.dateTime)}</Text>
+            </View>
+          </View>
+          <View style={styles.infoCard}>
+            <Clock color={BLUE} size={22} />
+            <View style={styles.infoText}>
+              <Text style={styles.infoLabel}>Time</Text>
+              <Text style={styles.infoValue}>{formatTime(meetup.dateTime)}</Text>
+            </View>
+          </View>
+          {meetup.location && (
+            <View style={styles.infoCard}>
+              <MapPin color={BLUE} size={22} />
+              <View style={styles.infoText}>
+                <Text style={styles.infoLabel}>Location</Text>
+                {meetup.location.address ? <Text style={styles.infoValue}>{meetup.location.address}</Text> : null}
+                <Text style={styles.infoValue}>{meetup.location.city}, {meetup.location.state}</Text>
+              </View>
+            </View>
+          )}
+          <View style={styles.infoCard}>
+            <Users color={BLUE} size={22} />
+            <View style={styles.infoText}>
+              <Text style={styles.infoLabel}>Attendees</Text>
+              <Text style={styles.infoValue}>
+                {goingCount} going, {maybeCount} maybe
+                {meetup.maxAttendees ? ` · Max: ${meetup.maxAttendees}` : ""}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Description */}
+        {meetup.description ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>About This Meetup</Text>
+            <Text style={styles.description}>{meetup.description}</Text>
+          </View>
+        ) : null}
+
+        {/* RSVP */}
+        {!isCreator && (
+          <View style={styles.rsvpSection}>
+            <Text style={styles.sectionTitle}>Will you attend?</Text>
+            <View style={styles.rsvpRow}>
+              {[
+                { status: "going",     label: "✓ Going",    active: "#48BB78" },
+                { status: "maybe",     label: "? Maybe",    active: "#ED8936" },
+                { status: "not-going", label: "✗ Can't Go", active: "#E53E3E" },
+              ].map(({ status, label, active }) => (
+                <TouchableOpacity
+                  key={status}
+                  style={[styles.rsvpBtn, userRSVP === status && { backgroundColor: active, borderColor: active }]}
+                  onPress={() => handleRSVP(status)}
+                  disabled={rsvpLoading}
+                >
+                  <Text style={[styles.rsvpBtnText, userRSVP === status && { color: "white" }]}>{label}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
         )}
-        <View style={styles.infoCard}>
-          <Users color="#2B6CB0" size={24} />
-          <View style={styles.infoText}>
-            <Text style={styles.infoLabel}>Attendees</Text>
-            <Text style={styles.infoValue}>
-              {goingCount} going, {maybeCount} maybe
-              {meetup.maxAttendees ? ` • Max: ${meetup.maxAttendees}` : ""}
-            </Text>
-          </View>
-        </View>
-      </View>
 
-      {/* Description */}
-      {meetup.description && (
+        {/* Guest list */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>About This Meetup</Text>
-          <Text style={styles.description}>{meetup.description}</Text>
-        </View>
-      )}
-
-      {/* RSVP Buttons */}
-      {!isCreator && (
-        <View style={styles.rsvpSection}>
-          <Text style={styles.sectionTitle}>Will you attend?</Text>
-          <View style={styles.rsvpButtons}>
-            <Button
-              mode={userRSVP === "going" ? "contained" : "outlined"}
-              onPress={() => handleRSVP("going")}
-              disabled={rsvpLoading}
-              style={[styles.rsvpButton, userRSVP === "going" && styles.rsvpButtonGoing]}
-              labelStyle={styles.rsvpButtonLabel}
-            >✓ Going</Button>
-            <Button
-              mode={userRSVP === "maybe" ? "contained" : "outlined"}
-              onPress={() => handleRSVP("maybe")}
-              disabled={rsvpLoading}
-              style={[styles.rsvpButton, userRSVP === "maybe" && styles.rsvpButtonMaybe]}
-              labelStyle={styles.rsvpButtonLabel}
-            >? Maybe</Button>
-            <Button
-              mode={userRSVP === "not-going" ? "contained" : "outlined"}
-              onPress={() => handleRSVP("not-going")}
-              disabled={rsvpLoading}
-              style={[styles.rsvpButton, userRSVP === "not-going" && styles.rsvpButtonNotGoing]}
-              labelStyle={styles.rsvpButtonLabel}
-            >✗ Can't Go</Button>
-          </View>
-        </View>
-      )}
-
-      {/* Guest List */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Guest List</Text>
-
-        {goingCount > 0 && (
-          <View style={styles.guestCategory}>
-            <Text style={styles.categoryTitle}>Going ({goingCount})</Text>
-            {meetup.rsvps.filter((r) => r.status === "going").map((rsvp) => (
-              <View key={rsvp.user._id} style={styles.guestItem}>
-                <Avatar.Image size={48} source={{ uri: rsvp.user.profilePhoto }} />
-                <Text style={styles.guestName}>{rsvp.user.name}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {maybeCount > 0 && (
-          <View style={styles.guestCategory}>
-            <Text style={styles.categoryTitle}>Maybe ({maybeCount})</Text>
-            {meetup.rsvps.filter((r) => r.status === "maybe").map((rsvp) => (
-              <View key={rsvp.user._id} style={styles.guestItem}>
-                <Avatar.Image size={48} source={{ uri: rsvp.user.profilePhoto }} />
-                <Text style={styles.guestName}>{rsvp.user.name}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-
-        <View style={styles.guestCategory}>
-          <Text style={styles.categoryTitle}>Invited</Text>
-          {meetup.invitedUsers
-            // ✅ Fixed: .toString() comparison here too
-            .filter((u) => !meetup.rsvps.some((r) => r.user._id?.toString() === u._id?.toString()))
-            .map((u) => (
-              <View key={u._id} style={styles.guestItem}>
-                <Avatar.Image size={48} source={{ uri: u.profilePhoto }} />
-                <View>
-                  <Text style={styles.guestName}>{u.name}</Text>
-                  <Text style={styles.guestStatus}>Not responded</Text>
+          <Text style={styles.sectionTitle}>Guest List</Text>
+          {goingCount > 0 && (
+            <View style={styles.guestGroup}>
+              <Text style={styles.guestGroupTitle}>Going ({goingCount})</Text>
+              {meetup.rsvps.filter(r => r.status === "going").map(rsvp => (
+                <View key={rsvp.user._id} style={styles.guestRow}>
+                  <Avatar.Image size={40} source={{ uri: rsvp.user.profilePhoto }} />
+                  <Text style={styles.guestName}>{rsvp.user.name}</Text>
                 </View>
-              </View>
-            ))}
+              ))}
+            </View>
+          )}
+          {maybeCount > 0 && (
+            <View style={styles.guestGroup}>
+              <Text style={styles.guestGroupTitle}>Maybe ({maybeCount})</Text>
+              {meetup.rsvps.filter(r => r.status === "maybe").map(rsvp => (
+                <View key={rsvp.user._id} style={styles.guestRow}>
+                  <Avatar.Image size={40} source={{ uri: rsvp.user.profilePhoto }} />
+                  <Text style={styles.guestName}>{rsvp.user.name}</Text>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
-      </View>
-    </ScrollView>
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
+
+      {/* Edit Modal */}
+      <EditMeetupModal
+        visible={showEdit}
+        meetup={meetup}
+        onClose={() => setShowEdit(false)}
+        onSaved={(updated) => {
+          setMeetup(updated);
+          setShowEdit(false);
+        }}
+      />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F7FAFC" },
-  centerContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
-  header: { flexDirection: "row", justifyContent: "space-between", padding: 20, backgroundColor: "white" },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", padding: 20, backgroundColor: "white" },
   headerContent: { flex: 1 },
-  title: { fontSize: 28, fontWeight: "bold", color: "#2D2D2D", marginBottom: 12 },
-  creatorInfo: { flexDirection: "row", alignItems: "center", gap: 10 },
-  hostedBy: { fontSize: 15, color: "#666" },
-  creatorActions: { flexDirection: "row", gap: 8 },
-  iconButton: { padding: 8 },
-  infoSection: { padding: 20, backgroundColor: "white", gap: 16 },
-  infoCard: { flexDirection: "row", gap: 12 },
+  title: { fontSize: 24, fontWeight: "800", color: "#1a202c", marginBottom: 10 },
+  creatorRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  hostedBy: { fontSize: 14, color: "#718096" },
+  creatorActions: { flexDirection: "row", gap: 4, marginLeft: 8 },
+  iconBtn: { padding: 8 },
+  infoSection: { padding: 20, backgroundColor: "white", gap: 16, marginTop: 1 },
+  infoCard: { flexDirection: "row", gap: 14, alignItems: "flex-start" },
   infoText: { flex: 1 },
-  infoLabel: { fontSize: 12, color: "#999", textTransform: "uppercase", fontWeight: "600", marginBottom: 4 },
-  infoValue: { fontSize: 15, color: "#2D2D2D", fontWeight: "500" },
+  infoLabel: { fontSize: 11, color: "#a0aec0", textTransform: "uppercase", fontWeight: "700", letterSpacing: 0.5, marginBottom: 3 },
+  infoValue: { fontSize: 15, color: "#2d3748", fontWeight: "500" },
   section: { padding: 20, backgroundColor: "white", marginTop: 8 },
-  sectionTitle: { fontSize: 20, fontWeight: "600", color: "#2D2D2D", marginBottom: 16 },
-  description: { fontSize: 15, color: "#666", lineHeight: 22 },
-  rsvpSection: { padding: 20, backgroundColor: "#F7FAFC", marginTop: 8 },
-  rsvpButtons: { flexDirection: "row", gap: 8 },
-  rsvpButton: { flex: 1 },
-  rsvpButtonGoing: { backgroundColor: "#48BB78" },
-  rsvpButtonMaybe: { backgroundColor: "#ED64A6" },
-  rsvpButtonNotGoing: { backgroundColor: "#E53E3E" },
-  rsvpButtonLabel: { fontSize: 13 },
-  guestCategory: { marginBottom: 24 },
-  categoryTitle: { fontSize: 16, fontWeight: "600", color: "#666", marginBottom: 12 },
-  guestItem: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12, backgroundColor: "#F7FAFC", borderRadius: 8, marginBottom: 8 },
-  guestName: { fontSize: 15, fontWeight: "600", color: "#2D2D2D" },
-  guestStatus: { fontSize: 13, color: "#999" },
+  sectionTitle: { fontSize: 17, fontWeight: "700", color: "#1a202c", marginBottom: 14 },
+  description: { fontSize: 15, color: "#4a5568", lineHeight: 22 },
+  rsvpSection: { padding: 20, backgroundColor: "white", marginTop: 8 },
+  rsvpRow: { flexDirection: "row", gap: 8 },
+  rsvpBtn: { flex: 1, paddingVertical: 11, borderRadius: 10, borderWidth: 1.5, borderColor: "#e2e8f0", alignItems: "center", backgroundColor: "white" },
+  rsvpBtnText: { fontSize: 13, fontWeight: "700", color: "#4a5568" },
+  guestGroup: { marginBottom: 20 },
+  guestGroupTitle: { fontSize: 14, fontWeight: "700", color: "#718096", marginBottom: 10 },
+  guestRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 6 },
+  guestName: { fontSize: 15, fontWeight: "600", color: "#2d3748" },
+});
+
+const editStyles = StyleSheet.create({
+  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 20, borderBottomWidth: 1, borderBottomColor: "#e2e8f0" },
+  modalTitle: { fontSize: 18, fontWeight: "800", color: "#1a202c" },
+  modalScroll: { flex: 1, padding: 20 },
+  field: { marginBottom: 18 },
+  row: { flexDirection: "row", marginBottom: 18 },
+  label: { fontSize: 11, fontWeight: "700", color: "#4a5568", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 7 },
+  hint: { fontSize: 11, color: "#a0aec0", marginTop: 4 },
+  input: { backgroundColor: "#f8fafc", borderWidth: 1.5, borderColor: "#e2e8f0", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: "#1a202c" },
+  inputMulti: { minHeight: 100, textAlignVertical: "top" },
+  modalFooter: { flexDirection: "row", gap: 12, padding: 16, borderTopWidth: 1, borderTopColor: "#e2e8f0" },
+  btnCancel: { flex: 1, paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, borderColor: "#e2e8f0", alignItems: "center" },
+  btnCancelText: { fontSize: 15, fontWeight: "600", color: "#718096" },
+  btnSave: { flex: 2, paddingVertical: 14, borderRadius: 12, backgroundColor: BLUE, alignItems: "center" },
+  btnSaveText: { fontSize: 15, fontWeight: "700", color: "white" },
 });
