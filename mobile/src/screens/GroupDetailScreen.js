@@ -19,27 +19,51 @@ import * as SecureStore from "expo-secure-store";
 import api from "../services/api";
 import { groupChatAPI } from "../services/api";
 
-function MemberCard({ member, onViewProfile }) {
+function MemberCard({ member, onViewProfile, onMessage, onConnect, connectionStatus, isCurrentUser }) {
+  const memberId = member._id?.toString() || member.toString();
+
   return (
-    <TouchableOpacity style={styles.memberCard} onPress={() => onViewProfile(member)}>
+    <TouchableOpacity style={styles.memberCard} onPress={() => onViewProfile(member)} activeOpacity={0.7}>
       <Image
-        source={{ uri: member.profilePhoto }}
+        source={{ uri: member.profilePhoto || "https://via.placeholder.com/40" }}
         style={styles.memberPhoto}
       />
       <View style={styles.memberInfo}>
-        <Text style={styles.memberName}>{member.name}</Text>
-        <Text style={styles.memberLocation}>
-          {member.city}, {member.state}
-        </Text>
-        {member.bio && (
-          <Text style={styles.memberBio} numberOfLines={1}>
-            {member.bio}
+        <Text style={styles.memberName}>{member.name || "Member"}</Text>
+        {(member.city || member.state) && (
+          <Text style={styles.memberLocation}>
+            {[member.city, member.state].filter(Boolean).join(", ")}
           </Text>
         )}
+        {member.bio ? (
+          <Text style={styles.memberBio} numberOfLines={1}>{member.bio}</Text>
+        ) : null}
       </View>
-      <View style={styles.messageBtn}>
-        <MessageCircle size={18} color="#2B6CB0" />
-      </View>
+      {!isCurrentUser && (
+        <View style={styles.memberAction}>
+          {connectionStatus === "accepted" ? (
+            <TouchableOpacity
+              style={styles.messageBtnActive}
+              onPress={() => onMessage(member)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <MessageCircle size={18} color="white" />
+            </TouchableOpacity>
+          ) : connectionStatus === "pending" ? (
+            <View style={styles.pendingBadge}>
+              <Text style={styles.pendingBadgeText}>Pending</Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.connectBtn}
+              onPress={() => onConnect(member)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.connectBtnText}>+ Connect</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
@@ -55,6 +79,7 @@ export default function GroupDetailScreen({ route, navigation }) {
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [connectionStatuses, setConnectionStatuses] = useState({});
   const flatListRef = useRef(null);
 
   useEffect(() => {
@@ -97,18 +122,45 @@ export default function GroupDetailScreen({ route, navigation }) {
     }
   };
 
+  const fetchConnectionStatuses = useCallback(async (members, myId) => {
+    if (!members?.length || !myId) return;
+    const statuses = {};
+    await Promise.all(
+      members
+        .filter(m => {
+          const mId = m._id?.toString() || m.toString();
+          return mId !== myId;
+        })
+        .map(async m => {
+          const mId = m._id?.toString() || m.toString();
+          try {
+            const res = await api.get(`/connections/status/${mId}`);
+            statuses[mId] = res.data.status || "none";
+          } catch {
+            statuses[mId] = "none";
+          }
+        })
+    );
+    setConnectionStatuses(statuses);
+  }, []);
+
   const fetchGroup = useCallback(async () => {
     try {
       const res = await api.get(`/groups/${groupId}`);
       setGroup(res.data);
       navigation.setOptions({ title: res.data.name });
+      // Fetch connection statuses for all members
+      const myId = await SecureStore.getItemAsync("userId");
+      if (res.data.members?.length) {
+        fetchConnectionStatuses(res.data.members, myId);
+      }
     } catch (err) {
       console.error("Error fetching group:", err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [groupId]);
+  }, [groupId, fetchConnectionStatuses]);
 
   useFocusEffect(
     useCallback(() => {
@@ -157,10 +209,31 @@ export default function GroupDetailScreen({ route, navigation }) {
   };
 
   const handleViewProfile = (member) => {
+    const memberId = member._id?.toString() || member.toString();
+    if (!memberId || memberId === currentUserId) return;
     navigation.navigate("MemberProfile", {
-      userId: member._id,
+      userId: memberId,
       sharedGroups: [{ _id: group._id, name: group.name, category: group.category }],
     });
+  };
+
+  const handleMessageMember = (member) => {
+    const memberId = member._id?.toString() || member.toString();
+    if (!memberId) return;
+    navigation.navigate("Chat", {
+      match: { _id: memberId, id: memberId, name: member.name, profilePhoto: member.profilePhoto },
+    });
+  };
+
+  const handleConnectMember = async (member) => {
+    const memberId = member._id?.toString() || member.toString();
+    if (!memberId) return;
+    try {
+      await api.post(`/connections/request/${memberId}`, { message: "" });
+      setConnectionStatuses(prev => ({ ...prev, [memberId]: "pending" }));
+    } catch (err) {
+      Alert.alert("Error", err.response?.data?.message || "Could not send request");
+    }
   };
 
   if (loading) {
@@ -488,6 +561,25 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
+
+  // Member action buttons
+  memberAction: { justifyContent: "center", alignItems: "center", marginLeft: 8 },
+  messageBtnActive: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: "#2B6CB0", justifyContent: "center", alignItems: "center",
+  },
+  connectBtn: {
+    paddingHorizontal: 10, paddingVertical: 6,
+    backgroundColor: "#EBF4FF", borderRadius: 12,
+    borderWidth: 1.5, borderColor: "#2B6CB0",
+  },
+  connectBtnText: { fontSize: 12, fontWeight: "700", color: "#2B6CB0" },
+  pendingBadge: {
+    paddingHorizontal: 8, paddingVertical: 5,
+    backgroundColor: "#F7FAFC", borderRadius: 10,
+    borderWidth: 1, borderColor: "#CBD5E0",
+  },
+  pendingBadgeText: { fontSize: 11, color: "#718096", fontWeight: "600" },
 
   // Tabs
   tabs: { flexDirection: "row", backgroundColor: "white", borderBottomWidth: 1, borderBottomColor: "#E2E8F0" },
