@@ -11,6 +11,7 @@ import {
 import { FAB, Card, Avatar } from "react-native-paper";
 import { Calendar, MapPin, Users, Clock } from "lucide-react-native";
 import * as SecureStore from "expo-secure-store";
+import { useFocusEffect } from "@react-navigation/native";
 import api from "../services/api";
 import CreateMeetupModal from "../components/CreateMeetupModal";
 
@@ -44,16 +45,24 @@ export default function MeetupsScreen({ navigation, route }) {
     }
   }, []);
 
+  // Load on mount
   useEffect(() => {
     fetchMeetups();
   }, [fetchMeetups]);
 
-  // Silent refresh when returning to screen (e.g. after delete)
+  // Refresh on re-focus (e.g. after delete) without wipe
   useFocusEffect(
     useCallback(() => {
-      fetchMeetups();
-    }, [fetchMeetups])
+      if (!loading) fetchMeetups();
+    }, [fetchMeetups, loading])
   );
+
+  // Refresh when navigating back with refresh param (after delete)
+  useEffect(() => {
+    if (route?.params?.refresh) {
+      fetchMeetups();
+    }
+  }, [route?.params?.refresh]);
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
