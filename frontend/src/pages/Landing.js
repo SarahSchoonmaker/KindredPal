@@ -27,7 +27,7 @@ const Landing = () => {
             <h1>Find your people.</h1>
             <p>
               KindredPal connects you with local groups built around shared
-              faith, values, and life stage — so you walk in already knowing
+              values and life stage — so you walk in already knowing
               you have something in common.
             </p>
             <div className="landing-hero-btns">
