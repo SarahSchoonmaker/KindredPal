@@ -138,6 +138,7 @@ export default function Profile() {
     if (user) {
       setForm({
         name: user.name || "",
+        email: user.email || "",
         age: user.age || "",
         bio: user.bio || "",
         city: user.city || "",
@@ -254,6 +255,11 @@ export default function Profile() {
         </button>
       </div>
 
+      {/* Edit Profile header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <h2 style={{ fontSize: 18, fontWeight: 700, color: "#1a202c", margin: 0 }}>✏️ Edit Profile</h2>
+      </div>
+
       {/* Tab bar */}
       <div style={S.tabBar}>
         {tabs.map(tab => (
@@ -277,6 +283,11 @@ export default function Profile() {
             <div style={S.field}>
               <label style={S.label}>Name</label>
               <input style={S.input} value={form.name} onChange={e => set("name", e.target.value)} maxLength={60} />
+            </div>
+            <div style={S.field}>
+              <label style={S.label}>Email</label>
+              <input style={S.input} type="email" value={form.email} onChange={e => set("email", e.target.value)} placeholder="your@email.com" />
+              <p style={S.fieldHint}>Changing your email will update your login credentials</p>
             </div>
             <div style={S.field}>
               <label style={S.label}>Age</label>
