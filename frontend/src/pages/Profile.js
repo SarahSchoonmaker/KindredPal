@@ -6,7 +6,7 @@ import { userAPI } from "../services/api";
 const US_STATES = ["AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY","DC"];
 const RELIGION_OPTIONS = ["None","Spiritual but not religious","Christian (Catholic)","Christian (Protestant)","Christian (Evangelical)","Christian (Orthodox)","Jewish","Muslim","Hindu","Buddhist","Mormon / LDS","Other"];
 const POLITICS_OPTIONS = ["Conservative","Moderate","Liberal","Prefer not to say"];
-const LIFE_STAGE_OPTIONS = ["Single","In a relationship","Married","Divorced","Widowed","Empty nester","Retired","Caregiver","Aging Alone","New Career","New To Town"];
+const LIFE_STAGE_OPTIONS = ["Single","In a relationship","Married","Divorced","Widowed","Empty nester","Retired","Caregiver","Aging Alone","New Career","New to Town"];
 const FAMILY_OPTIONS = ["No kids","Expecting","Kids under 5","Kids 6-12","Teenagers","Adult children","Grandchildren","Homeschooling"];
 const CORE_VALUES_OPTIONS = ["Faith & God","Personal growth","Health & wellness","Community & service","Adventure & outdoors","Creativity & arts","Lifelong learning","Financial freedom","Environmental stewardship","Mental health & self-care","Entrepreneurship","Animal welfare","Theology","Philosophy","Technology","Sports & Athletics","Fashion","Design","Real Estate","Investing","Reading","Politics"];
 

@@ -71,7 +71,7 @@ const userSchema = new mongoose.Schema(
         "Caregiver",
         "Aging Alone",
         "New Career",
-        "New To Town",
+        "New to Town",
       ],
       default: [],
     },

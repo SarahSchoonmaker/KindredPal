@@ -17,7 +17,7 @@ const LIFE_STAGES = [
   "Caregiver",
   "Aging Alone",
   "New Career",
-  "New To Town",
+  "New to Town",
 ];
 
 const FAMILY_OPTIONS = [

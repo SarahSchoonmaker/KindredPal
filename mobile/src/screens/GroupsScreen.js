@@ -34,7 +34,7 @@ const POLITICS_OPTS = ["Conservative","Moderate","Liberal","Prefer not to say"];
 
 const LIFE_STAGE_OPTS = [
   "Single","In a relationship","Married","Divorced","Widowed",
-  "Empty nester","Retired","Caregiver","Aging Alone","New Career","New To Town",
+  "Empty nester","Retired","Caregiver","Aging Alone","New Career","New to Town",
 ];
 
 const CATEGORIES = [
