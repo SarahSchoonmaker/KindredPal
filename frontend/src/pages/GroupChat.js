@@ -6,12 +6,15 @@ import "./GroupChat.css";
 
 // ── Single message bubble ─────────────────────────────────────────
 function MessageBubble({ msg, currentUserId, isAdmin, groupId, onDelete }) {
-  const isOwn = msg.sender?._id === currentUserId || msg.sender?._id?.toString() === currentUserId;
+  const isOwn =
+    msg.sender?._id === currentUserId ||
+    msg.sender?._id?.toString() === currentUserId;
   const canDelete = isOwn || isAdmin;
   const [showDelete, setShowDelete] = useState(false);
 
   const timeStr = new Date(msg.createdAt).toLocaleTimeString("en-US", {
-    hour: "numeric", minute: "2-digit",
+    hour: "numeric",
+    minute: "2-digit",
   });
 
   return (
@@ -28,10 +31,10 @@ function MessageBubble({ msg, currentUserId, isAdmin, groupId, onDelete }) {
         />
       )}
       <div className="gc-bubble-wrap">
-        {!isOwn && (
-          <span className="gc-sender-name">{msg.sender?.name}</span>
-        )}
-        <div className={`gc-bubble ${isOwn ? "gc-bubble-own" : "gc-bubble-other"}`}>
+        {!isOwn && <span className="gc-sender-name">{msg.sender?.name}</span>}
+        <div
+          className={`gc-bubble ${isOwn ? "gc-bubble-own" : "gc-bubble-other"}`}
+        >
           <p className="gc-text">{msg.content}</p>
           <span className="gc-time">{timeStr}</span>
         </div>
@@ -59,9 +62,18 @@ function DateSeparator({ date }) {
   let label;
   if (d.toDateString() === today.toDateString()) label = "Today";
   else if (d.toDateString() === yesterday.toDateString()) label = "Yesterday";
-  else label = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  else
+    label = d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
 
-  return <div className="gc-date-sep"><span>{label}</span></div>;
+  return (
+    <div className="gc-date-sep">
+      <span>{label}</span>
+    </div>
+  );
 }
 
 // ── Main GroupChat component ──────────────────────────────────────
@@ -82,36 +94,42 @@ export default function GroupChat({ groupId, group, events = [] }) {
   const listRef = useRef(null);
   const isInitialLoad = useRef(true);
 
-  const activeEvent = events.find(e => e._id === activeThread);
+  const activeEvent = events.find((e) => e._id === activeThread);
 
   // ── Load messages ─────────────────────────────────────────────
-  const loadMessages = useCallback(async (before = null) => {
-    setLoading(true);
-    try {
-      const params = {};
-      if (activeThread) params.eventId = activeThread;
-      if (before) params.before = before;
+  const loadMessages = useCallback(
+    async (before = null) => {
+      setLoading(true);
+      try {
+        const params = {};
+        if (activeThread) params.eventId = activeThread;
+        if (before) params.before = before;
 
-      const res = await groupChatAPI.getMessages(groupId, params);
-      const fetched = res.data.messages || [];
+        const res = await groupChatAPI.getMessages(groupId, params);
+        const fetched = res.data.messages || [];
 
-      if (before) {
-        setMessages(prev => [...fetched, ...prev]);
-      } else {
-        setMessages(fetched);
-        // Don't auto-scroll on initial load — let user start at top
-        if (!isInitialLoad.current) {
-          setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "auto" }), 50);
+        if (before) {
+          setMessages((prev) => [...fetched, ...prev]);
+        } else {
+          setMessages(fetched);
+          // Don't auto-scroll on initial load — let user start at top
+          if (!isInitialLoad.current) {
+            setTimeout(
+              () => bottomRef.current?.scrollIntoView({ behavior: "auto" }),
+              50,
+            );
+          }
+          isInitialLoad.current = false;
         }
-        isInitialLoad.current = false;
+        setHasMore(fetched.length === 40);
+      } catch (err) {
+        console.error("Chat load error:", err);
+      } finally {
+        setLoading(false);
       }
-      setHasMore(fetched.length === 40);
-    } catch (err) {
-      console.error("Chat load error:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [groupId, activeThread]);
+    },
+    [groupId, activeThread],
+  );
 
   useEffect(() => {
     isInitialLoad.current = true;
@@ -126,16 +144,18 @@ export default function GroupChat({ groupId, group, events = [] }) {
     const handleMsg = (msg) => {
       const msgThread = msg.eventId || null;
       if (msgThread === activeThread) {
-        setMessages(prev => {
+        setMessages((prev) => {
           // Replace optimistic message if it exists (same sender, same content)
-          const hasOptimistic = prev.some(m =>
-            m._id?.startsWith("opt_") &&
-            m.content === msg.content &&
-            (m.sender?._id === msg.sender?._id || m.sender?._id === currentUserId)
+          const hasOptimistic = prev.some(
+            (m) =>
+              m._id?.startsWith("opt_") &&
+              m.content === msg.content &&
+              (m.sender?._id === msg.sender?._id ||
+                m.sender?._id === currentUserId),
           );
           if (hasOptimistic) {
-            return prev.map(m =>
-              m._id?.startsWith("opt_") && m.content === msg.content ? msg : m
+            return prev.map((m) =>
+              m._id?.startsWith("opt_") && m.content === msg.content ? msg : m,
             );
           }
           return [...prev, msg];
@@ -148,7 +168,7 @@ export default function GroupChat({ groupId, group, events = [] }) {
       socket.off("group-message", handleMsg);
       socket.emit("leave-group-room", groupId);
     };
-  }, [socket, groupId, activeThread]);
+  }, [socket, groupId, activeThread, currentUserId]);
 
   // ── Send message ──────────────────────────────────────────────
   const handleSend = async () => {
@@ -161,11 +181,15 @@ export default function GroupChat({ groupId, group, events = [] }) {
     const optimistic = {
       _id: `opt_${Date.now()}`,
       content: text,
-      sender: { _id: currentUserId, name: user?.name, profilePhoto: user?.profilePhoto },
+      sender: {
+        _id: currentUserId,
+        name: user?.name,
+        profilePhoto: user?.profilePhoto,
+      },
       createdAt: new Date().toISOString(),
       eventId: activeThread,
     };
-    setMessages(prev => [...prev, optimistic]);
+    setMessages((prev) => [...prev, optimistic]);
     // Don't auto-scroll on send — user controls their position
 
     try {
@@ -179,11 +203,13 @@ export default function GroupChat({ groupId, group, events = [] }) {
       } else {
         // REST fallback
         const res = await groupChatAPI.sendMessage(groupId, text, activeThread);
-        setMessages(prev => prev.map(m => m._id === optimistic._id ? res.data : m));
+        setMessages((prev) =>
+          prev.map((m) => (m._id === optimistic._id ? res.data : m)),
+        );
       }
     } catch (err) {
       // Remove optimistic on failure
-      setMessages(prev => prev.filter(m => m._id !== optimistic._id));
+      setMessages((prev) => prev.filter((m) => m._id !== optimistic._id));
       alert("Could not send message");
     } finally {
       setSending(false);
@@ -192,15 +218,20 @@ export default function GroupChat({ groupId, group, events = [] }) {
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
   };
 
   const handleDelete = async (msgId) => {
     if (!window.confirm("Delete this message?")) return;
     try {
       await groupChatAPI.deleteMessage(groupId, msgId);
-      setMessages(prev => prev.filter(m => m._id !== msgId));
-    } catch { alert("Could not delete message"); }
+      setMessages((prev) => prev.filter((m) => m._id !== msgId));
+    } catch {
+      alert("Could not delete message");
+    }
   };
 
   const loadOlder = () => {
@@ -227,7 +258,7 @@ export default function GroupChat({ groupId, group, events = [] }) {
           isAdmin={group?.isAdmin}
           groupId={groupId}
           onDelete={handleDelete}
-        />
+        />,
       );
     });
     return items;
@@ -244,7 +275,7 @@ export default function GroupChat({ groupId, group, events = [] }) {
           <MessageSquare size={14} />
           <span>Group Chat</span>
         </button>
-        {events.map(ev => (
+        {events.map((ev) => (
           <button
             key={ev._id}
             className={`gc-thread-btn ${activeThread === ev._id ? "active" : ""}`}
@@ -273,7 +304,10 @@ export default function GroupChat({ groupId, group, events = [] }) {
         </div>
         {activeEvent && (
           <span className="gc-event-date">
-            {new Date(activeEvent.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+            {new Date(activeEvent.date).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            })}
           </span>
         )}
       </div>
@@ -281,17 +315,27 @@ export default function GroupChat({ groupId, group, events = [] }) {
       {/* Message list */}
       <div className="gc-messages" ref={listRef}>
         {hasMore && (
-          <button className="gc-load-more" onClick={loadOlder} disabled={loading}>
+          <button
+            className="gc-load-more"
+            onClick={loadOlder}
+            disabled={loading}
+          >
             {loading ? "Loading..." : "Load older messages"}
           </button>
         )}
         {loading && messages.length === 0 && (
-          <div className="gc-loading"><div className="spinner" /></div>
+          <div className="gc-loading">
+            <div className="spinner" />
+          </div>
         )}
         {!loading && messages.length === 0 && (
           <div className="gc-empty">
             <MessageSquare size={32} color="#cbd5e0" />
-            <p>{activeThread ? "No messages in this event thread yet" : "No messages yet — say hi! 👋"}</p>
+            <p>
+              {activeThread
+                ? "No messages in this event thread yet"
+                : "No messages yet — say hi! 👋"}
+            </p>
           </div>
         )}
         {renderMessages()}
@@ -304,9 +348,13 @@ export default function GroupChat({ groupId, group, events = [] }) {
           ref={inputRef}
           className="gc-input"
           value={input}
-          onChange={e => setInput(e.target.value)}
+          onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={activeThread ? `Message #${activeEvent?.title || "event"}…` : "Message the group…"}
+          placeholder={
+            activeThread
+              ? `Message #${activeEvent?.title || "event"}…`
+              : "Message the group…"
+          }
           rows={1}
           maxLength={2000}
         />

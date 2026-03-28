@@ -33,11 +33,13 @@ const CATEGORIES = [
   "Single Parent Support",
   "Addiction Recovery",
   "Autism & Special Needs Families",
-  "LGBTQ+ Wellness",
-  "Immigrant & Relocation Support",
+  "Singles Support",
+  "Married No Kids",
+  "Career Change Support",
+  "Financial Recovery",
+  "Singles Social Support",
+  "Local Activity Groups",
   "Sports & Fitness",
-  "Hobbies & Interests",
-  "Neighborhood & Local",
 ];
 
 const CATEGORY_ICONS = {
@@ -58,11 +60,13 @@ const CATEGORY_ICONS = {
   "Single Parent Support": "👨‍👧",
   "Addiction Recovery": "⭐",
   "Autism & Special Needs Families": "🦋",
-  "LGBTQ+ Wellness": "🌈",
-  "Immigrant & Relocation Support": "🌍",
+  "Singles Support": "🌟",
+  "Married No Kids": "💑",
+  "Career Change Support": "💼",
+  "Financial Recovery": "💰",
+  "Singles Social Support": "🌟",
+  "Local Activity Groups": "🎯",
   "Sports & Fitness": "🏃",
-  "Hobbies & Interests": "🎯",
-  "Neighborhood & Local": "🏘️",
   All: "✨",
 };
 
@@ -584,6 +588,13 @@ export default function GroupsPage() {
     locationCity,
     locationState,
     locationDistance,
+    filters.city,
+    filters.state,
+    filters.distance,
+    filters.religion,
+    filters.politics,
+    filters.lifeStage,
+    filters.family,
   ]);
 
   useEffect(() => {
