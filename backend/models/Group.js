@@ -16,34 +16,35 @@ const groupSchema = new mongoose.Schema(
     category: {
       type: String,
       required: true,
-            enum: [
-        "Sports & Fitness",
-        "Faith & Spirituality",
-        "Parents",
-        "Hobbies & Interests",
-        "Volunteers & Causes",
-        "Support & Wellness",
-        "Professional & Networking",
-        "Arts, Culture & Book Clubs",
-        "Outdoor & Adventure",
-        "Food & Dining",
-        "Learning & Education",
-        "Neighborhood & Local",
-        "New to the Area",
-        "Business Owners & Entrepreneurs",
-        "Sober & Clean Living",
-        "Single Parents",
-        "Aging Gracefully",
-        "Life Transitions",
-        "Single & Childfree",
+      enum: [
         "Caregiver Support",
-        "Social Outings",
+        "Grief & Loss",
+        "Sober & Clean Living",
+        "New Parent Support",
+        "Chronic Illness Support",
+        "Anxiety & Mental Wellness",
+        "Veteran Support",
+        "Senior Wellness",
+        "Loneliness & Social Connection",
+        "Divorce Recovery",
+        "Faith & Spiritual Support",
+        "Life Transitions",
+        "Trauma Recovery",
+        "Cancer Support",
+        "Single Parent Support",
+        "Addiction Recovery",
+        "Autism & Special Needs Families",
+        "LGBTQ+ Wellness",
+        "Immigrant & Relocation Support",
+        "Sports & Fitness",
+        "Hobbies & Interests",
+        "Neighborhood & Local",
       ],
     },
     // Location
     city: { type: String, trim: true },
     state: { type: String, trim: true },
-    address: { type: String, trim: true },       // street address / venue name
+    address: { type: String, trim: true }, // street address / venue name
     zipCode: { type: String, trim: true },
     isNationwide: { type: Boolean, default: false },
 
@@ -93,7 +94,7 @@ const groupSchema = new mongoose.Schema(
     isActive: { type: Boolean, default: true },
     memberCount: { type: Number, default: 0 },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Keep memberCount in sync
