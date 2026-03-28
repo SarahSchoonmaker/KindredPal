@@ -3,47 +3,112 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { groupsAPI } from "../services/api";
 import {
-  Search, Plus, Lock, Globe, Users, LayoutGrid, SlidersHorizontal, X,
+  Search,
+  Plus,
+  Lock,
+  Globe,
+  Users,
+  LayoutGrid,
+  SlidersHorizontal,
+  X,
 } from "lucide-react";
 import "./GroupsPage.css";
 
 const CATEGORIES = [
-  "All","Sports & Fitness","Faith & Spirituality","Parents",
-  "Hobbies & Interests","Volunteers & Causes","Support & Wellness",
-  "Professional & Networking","Arts, Culture & Book Clubs","Outdoor & Adventure",
-  "Food & Dining","Learning & Education","Neighborhood & Local","Life Transitions",
-  "Single & Childfree",
-  "Caregiver Support","Social Outings",
+  "All",
+  "Caregiver Support",
+  "Grief & Loss",
+  "Sober & Clean Living",
+  "New Parent Support",
+  "Chronic Illness Support",
+  "Anxiety & Mental Wellness",
+  "Veteran Support",
+  "Senior Wellness",
+  "Loneliness & Social Connection",
+  "Divorce Recovery",
+  "Faith & Spiritual Support",
+  "Life Transitions",
+  "Trauma Recovery",
+  "Cancer Support",
+  "Single Parent Support",
+  "Addiction Recovery",
+  "Autism & Special Needs Families",
+  "LGBTQ+ Wellness",
+  "Immigrant & Relocation Support",
+  "Sports & Fitness",
+  "Hobbies & Interests",
+  "Neighborhood & Local",
 ];
 
 const CATEGORY_ICONS = {
-  "Sports & Fitness":"🏃","Faith & Spirituality":"🙏","Parents":"👩‍👧",
-  "Hobbies & Interests":"🎯","Volunteers & Causes":"🤝","Support & Wellness":"💙",
-  "Professional & Networking":"💼","Arts, Culture & Book Clubs":"🎨",
-  "Outdoor & Adventure":"🏕️","Food & Dining":"🍽️","Learning & Education":"🎓",
-  "Neighborhood & Local":"🏘️","New to the Area":"📍",
-  "Business Owners & Entrepreneurs":"🚀","Sober & Clean Living":"🌿",
-  "Single Parents":"👨‍👧‍👦","Aging Gracefully":"🌻","Life Transitions":"🌿","Social Outings":"🥂",
+  "Caregiver Support": "🤲",
+  "Grief & Loss": "🌿",
+  "Sober & Clean Living": "🍃",
+  "New Parent Support": "👶",
+  "Chronic Illness Support": "🎗️",
+  "Anxiety & Mental Wellness": "🧘",
+  "Veteran Support": "🎖️",
+  "Senior Wellness": "🌻",
+  "Loneliness & Social Connection": "💙",
+  "Divorce Recovery": "🌱",
+  "Faith & Spiritual Support": "🙏",
+  "Life Transitions": "🔄",
+  "Trauma Recovery": "🕊️",
+  "Cancer Support": "💛",
+  "Single Parent Support": "👨‍👧",
+  "Addiction Recovery": "⭐",
+  "Autism & Special Needs Families": "🦋",
+  "LGBTQ+ Wellness": "🌈",
+  "Immigrant & Relocation Support": "🌍",
+  "Sports & Fitness": "🏃",
+  "Hobbies & Interests": "🎯",
+  "Neighborhood & Local": "🏘️",
+  All: "✨",
 };
 
 const RELIGION_OPTIONS = [
-  "None","Spiritual but not religious","Christian (Catholic)",
-  "Christian (Protestant)","Christian (Evangelical)","Christian (Orthodox)",
-  "Jewish","Muslim","Hindu","Buddhist","Mormon / LDS","Other",
+  "None",
+  "Spiritual but not religious",
+  "Christian (Catholic)",
+  "Christian (Protestant)",
+  "Christian (Evangelical)",
+  "Christian (Orthodox)",
+  "Jewish",
+  "Muslim",
+  "Hindu",
+  "Buddhist",
+  "Mormon / LDS",
+  "Other",
 ];
 
 const POLITICS_OPTIONS = [
-  "Very Conservative","Conservative","Moderate","Liberal","Very Liberal",
+  "Very Conservative",
+  "Conservative",
+  "Moderate",
+  "Liberal",
+  "Very Liberal",
 ];
 
 const LIFE_STAGE_OPTIONS = [
-  "Single","In a relationship","Married","Divorced",
-  "Widowed","Empty nester","Newly retired","Retired",
+  "Single",
+  "In a relationship",
+  "Married",
+  "Divorced",
+  "Widowed",
+  "Empty nester",
+  "Newly retired",
+  "Retired",
 ];
 
 const FAMILY_OPTIONS = [
-  "No kids","Expecting","Kids under 5","Kids 6-12",
-  "Teenagers","Adult children","Grandchildren","Homeschooling",
+  "No kids",
+  "Expecting",
+  "Kids under 5",
+  "Kids 6-12",
+  "Teenagers",
+  "Adult children",
+  "Grandchildren",
+  "Homeschooling",
 ];
 
 function GroupCard({ group, onClick, currentUser }) {
@@ -51,18 +116,28 @@ function GroupCard({ group, onClick, currentUser }) {
   const peopleLikeMeTags = [];
   if (currentUser && group.memberValues) {
     const mv = group.memberValues;
-    if (currentUser.religion && (mv.religions || []).includes(currentUser.religion)) {
+    if (
+      currentUser.religion &&
+      (mv.religions || []).includes(currentUser.religion)
+    ) {
       peopleLikeMeTags.push({ icon: "🙏", label: "Others share your faith" });
     }
-    if (currentUser.politicalBeliefs && (mv.politics || []).includes(currentUser.politicalBeliefs)) {
+    if (
+      currentUser.politicalBeliefs &&
+      (mv.politics || []).includes(currentUser.politicalBeliefs)
+    ) {
       peopleLikeMeTags.push({ icon: "🗳️", label: "Similar values here" });
     }
-    const sharedStages = (currentUser.lifeStage || []).filter(s => (mv.lifeStages || []).includes(s));
+    const sharedStages = (currentUser.lifeStage || []).filter((s) =>
+      (mv.lifeStages || []).includes(s),
+    );
     if (sharedStages.length > 0) {
       const label = sharedStages[0];
       peopleLikeMeTags.push({ icon: "👥", label: `${label} in this group` });
     }
-    const sharedFamily = (currentUser.familySituation || []).filter(f => (mv.families || []).includes(f));
+    const sharedFamily = (currentUser.familySituation || []).filter((f) =>
+      (mv.families || []).includes(f),
+    );
     if (sharedFamily.length > 0) {
       peopleLikeMeTags.push({ icon: "👨‍👧", label: `${sharedFamily[0]} here` });
     }
@@ -72,22 +147,30 @@ function GroupCard({ group, onClick, currentUser }) {
     <div className="group-card" onClick={() => onClick(group._id)}>
       <div className="group-card-header">
         <div className="group-icon">
-          {group.coverPhoto
-            ? <img src={group.coverPhoto} alt={group.name} className="group-card-photo" />
-            : CATEGORY_ICONS[group.category] || "✨"
-          }
+          {group.coverPhoto ? (
+            <img
+              src={group.coverPhoto}
+              alt={group.name}
+              className="group-card-photo"
+            />
+          ) : (
+            CATEGORY_ICONS[group.category] || "✨"
+          )}
         </div>
         <div className="group-card-info">
           <div className="group-card-title-row">
             <h3 className="group-name">{group.name}</h3>
-            {group.isPrivate
-              ? <Lock size={14} className="privacy-icon private" />
-              : <Globe size={14} className="privacy-icon public" />
-            }
+            {group.isPrivate ? (
+              <Lock size={14} className="privacy-icon private" />
+            ) : (
+              <Globe size={14} className="privacy-icon public" />
+            )}
           </div>
           <span className="group-category">{group.category}</span>
           <span className="group-location">
-            {group.isNationwide ? "🌍 Nationwide" : `📍 ${group.city}, ${group.state}`}
+            {group.isNationwide
+              ? "🌍 Nationwide"
+              : `📍 ${group.city}, ${group.state}`}
           </span>
         </div>
       </div>
@@ -122,10 +205,57 @@ function GroupCard({ group, onClick, currentUser }) {
 
 // Filter drawer component
 const US_STATES_FILTER = [
-  "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA",
-  "KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
-  "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT",
-  "VA","WA","WV","WI","WY","DC",
+  "AL",
+  "AK",
+  "AZ",
+  "AR",
+  "CA",
+  "CO",
+  "CT",
+  "DE",
+  "FL",
+  "GA",
+  "HI",
+  "ID",
+  "IL",
+  "IN",
+  "IA",
+  "KS",
+  "KY",
+  "LA",
+  "ME",
+  "MD",
+  "MA",
+  "MI",
+  "MN",
+  "MS",
+  "MO",
+  "MT",
+  "NE",
+  "NV",
+  "NH",
+  "NJ",
+  "NM",
+  "NY",
+  "NC",
+  "ND",
+  "OH",
+  "OK",
+  "OR",
+  "PA",
+  "RI",
+  "SC",
+  "SD",
+  "TN",
+  "TX",
+  "UT",
+  "VT",
+  "VA",
+  "WA",
+  "WV",
+  "WI",
+  "WY",
+  "DC",
 ];
 
 const DISTANCE_OPTIONS = [
@@ -170,7 +300,9 @@ function FilterDrawer({ filters, onChange, onClose, userProfile }) {
               Clear all ({activeCount})
             </button>
           )}
-          <button className="filter-close" onClick={onClose}><X size={20} /></button>
+          <button className="filter-close" onClick={onClose}>
+            <X size={20} />
+          </button>
         </div>
       </div>
 
@@ -183,21 +315,31 @@ function FilterDrawer({ filters, onChange, onClose, userProfile }) {
             className="filter-city-input"
             placeholder="City"
             value={filters.city || ""}
-            onChange={e => set("city", e.target.value)}
+            onChange={(e) => set("city", e.target.value)}
           />
           <select
             className="filter-state-select"
             value={filters.state || ""}
-            onChange={e => set("state", e.target.value)}
+            onChange={(e) => set("state", e.target.value)}
           >
             <option value="">Any state</option>
-            {US_STATES_FILTER.map(s => <option key={s} value={s}>{s}</option>)}
+            {US_STATES_FILTER.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
           </select>
         </div>
         {userProfile?.city && (
           <button
             className="btn-use-my-location"
-            onClick={() => onChange({ ...filters, city: userProfile.city, state: userProfile.state })}
+            onClick={() =>
+              onChange({
+                ...filters,
+                city: userProfile.city,
+                state: userProfile.state,
+              })
+            }
           >
             📍 Use my location ({userProfile.city}, {userProfile.state})
           </button>
@@ -208,11 +350,16 @@ function FilterDrawer({ filters, onChange, onClose, userProfile }) {
       <div className="filter-section">
         <h4>📏 Distance / Range</h4>
         <div className="filter-chips">
-          {DISTANCE_OPTIONS.map(opt => (
+          {DISTANCE_OPTIONS.map((opt) => (
             <button
               key={opt.value}
               className={`filter-chip ${filters.distance === opt.value ? "active" : ""}`}
-              onClick={() => set("distance", filters.distance === opt.value ? null : opt.value)}
+              onClick={() =>
+                set(
+                  "distance",
+                  filters.distance === opt.value ? null : opt.value,
+                )
+              }
             >
               {opt.label}
             </button>
@@ -287,15 +434,19 @@ function FilterDrawer({ filters, onChange, onClose, userProfile }) {
       {userProfile && (
         <button
           className="btn-match-my-values"
-          onClick={() => onChange({
-            city: userProfile.city || "",
-            state: userProfile.state || "",
-            distance: "state",
-            religion: userProfile.religion ? [userProfile.religion] : [],
-            politics: userProfile.politicalBeliefs ? [userProfile.politicalBeliefs] : [],
-            lifeStage: userProfile.lifeStage || [],
-            family: userProfile.familySituation || [],
-          })}
+          onClick={() =>
+            onChange({
+              city: userProfile.city || "",
+              state: userProfile.state || "",
+              distance: "state",
+              religion: userProfile.religion ? [userProfile.religion] : [],
+              politics: userProfile.politicalBeliefs
+                ? [userProfile.politicalBeliefs]
+                : [],
+              lifeStage: userProfile.lifeStage || [],
+              family: userProfile.familySituation || [],
+            })
+          }
         >
           ✨ Match My Values &amp; Location
         </button>
@@ -327,17 +478,42 @@ export default function GroupsPage() {
   const activeFilterCount = Object.values(filters).flat().length;
 
   // Client-side filter groups by values
-  const applyFilters = useCallback((groupList) => {
-    if (activeFilterCount === 0) return groupList;
-    return groupList.filter((group) => {
-      const memberValues = group.memberValues || {};
-      if (filters.religion?.length && !filters.religion.some(r => (memberValues.religions || []).includes(r))) return false;
-      if (filters.politics?.length && !filters.politics.some(p => (memberValues.politics || []).includes(p))) return false;
-      if (filters.lifeStage?.length && !filters.lifeStage.some(l => (memberValues.lifeStages || []).includes(l))) return false;
-      if (filters.family?.length && !filters.family.some(f => (memberValues.families || []).includes(f))) return false;
-      return true;
-    });
-  }, [filters, activeFilterCount]);
+  const applyFilters = useCallback(
+    (groupList) => {
+      if (activeFilterCount === 0) return groupList;
+      return groupList.filter((group) => {
+        const memberValues = group.memberValues || {};
+        if (
+          filters.religion?.length &&
+          !filters.religion.some((r) =>
+            (memberValues.religions || []).includes(r),
+          )
+        )
+          return false;
+        if (
+          filters.politics?.length &&
+          !filters.politics.some((p) =>
+            (memberValues.politics || []).includes(p),
+          )
+        )
+          return false;
+        if (
+          filters.lifeStage?.length &&
+          !filters.lifeStage.some((l) =>
+            (memberValues.lifeStages || []).includes(l),
+          )
+        )
+          return false;
+        if (
+          filters.family?.length &&
+          !filters.family.some((f) => (memberValues.families || []).includes(f))
+        )
+          return false;
+        return true;
+      });
+    },
+    [filters, activeFilterCount],
+  );
 
   const fetchGroups = useCallback(async () => {
     if (fetchingRef.current) return;
@@ -369,14 +545,28 @@ export default function GroupsPage() {
       setMyGroups(myRes.data.groups || []);
 
       // "For You" — groups that share at least one value with user
-      if (user?.religion || user?.politicalBeliefs || user?.lifeStage?.length || user?.familySituation?.length) {
+      if (
+        user?.religion ||
+        user?.politicalBeliefs ||
+        user?.lifeStage?.length ||
+        user?.familySituation?.length
+      ) {
         const forYou = allGroups.filter((g) => {
           if (g.isMember) return false;
           const mv = g.memberValues || {};
-          if (user.religion && (mv.religions || []).includes(user.religion)) return true;
-          if (user.politicalBeliefs && (mv.politics || []).includes(user.politicalBeliefs)) return true;
-          if (user.lifeStage?.some(l => (mv.lifeStages || []).includes(l))) return true;
-          if (user.familySituation?.some(f => (mv.families || []).includes(f))) return true;
+          if (user.religion && (mv.religions || []).includes(user.religion))
+            return true;
+          if (
+            user.politicalBeliefs &&
+            (mv.politics || []).includes(user.politicalBeliefs)
+          )
+            return true;
+          if (user.lifeStage?.some((l) => (mv.lifeStages || []).includes(l)))
+            return true;
+          if (
+            user.familySituation?.some((f) => (mv.families || []).includes(f))
+          )
+            return true;
           return false;
         });
         setForYouGroups(forYou);
@@ -387,7 +577,14 @@ export default function GroupsPage() {
       setLoading(false);
       fetchingRef.current = false;
     }
-  }, [selectedCategory, search, user, locationCity, locationState, locationDistance]);
+  }, [
+    selectedCategory,
+    search,
+    user,
+    locationCity,
+    locationState,
+    locationDistance,
+  ]);
 
   useEffect(() => {
     if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current);
@@ -400,7 +597,12 @@ export default function GroupsPage() {
     setSearch(searchInput);
   };
 
-  const baseGroups = activeTab === "my" ? myGroups : activeTab === "foryou" ? forYouGroups : groups;
+  const baseGroups =
+    activeTab === "my"
+      ? myGroups
+      : activeTab === "foryou"
+        ? forYouGroups
+        : groups;
   const displayedGroups = applyFilters(baseGroups);
 
   return (
@@ -411,10 +613,16 @@ export default function GroupsPage() {
           <LayoutGrid size={28} className="groups-header-icon" />
           <div>
             <h1>Community Groups</h1>
-            <p>Find your people — connect through shared values, faith, and life stage</p>
+            <p>
+              Find local peer support groups, wellness communities, and
+              caregiving networks near you
+            </p>
           </div>
         </div>
-        <button className="btn-create-group" onClick={() => navigate("/groups/create")}>
+        <button
+          className="btn-create-group"
+          onClick={() => navigate("/groups/create")}
+        >
           <Plus size={18} /> Create Group
         </button>
       </div>
@@ -430,7 +638,9 @@ export default function GroupsPage() {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
             />
-            <button type="submit" className="search-btn">Search</button>
+            <button type="submit" className="search-btn">
+              Search
+            </button>
           </div>
         </form>
         <button
@@ -452,25 +662,76 @@ export default function GroupsPage() {
               className="location-city-field"
               placeholder="City"
               value={locationCity}
-              onChange={e => setLocationCity(e.target.value)}
+              onChange={(e) => setLocationCity(e.target.value)}
             />
             <select
               className="location-state-field"
               value={locationState}
-              onChange={e => setLocationState(e.target.value)}
+              onChange={(e) => setLocationState(e.target.value)}
             >
               <option value="">Any state</option>
-              {["AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA",
-                "KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
-                "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT",
-                "VA","WA","WV","WI","WY","DC"].map(s => (
-                <option key={s} value={s}>{s}</option>
+              {[
+                "AL",
+                "AK",
+                "AZ",
+                "AR",
+                "CA",
+                "CO",
+                "CT",
+                "DE",
+                "FL",
+                "GA",
+                "HI",
+                "ID",
+                "IL",
+                "IN",
+                "IA",
+                "KS",
+                "KY",
+                "LA",
+                "ME",
+                "MD",
+                "MA",
+                "MI",
+                "MN",
+                "MS",
+                "MO",
+                "MT",
+                "NE",
+                "NV",
+                "NH",
+                "NJ",
+                "NM",
+                "NY",
+                "NC",
+                "ND",
+                "OH",
+                "OK",
+                "OR",
+                "PA",
+                "RI",
+                "SC",
+                "SD",
+                "TN",
+                "TX",
+                "UT",
+                "VT",
+                "VA",
+                "WA",
+                "WV",
+                "WI",
+                "WY",
+                "DC",
+              ].map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
               ))}
             </select>
             <select
               className="location-distance-field"
               value={locationDistance}
-              onChange={e => setLocationDistance(e.target.value)}
+              onChange={(e) => setLocationDistance(e.target.value)}
             >
               <option value="">Any distance</option>
               <option value="city">Same city</option>
@@ -483,7 +744,11 @@ export default function GroupsPage() {
             {(locationCity || locationState || locationDistance) && (
               <button
                 className="location-clear-btn"
-                onClick={() => { setLocationCity(""); setLocationState(""); setLocationDistance(""); }}
+                onClick={() => {
+                  setLocationCity("");
+                  setLocationState("");
+                  setLocationDistance("");
+                }}
               >
                 Clear
               </button>
@@ -491,7 +756,10 @@ export default function GroupsPage() {
             {user?.city && !locationCity && (
               <button
                 className="location-use-mine-btn"
-                onClick={() => { setLocationCity(user.city); setLocationState(user.state || ""); }}
+                onClick={() => {
+                  setLocationCity(user.city);
+                  setLocationState(user.state || "");
+                }}
               >
                 Use my location
               </button>
@@ -559,16 +827,26 @@ export default function GroupsPage() {
         <div className="groups-empty">
           <span className="empty-icon">👥</span>
           <h3>
-            {activeTab === "my" ? "No Groups Yet" :
-             activeTab === "foryou" ? "No Matches Yet" : "No Groups Found"}
+            {activeTab === "my"
+              ? "No Groups Yet"
+              : activeTab === "foryou"
+                ? "No Matches Yet"
+                : "No Groups Found"}
           </h3>
           <p>
-            {activeTab === "my" ? "Join a group from Discover to get started!" :
-             activeTab === "foryou" ? "Fill in your profile values to see groups matched to you" :
-             activeFilterCount > 0 ? "Try removing some filters" : "Try a different category or search term"}
+            {activeTab === "my"
+              ? "Join a group from Discover to get started!"
+              : activeTab === "foryou"
+                ? "Fill in your profile to see support groups matched to your needs"
+                : activeFilterCount > 0
+                  ? "Try removing some filters"
+                  : "Try a different category or search term"}
           </p>
           {activeTab === "foryou" && (
-            <button className="btn-go-profile" onClick={() => navigate("/profile")}>
+            <button
+              className="btn-go-profile"
+              onClick={() => navigate("/profile")}
+            >
               Update My Profile →
             </button>
           )}
