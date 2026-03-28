@@ -141,16 +141,16 @@ const CATEGORIES = [
   "Single Parent Support",
   "Addiction Recovery",
   "Autism & Special Needs Families",
-  "Singles Support",
+  "Singles Social Support",
   "Married No Kids",
   "Career Change Support",
   "Financial Recovery",
-  "Singles Social Support",
-  "Local Activity Groups",
   "Sports & Fitness",
+  "Local Activity Groups",
 ];
 
 const CATEGORY_ICONS = {
+  All: "✨",
   "Caregiver Support": "🤲",
   "Grief & Loss": "🌿",
   "Sober & Clean Living": "🍃",
@@ -168,14 +168,12 @@ const CATEGORY_ICONS = {
   "Single Parent Support": "👨‍👧",
   "Addiction Recovery": "⭐",
   "Autism & Special Needs Families": "🦋",
-  "Singles Support": "🌟",
+  "Singles Social Support": "🌟",
   "Married No Kids": "💑",
   "Career Change Support": "💼",
   "Financial Recovery": "💰",
-  "Singles Social Support": "🌟",
-  "Local Activity Groups": "🎯",
   "Sports & Fitness": "🏃",
-  All: "✨",
+  "Local Activity Groups": "🎯",
 };
 
 function GroupCard({ group, onPress }) {
@@ -559,6 +557,62 @@ export default function GroupsScreen({ navigation }) {
           </TouchableOpacity>
         ))}
       </View>
+
+      {/* Group invite banner */}
+      {invitedGroups.length > 0 && (
+        <View style={styles.inviteBanner}>
+          <View style={styles.inviteBannerHeader}>
+            <View style={styles.inviteBadge}>
+              <Text style={styles.inviteBadgeText}>{invitedGroups.length}</Text>
+            </View>
+            <Text style={styles.inviteBannerTitle}>
+              Group Invitation{invitedGroups.length > 1 ? "s" : ""}
+            </Text>
+          </View>
+          {invitedGroups.map((g) => (
+            <View key={g._id} style={styles.inviteCard}>
+              <View style={styles.inviteCardInfo}>
+                <Text style={styles.inviteCardIcon}>
+                  {CATEGORY_ICONS[g.category] || "👥"}
+                </Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.inviteCardName} numberOfLines={1}>
+                    {g.name}
+                  </Text>
+                  <Text style={styles.inviteCardMeta}>
+                    Invited by {g.createdBy?.name || "Group Admin"}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.inviteCardActions}>
+                <TouchableOpacity
+                  style={styles.btnAccept}
+                  onPress={async () => {
+                    await api.post(`/groups/${g._id}/accept-invite`);
+                    setInvitedGroups((prev) =>
+                      prev.filter((x) => x._id !== g._id),
+                    );
+                    fetchGroups();
+                  }}
+                >
+                  <Text style={styles.btnAcceptText}>Accept</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.btnDecline}
+                  onPress={async () => {
+                    await api.post(`/groups/${g._id}/decline-invite`);
+                    setInvitedGroups((prev) =>
+                      prev.filter((x) => x._id !== g._id),
+                    );
+                  }}
+                >
+                  <Text style={styles.btnDeclineText}>Decline</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
 
       {/* Group list with category filter as header */}
       <FlatList
@@ -1094,6 +1148,68 @@ const styles = StyleSheet.create({
   pickerItemActive: { backgroundColor: "#EBF4FF" },
   pickerItemText: { fontSize: 15, color: "#2d3748" },
   pickerItemTextActive: { color: "#2B6CB0", fontWeight: "700" },
+
+  // Invite banner
+  inviteBanner: {
+    backgroundColor: "#fffbeb",
+    borderWidth: 1.5,
+    borderColor: "#f6ad55",
+    borderRadius: 14,
+    margin: 12,
+    padding: 14,
+  },
+  inviteBannerHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  inviteBadge: {
+    backgroundColor: "#e53e3e",
+    borderRadius: 11,
+    width: 22,
+    height: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  inviteBadgeText: { color: "white", fontSize: 12, fontWeight: "700" },
+  inviteBannerTitle: { fontSize: 15, fontWeight: "700", color: "#1a202c" },
+  inviteCard: {
+    backgroundColor: "white",
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#fbd38d",
+  },
+  inviteCardInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 10,
+  },
+  inviteCardIcon: { fontSize: 26 },
+  inviteCardName: { fontSize: 14, fontWeight: "700", color: "#1a202c" },
+  inviteCardMeta: { fontSize: 12, color: "#718096", marginTop: 2 },
+  inviteCardActions: { flexDirection: "row", gap: 8 },
+  btnAccept: {
+    flex: 1,
+    backgroundColor: "#2B6CB0",
+    borderRadius: 8,
+    paddingVertical: 9,
+    alignItems: "center",
+  },
+  btnAcceptText: { color: "white", fontSize: 13, fontWeight: "700" },
+  btnDecline: {
+    flex: 1,
+    backgroundColor: "white",
+    borderRadius: 8,
+    paddingVertical: 9,
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+  },
+  btnDeclineText: { color: "#718096", fontSize: 13, fontWeight: "600" },
 
   empty: { alignItems: "center", paddingVertical: 60 },
   emptyIcon: { fontSize: 48, marginBottom: 12 },

@@ -21,7 +21,7 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 api.interceptors.response.use(
@@ -39,7 +39,7 @@ api.interceptors.response.use(
       localStorage.removeItem("token");
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 // ===== AUTH =====
@@ -65,7 +65,8 @@ export const userAPI = {
   updateNotificationSettings: (settings) =>
     api.put("/users/notification-settings", settings),
   deleteAccount: () => api.delete("/users/account"),
-  reportUser: (userId, reason) => api.post(`/users/${userId}/report`, { reason }),
+  reportUser: (userId, reason) =>
+    api.post(`/users/${userId}/report`, { reason }),
   blockUser: (userId) => api.post(`/users/${userId}/block`),
   unblockUser: (userId) => api.delete(`/users/${userId}/block`),
   getBlockedUsers: () => api.get("/users/blocked"),
@@ -108,6 +109,11 @@ export const groupsAPI = {
   rejectRequest: (groupId, userId) =>
     api.post(`/groups/${groupId}/reject/${userId}`),
   updateGroup: (groupId, data) => api.put(`/groups/${groupId}`, data),
+  inviteToGroup: (groupId, userId) =>
+    api.post(`/groups/${groupId}/invite/${userId}`),
+  acceptInvite: (groupId) => api.post(`/groups/${groupId}/accept-invite`),
+  declineInvite: (groupId) => api.post(`/groups/${groupId}/decline-invite`),
+  getMyInvites: () => api.get("/groups/my-invites"),
   uploadPhoto: (groupId, formData) =>
     api.post(`/groups/${groupId}/photo`, formData, {
       headers: { "Content-Type": "multipart/form-data" },

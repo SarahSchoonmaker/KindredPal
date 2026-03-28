@@ -1,7 +1,6 @@
 import axios from "axios";
-import * as SecureStore from "expo-secure-store";
 
-const API_URL = "https://kindredpal-production.up.railway.app/api";
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
 
 const api = axios.create({
   baseURL: API_URL,
@@ -10,15 +9,11 @@ const api = axios.create({
 });
 
 api.interceptors.request.use(
-  async (config) => {
-    try {
-      const token = await SecureStore.getItemAsync("token");
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      } else {
-        delete config.headers.Authorization;
-      }
-    } catch (error) {
+  (config) => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    } else {
       delete config.headers.Authorization;
     }
     if (config.method === "get") {
@@ -31,15 +26,23 @@ api.interceptors.request.use(
 
 api.interceptors.response.use(
   (response) => response,
-  async (error) => {
+  (error) => {
+    if (error.message === "Network Error" && !error.response) {
+      console.error("❌ CORS or Network Error:", {
+        url: error.config?.url,
+        method: error.config?.method,
+        baseURL: error.config?.baseURL,
+      });
+    }
     if (error.response?.status === 401) {
-      await SecureStore.deleteItemAsync("token");
-      await SecureStore.deleteItemAsync("userId");
+      console.warn("⚠️ Unauthorized - clearing token");
+      localStorage.removeItem("token");
     }
     return Promise.reject(error);
   },
 );
 
+// ===== AUTH =====
 export const authAPI = {
   login: (email, password) => api.post("/auth/login", { email, password }),
   signup: (userData) => api.post("/auth/signup", userData),
@@ -47,25 +50,53 @@ export const authAPI = {
   forgotPassword: (email) => api.post("/auth/forgot-password", { email }),
   resetPassword: (token, newPassword) =>
     api.post("/auth/reset-password", { token, newPassword }),
-  savePushToken: (data) => api.post("/auth/push-token", data),
 };
 
+// ===== USERS =====
 export const userAPI = {
-  getProfile: (userId) => api.get(`/users/profile/${userId}`),
-  getMatches: () => api.get("/users/matches"),
+  getDiscoverUsers: () => api.get("/users/discover"),
+  likeUser: (userId) => api.post(`/users/like/${userId}`),
+  passUser: (userId) => api.post(`/users/pass/${userId}`),
   updateProfile: (data) => api.put("/users/profile", data),
-  deleteAccount: () => api.delete("/users/account"),
+  getMatches: () => api.get("/users/matches"),
+  getUserProfile: (userId) => api.get(`/users/profile/${userId}`),
+  getLikesYou: () => api.get("/users/likes-you"),
   getCounts: () => api.get("/users/counts"),
   updateNotificationSettings: (settings) =>
     api.put("/users/notification-settings", settings),
+  deleteAccount: () => api.delete("/users/account"),
   reportUser: (userId, reason) =>
     api.post(`/users/${userId}/report`, { reason }),
   blockUser: (userId) => api.post(`/users/${userId}/block`),
   unblockUser: (userId) => api.delete(`/users/${userId}/block`),
   getBlockedUsers: () => api.get("/users/blocked"),
-  unmatch: (userId) => api.post(`/users/unmatch/${userId}`),
+  unmatchUser: (userId) => api.post(`/users/unmatch/${userId}`),
+  clearPassed: () => api.delete("/users/passed"),
 };
 
+// ===== MESSAGES =====
+export const messageAPI = {
+  getConversations: () => api.get("/messages/conversations"),
+  getMessages: (userId) => api.get(`/messages/${userId}`),
+  sendMessage: (recipientId, content) =>
+    api.post("/messages", { recipientId, content }),
+  markAsRead: (messageId) => api.put(`/messages/${messageId}/read`),
+  getUnreadCount: () => api.get("/messages/unread/count"),
+  getUnreadCountForUser: (userId) =>
+    api.get(`/messages/unread/count/${userId}`),
+};
+
+// ===== MEETUPS =====
+export const meetupsAPI = {
+  getMeetups: () => api.get("/meetups"),
+  getMeetup: (meetupId) => api.get(`/meetups/${meetupId}`),
+  createMeetup: (data) => api.post("/meetups", data),
+  updateMeetup: (meetupId, data) => api.put(`/meetups/${meetupId}`, data),
+  deleteMeetup: (meetupId) => api.delete(`/meetups/${meetupId}`),
+  rsvp: (meetupId, status) => api.post(`/meetups/${meetupId}/rsvp`, { status }),
+};
+
+// ===== GROUPS =====
 export const groupsAPI = {
   getGroups: (params) => api.get("/groups", { params }),
   getMyGroups: () => api.get("/groups/my"),
@@ -78,15 +109,23 @@ export const groupsAPI = {
   rejectRequest: (groupId, userId) =>
     api.post(`/groups/${groupId}/reject/${userId}`),
   updateGroup: (groupId, data) => api.put(`/groups/${groupId}`, data),
-  deleteGroup: (groupId) => api.delete(`/groups/${groupId}`),
+  inviteToGroup: (groupId, userId) =>
+    api.post(`/groups/${groupId}/invite/${userId}`),
+  rsvpInvite: (groupId, response) =>
+    api.post(`/groups/${groupId}/rsvp-invite`, { response }),
+  acceptInvite: (groupId) => api.post(`/groups/${groupId}/accept-invite`),
+  declineInvite: (groupId) => api.post(`/groups/${groupId}/decline-invite`),
+  getMyInvites: () => api.get("/groups/my-invites"),
   uploadPhoto: (groupId, formData) =>
     api.post(`/groups/${groupId}/photo`, formData, {
       headers: { "Content-Type": "multipart/form-data" },
     }),
+  deleteGroup: (groupId) => api.delete(`/groups/${groupId}`),
   getMembers: (groupId) => api.get(`/groups/${groupId}/members`),
   seedGroups: (city, state) => api.post("/groups/seed", { city, state }),
 };
 
+// ===== CONNECTIONS =====
 export const connectionsAPI = {
   getConnections: () => api.get("/connections"),
   getRequests: () => api.get("/connections/requests"),
@@ -102,15 +141,6 @@ export const connectionsAPI = {
   getStatus: (userId) => api.get(`/connections/status/${userId}`),
 };
 
-export const eventsAPI = {
-  getEvents: (groupId) => api.get(`/groups/${groupId}/events`),
-  createEvent: (groupId, data) => api.post(`/groups/${groupId}/events`, data),
-  rsvp: (groupId, eventId, status) =>
-    api.post(`/groups/${groupId}/events/${eventId}/rsvp`, { status }),
-  deleteEvent: (groupId, eventId) =>
-    api.delete(`/groups/${groupId}/events/${eventId}`),
-};
-
 export const groupChatAPI = {
   getMessages: (groupId, params = {}) =>
     api.get(`/groups/${groupId}/messages`, { params }),
@@ -120,24 +150,13 @@ export const groupChatAPI = {
     api.delete(`/groups/${groupId}/messages/${msgId}`),
 };
 
-export const messageAPI = {
-  getConversations: () => api.get("/messages/conversations"),
-  getMessages: (userId) => api.get(`/messages/${userId}`),
-  sendMessage: (recipientId, content) =>
-    api.post("/messages", { recipientId, content }),
-  markAsRead: (messageId) => api.put(`/messages/${messageId}/read`),
-  getUnreadCount: () => api.get("/messages/unread/count"),
-  getUnreadCountForUser: (userId) =>
-    api.get(`/messages/unread/count/${userId}`),
-};
-
-export const meetupsAPI = {
-  getMeetups: () => api.get("/meetups"),
-  getMeetup: (meetupId) => api.get(`/meetups/${meetupId}`),
-  createMeetup: (data) => api.post("/meetups", data),
-  updateMeetup: (meetupId, data) => api.put(`/meetups/${meetupId}`, data),
-  deleteMeetup: (meetupId) => api.delete(`/meetups/${meetupId}`),
-  rsvp: (meetupId, status) => api.post(`/meetups/${meetupId}/rsvp`, { status }),
+export const eventsAPI = {
+  getEvents: (groupId) => api.get(`/groups/${groupId}/events`),
+  createEvent: (groupId, data) => api.post(`/groups/${groupId}/events`, data),
+  rsvp: (groupId, eventId, status) =>
+    api.post(`/groups/${groupId}/events/${eventId}/rsvp`, { status }),
+  deleteEvent: (groupId, eventId) =>
+    api.delete(`/groups/${groupId}/events/${eventId}`),
 };
 
 export default api;

@@ -18,7 +18,9 @@
   align-items: center;
   gap: 16px;
 }
-.groups-header-icon { color: #2b6cb0; }
+.groups-header-icon {
+  color: #2b6cb0;
+}
 
 .groups-header-content h1 {
   font-size: 32px;
@@ -39,7 +41,7 @@
   background: #2b6cb0;
   color: white;
   border: none;
-  padding: 11px 22px;     /* was 10px 20px */
+  padding: 11px 22px; /* was 10px 20px */
   border-radius: 8px;
   font-size: 17px;
   font-weight: 600;
@@ -47,10 +49,14 @@
   transition: background 0.2s;
   white-space: nowrap;
 }
-.btn-create-group:hover { background: #2c5282; }
+.btn-create-group:hover {
+  background: #2c5282;
+}
 
 /* Search */
-.groups-search { margin-bottom: 20px; }
+.groups-search {
+  margin-bottom: 20px;
+}
 .search-input-wrap {
   display: flex;
   align-items: center;
@@ -60,10 +66,13 @@
   padding: 0 14px;
   gap: 10px;
 }
-.search-icon { color: #a0aec0; flex-shrink: 0; }
+.search-icon {
+  color: #a0aec0;
+  flex-shrink: 0;
+}
 .search-input-wrap input {
   flex: 1;
-  height: 50px;           /* was 44px */
+  height: 50px; /* was 44px */
   border: none;
   outline: none;
   font-size: 17px;
@@ -74,7 +83,7 @@
   background: #2b6cb0;
   color: white;
   border: none;
-  padding: 8px 18px;      /* was 6px 16px */
+  padding: 8px 18px; /* was 6px 16px */
   border-radius: 6px;
   font-size: 16px;
   font-weight: 600;
@@ -88,7 +97,7 @@
   margin-bottom: 18px;
 }
 .groups-tab {
-  padding: 12px 28px;     /* was 10px 24px */
+  padding: 12px 28px;
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
@@ -98,6 +107,7 @@
   color: #718096;
   cursor: pointer;
   transition: all 0.2s;
+  position: relative;
 }
 .groups-tab.active {
   color: #2b6cb0;
@@ -112,7 +122,7 @@
   margin-bottom: 22px;
 }
 .category-chip {
-  padding: 7px 16px;      /* was 6px 14px */
+  padding: 7px 16px; /* was 6px 14px */
   border-radius: 20px;
   background: #f7fafc;
   border: 1.5px solid #e2e8f0;
@@ -144,7 +154,7 @@
 .group-card {
   background: white;
   border-radius: 12px;
-  padding: 20px;          /* was 18px */
+  padding: 20px; /* was 18px */
   border: 1.5px solid #e2e8f0;
   cursor: pointer;
   transition: all 0.2s;
@@ -161,17 +171,20 @@
   margin-bottom: 12px;
 }
 .group-icon {
-  width: 52px;            /* was 48px */
+  width: 52px; /* was 48px */
   height: 52px;
   background: #ebf4ff;
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;        /* was 22px */
+  font-size: 24px; /* was 22px */
   flex-shrink: 0;
 }
-.group-card-info { flex: 1; min-width: 0; }
+.group-card-info {
+  flex: 1;
+  min-width: 0;
+}
 .group-card-title-row {
   display: flex;
   align-items: center;
@@ -187,8 +200,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.privacy-icon.private { color: #718096; }
-.privacy-icon.public  { color: #38a169; }
+.privacy-icon.private {
+  color: #718096;
+}
+.privacy-icon.public {
+  color: #38a169;
+}
 
 .group-category {
   display: block;
@@ -229,9 +246,19 @@
   padding: 5px 13px;
   border-radius: 20px;
 }
-.badge-joined  { background: #c6f6d5; color: #276749; }
-.badge-pending { background: #fefcbf; color: #744210; }
-.badge-join    { background: #ebf4ff; color: #2b6cb0; border: 1px solid #2b6cb0; }
+.badge-joined {
+  background: #c6f6d5;
+  color: #276749;
+}
+.badge-pending {
+  background: #fefcbf;
+  color: #744210;
+}
+.badge-join {
+  background: #ebf4ff;
+  color: #2b6cb0;
+  border: 1px solid #2b6cb0;
+}
 
 /* Loading / empty */
 .groups-loading {
@@ -250,7 +277,11 @@
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 .groups-empty {
   display: flex;
@@ -260,7 +291,7 @@
   color: #718096;
 }
 .empty-icon {
-  font-size: 60px;        /* was 56px */
+  font-size: 60px; /* was 56px */
   margin-bottom: 16px;
 }
 .groups-empty h3 {
@@ -276,37 +307,84 @@
 }
 
 @media (max-width: 600px) {
-  .groups-header { flex-direction: column; align-items: flex-start; }
-  .groups-grid   { grid-template-columns: 1fr; }
+  .groups-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .groups-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ===== MOBILE RESPONSIVE ===== */
 @media (max-width: 768px) {
-  .groups-page { padding: 16px 12px 80px; }
+  .groups-page {
+    padding: 16px 12px 80px;
+  }
 
-  .groups-header { flex-direction: column; align-items: flex-start; gap: 12px; }
-  .groups-header-content h1 { font-size: 24px; }
-  .groups-header-content p  { font-size: 15px; }
-  .btn-create-group { width: 100%; justify-content: center; font-size: 15px; }
+  .groups-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .groups-header-content h1 {
+    font-size: 24px;
+  }
+  .groups-header-content p {
+    font-size: 15px;
+  }
+  .btn-create-group {
+    width: 100%;
+    justify-content: center;
+    font-size: 15px;
+  }
 
-  .search-input-wrap input { height: 46px; font-size: 15px; }
+  .search-input-wrap input {
+    height: 46px;
+    font-size: 15px;
+  }
 
-  .groups-tab  { padding: 10px 16px; font-size: 15px; }
+  .groups-tab {
+    padding: 10px 16px;
+    font-size: 15px;
+  }
 
-  .category-filter { gap: 6px; }
-  .category-chip   { padding: 6px 12px; font-size: 13px; }
+  .category-filter {
+    gap: 6px;
+  }
+  .category-chip {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
 
-  .groups-grid { grid-template-columns: 1fr; gap: 12px; }
+  .groups-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
 
-  .group-card  { padding: 16px; }
-  .group-name  { font-size: 16px; }
-  .group-description { font-size: 14px; }
-  .member-count { font-size: 13px; }
+  .group-card {
+    padding: 16px;
+  }
+  .group-name {
+    font-size: 16px;
+  }
+  .group-description {
+    font-size: 14px;
+  }
+  .member-count {
+    font-size: 13px;
+  }
 }
 
 @media (max-width: 480px) {
-  .groups-header-content { flex-direction: column; align-items: flex-start; gap: 8px; }
-  .groups-header-icon { display: none; }
+  .groups-header-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .groups-header-icon {
+    display: none;
+  }
 }
 
 /* ── Search + Filter row ── */
@@ -335,7 +413,10 @@
   white-space: nowrap;
   transition: all 0.15s;
 }
-.btn-filter:hover { border-color: #2563eb; color: #2563eb; }
+.btn-filter:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+}
 .btn-filter-active {
   background: #2563eb;
   border-color: #2563eb;
@@ -349,7 +430,7 @@
   border-radius: 16px;
   padding: 20px;
   margin-bottom: 16px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 .filter-drawer-header {
   display: flex;
@@ -410,7 +491,10 @@
   cursor: pointer;
   transition: all 0.15s;
 }
-.filter-chip:hover { border-color: #2563eb; color: #2563eb; }
+.filter-chip:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+}
 .filter-chip.active {
   background: #2563eb;
   border-color: #2563eb;
@@ -430,7 +514,9 @@
   margin-top: 8px;
   transition: opacity 0.15s;
 }
-.btn-match-my-values:hover { opacity: 0.9; }
+.btn-match-my-values:hover {
+  opacity: 0.9;
+}
 
 /* ── For You empty state ── */
 .btn-go-profile {
@@ -460,7 +546,10 @@
   color: #2d3748;
   background: #f8fafc;
 }
-.filter-city-input:focus { outline: none; border-color: #2563eb; }
+.filter-city-input:focus {
+  outline: none;
+  border-color: #2563eb;
+}
 .filter-state-select {
   width: 90px;
   padding: 8px 10px;
@@ -470,7 +559,10 @@
   background: #f8fafc;
   color: #2d3748;
 }
-.filter-state-select:focus { outline: none; border-color: #2563eb; }
+.filter-state-select:focus {
+  outline: none;
+  border-color: #2563eb;
+}
 .btn-use-my-location {
   background: none;
   border: none;
@@ -481,8 +573,9 @@
   text-align: left;
   font-weight: 500;
 }
-.btn-use-my-location:hover { text-decoration: underline; }
-
+.btn-use-my-location:hover {
+  text-decoration: underline;
+}
 
 /* ── Location search bar ──────────────────────────────── */
 .location-search-bar {
@@ -526,7 +619,9 @@
   outline: none;
   transition: border-color 0.15s;
 }
-.location-city-field:focus { border-color: #2563eb; }
+.location-city-field:focus {
+  border-color: #2563eb;
+}
 
 .location-state-field,
 .location-distance-field {
@@ -540,10 +635,16 @@
   cursor: pointer;
   transition: border-color 0.15s;
 }
-.location-state-field { width: 90px; }
-.location-distance-field { min-width: 150px; }
+.location-state-field {
+  width: 160px;
+}
+.location-distance-field {
+  min-width: 150px;
+}
 .location-state-field:focus,
-.location-distance-field:focus { border-color: #2563eb; }
+.location-distance-field:focus {
+  border-color: #2563eb;
+}
 
 .location-clear-btn {
   padding: 8px 14px;
@@ -556,7 +657,10 @@
   cursor: pointer;
   white-space: nowrap;
 }
-.location-clear-btn:hover { border-color: #e53e3e; color: #e53e3e; }
+.location-clear-btn:hover {
+  border-color: #e53e3e;
+  color: #e53e3e;
+}
 
 .location-use-mine-btn {
   padding: 8px 14px;
@@ -569,11 +673,279 @@
   cursor: pointer;
   white-space: nowrap;
 }
-.location-use-mine-btn:hover { background: #163d70; }
+.location-use-mine-btn:hover {
+  background: #163d70;
+}
 
 @media (max-width: 600px) {
-  .location-search-fields { flex-direction: column; align-items: stretch; }
-  .location-city-field { max-width: 100%; }
+  .location-search-fields {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .location-city-field {
+    max-width: 100%;
+  }
   .location-state-field,
-  .location-distance-field { width: 100%; }
+  .location-distance-field {
+    width: 100%;
+  }
+}
+
+/* ── Group invite banner ── */
+.group-invites-banner {
+  background: #fffbeb;
+  border: 1.5px solid #f6ad55;
+  border-radius: 14px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+}
+.group-invites-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.group-invites-badge {
+  background: #e53e3e;
+  color: white;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.group-invites-header strong {
+  font-size: 15px;
+  color: #1a202c;
+}
+.group-invites-sub {
+  font-size: 13px;
+  color: #718096;
+  margin-left: auto;
+}
+
+.group-invite-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: white;
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  border: 1px solid #fbd38d;
+  gap: 12px;
+}
+.group-invite-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+.group-invite-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+}
+.group-invite-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a202c;
+}
+.group-invite-meta {
+  font-size: 13px;
+  color: #718096;
+  margin-top: 2px;
+}
+
+.group-invite-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.btn-accept-invite {
+  padding: 8px 16px;
+  background: #2b6cb0;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-accept-invite:hover {
+  background: #1e4d8c;
+}
+.btn-decline-invite {
+  padding: 8px 14px;
+  background: white;
+  color: #718096;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-decline-invite:hover {
+  border-color: #e53e3e;
+  color: #e53e3e;
+}
+
+/* ── Tab invite badge ── */
+.tab-invite-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: #e53e3e;
+  color: white;
+  border-radius: 50%;
+  min-width: 20px;
+  height: 20px;
+  font-size: 11px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  line-height: 1;
+  box-shadow: 0 1px 4px rgba(229, 62, 62, 0.4);
+  animation: badge-pulse 1.5s ease-in-out infinite;
+}
+@keyframes badge-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+}
+
+/* ── Group invites section inside My Groups tab ── */
+.group-invites-section {
+  margin-bottom: 28px;
+}
+.group-invites-section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0 0 14px;
+}
+.group-invites-section-badge {
+  background: #e53e3e;
+  color: white;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.group-invite-rsvp-card {
+  background: #fffbeb;
+  border: 1.5px solid #f6ad55;
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.group-invite-rsvp-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+.group-invite-rsvp-icon {
+  font-size: 30px;
+  flex-shrink: 0;
+}
+.group-invite-rsvp-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a202c;
+}
+.group-invite-rsvp-meta {
+  font-size: 13px;
+  color: #718096;
+  margin-top: 3px;
+}
+
+.group-invite-rsvp-btns {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.btn-rsvp {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: none;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+.btn-rsvp:hover {
+  opacity: 0.85;
+}
+.btn-rsvp-accept {
+  background: #2b6cb0;
+  color: white;
+}
+.btn-rsvp-maybe {
+  background: #ecc94b;
+  color: #744210;
+}
+.btn-rsvp-decline {
+  background: white;
+  color: #718096;
+  border: 1.5px solid #e2e8f0 !important;
+}
+.btn-rsvp-decline:hover {
+  border-color: #e53e3e !important;
+  color: #e53e3e;
+}
+
+.group-invite-rsvp-confirmed {
+  font-size: 14px;
+  font-weight: 700;
+  color: #276749;
+  background: #f0fff4;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1.5px solid #9ae6b4;
+  white-space: nowrap;
+}
+
+.btn-maybe-invite {
+  padding: 8px 14px;
+  background: white;
+  color: #d69e2e;
+  border: 1.5px solid #f6ad55;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+}
+.btn-maybe-invite:hover {
+  background: #fffbeb;
 }

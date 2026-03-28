@@ -280,3 +280,115 @@
     width: 100%;
   }
 }
+
+/* ── Invite step ── */
+.invite-step-header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.invite-step-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+.invite-step-header h1 {
+  font-size: 26px;
+  font-weight: 800;
+  color: #1a202c;
+  margin: 0 0 8px;
+}
+.invite-loading {
+  text-align: center;
+  color: #718096;
+  font-size: 14px;
+  padding: 20px;
+}
+
+.invite-connections-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.invite-conn-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+.invite-conn-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.invite-conn-info {
+  flex: 1;
+  min-width: 0;
+}
+.invite-conn-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a202c;
+  display: block;
+}
+.invite-conn-loc {
+  font-size: 12px;
+  color: #718096;
+}
+.btn-invite-conn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 14px;
+  background: #2b6cb0;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+  flex-shrink: 0;
+}
+.btn-invite-conn:hover {
+  background: #1e4d8c;
+}
+.btn-invite-conn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.invite-sent-badge {
+  padding: 7px 14px;
+  background: #f0fff4;
+  color: #276749;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.invite-step-actions {
+  display: flex;
+  justify-content: center;
+}
+.btn-go-to-group {
+  padding: 13px 32px;
+  background: #2b6cb0;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+.btn-go-to-group:hover {
+  background: #1e4d8c;
+}

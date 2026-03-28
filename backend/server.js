@@ -23,36 +23,12 @@ const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const mongoSanitize = require("express-mongo-sanitize");
 const logger = require("./utils/logger");
-
-// ===== MODELS (must load before routes to register schemas) =====
-let User;
-try {
-  User = require("./models/User");
-  console.log("✅ User model loaded OK, keys:", Object.keys(User));
-} catch(e) {
-  console.error("❌ User model FAILED to load:", e.message);
-  console.error(e.stack);
-}
-const GroupMessage = require("./models/GroupMessage");
-require("./models/Group");
-require("./models/Connection");
-require("./models/Event");
-
-// Debug: confirm models registered
-console.log("✅ Models registered:", ["User","GroupMessage","Group","Connection","Event"].map(m => {
-  try { require("mongoose").model(m); return m + ":OK"; }
-  catch(e) { return m + ":MISSING"; }
-}).join(", "));
-
-// ===== ROUTES =====
 const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/users");
 const messageRoutes = require("./routes/messages");
 const meetupRoutes = require("./routes/meetups");
 const groupRoutes = require("./routes/groups");
 const connectionRoutes = require("./routes/connections");
-const eventRoutes = require("./routes/events");
-const groupMessageRoutes = require("./routes/groupMessages");
 
 const app = express();
 
@@ -71,28 +47,50 @@ const allowedOrigins = [
   "http://localhost:19006",
 ];
 
+// Handle preflight explicitly before everything else
 app.use((req, res, next) => {
   const origin = req.headers.origin;
+
   if (!origin || allowedOrigins.includes(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin || "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS,PATCH");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization,X-Requested-With,Accept,Origin");
+    res.setHeader(
+      "Access-Control-Allow-Methods",
+      "GET,POST,PUT,DELETE,OPTIONS,PATCH",
+    );
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type,Authorization,X-Requested-With,Accept,Origin",
+    );
     res.setHeader("Access-Control-Allow-Credentials", "true");
   }
-  if (req.method === "OPTIONS") return res.status(200).end();
+
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
   next();
 });
 
 const corsOptions = {
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
     logger.error("🚫 Blocked origin:", origin);
-    callback(new Error(`CORS policy does not allow access from origin: ${origin}`));
+    callback(
+      new Error(`CORS policy does not allow access from origin: ${origin}`),
+    );
   },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
   credentials: true,
   optionsSuccessStatus: 200,
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "Accept",
+    "Origin",
+  ],
   exposedHeaders: ["Content-Length", "X-Request-Id"],
   preflightContinue: false,
 };
@@ -109,62 +107,36 @@ app.use(
         styleSrc: ["'self'", "'unsafe-inline'"],
         scriptSrc: ["'self'"],
         imgSrc: ["'self'", "data:", "https:", "blob:"],
-        connectSrc: ["'self'", process.env.CLIENT_URL || "http://localhost:3000"],
+        connectSrc: [
+          "'self'",
+          process.env.CLIENT_URL || "http://localhost:3000",
+        ],
       },
     },
     crossOriginEmbedderPolicy: false,
-  })
+  }),
 );
 
+// Body parser with size limits
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+// MongoDB injection protection
 app.use(mongoSanitize());
 
 // ===== RATE LIMITING =====
-// Extract user ID from JWT for per-user rate limiting
-const { ipKeyGenerator } = require("express-rate-limit");
-
-const getUserKey = (req) => {
-  try {
-    const auth = req.headers.authorization;
-    if (auth && auth.startsWith("Bearer ")) {
-      const jwt = require("jsonwebtoken");
-      const decoded = jwt.verify(auth.split(" ")[1], process.env.JWT_SECRET);
-      return `user_${decoded.userId || decoded.id}`;
-    }
-  } catch {}
-  // Fall back to IP — use ipKeyGenerator to handle IPv6 properly
-  return ipKeyGenerator(req);
-};
-
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: process.env.NODE_ENV === "production" ? 500 : 2000,
+  max: 100,
   message: "Too many requests, please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
-  validate: { xForwardedForHeader: false }, // suppress IPv6 warning on Railway
-  keyGenerator: getUserKey,
-  // Skip rate limiting for safe read-only GET requests
-  skip: (req) => {
-    if (req.method === "OPTIONS") return true;
-    const readOnlyPaths = [
-      "/groups",
-      "/meetups",
-      "/messages/conversations",
-      "/messages/unread",
-      "/users/counts",
-      "/connections",
-      "/auth/profile",
-    ];
-    return req.method === "GET" && readOnlyPaths.some(p => req.path.startsWith(p));
-  },
 });
 app.use("/api/", limiter);
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: process.env.NODE_ENV === "production" ? 10 : 100,
+  max: process.env.NODE_ENV === "production" ? 10 : 100, // Relaxed in dev
   message: "Too many login attempts, please try again later.",
   skipSuccessfulRequests: true,
 });
@@ -173,7 +145,7 @@ app.use("/api/auth/signup", authLimiter);
 
 const profileLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 50,
+  max: 20,
   message: "Too many profile updates, please try again later.",
 });
 app.use("/api/users/profile", profileLimiter);
@@ -196,45 +168,8 @@ app.use((req, res, next) => {
 // Socket.io connection handling
 const userSockets = new Map();
 
-// Expose io to routes
-app.set("io", io);
-
 io.on("connection", (socket) => {
   logger.info("🔌 Socket connected:", socket.id);
-
-  // Group chat rooms
-  socket.on("join-group-room", (groupId) => {
-    socket.join(`group:${groupId}`);
-  });
-  socket.on("leave-group-room", (groupId) => {
-    socket.leave(`group:${groupId}`);
-  });
-
-  // Send group message via socket (primary path)
-  socket.on("group-message", async ({ groupId, content, eventId, senderId }) => {
-    try {
-      const Group = require("./models/Group");
-      const group = await Group.findById(groupId).select("members").lean();
-      if (!group) return;
-      const isMember = group.members.some(m => m.toString() === senderId);
-      if (!isMember) return;
-
-      const msg = await GroupMessage.create({
-        group: groupId,
-        event: eventId || null,
-        sender: senderId,
-        content: content.trim(),
-      });
-      await msg.populate("sender", "name profilePhoto");
-
-      io.to(`group:${groupId}`).emit("group-message", {
-        ...msg.toObject(),
-        eventId: eventId || null,
-      });
-    } catch (err) {
-      logger.error("Socket group-message error:", err);
-    }
-  });
 
   socket.on("user-online", (userId) => {
     if (!userId || typeof userId !== "string") {
@@ -242,7 +177,7 @@ io.on("connection", (socket) => {
       return;
     }
     userSockets.set(userId, socket.id);
-    socket.join(userId);
+    socket.join(userId); // ✅ Join room named by userId so io.to(userId).emit() works
     logger.info(`👤 User ${userId} is now online (socket: ${socket.id})`);
     socket.broadcast.emit("user-status-change", { userId, status: "online" });
   });
@@ -253,7 +188,10 @@ io.on("connection", (socket) => {
       if (socketId === socket.id) {
         userSockets.delete(userId);
         logger.info(`👤 User ${userId} went offline`);
-        socket.broadcast.emit("user-status-change", { userId, status: "offline" });
+        socket.broadcast.emit("user-status-change", {
+          userId,
+          status: "offline",
+        });
         break;
       }
     }
@@ -267,15 +205,13 @@ io.on("connection", (socket) => {
 app.set("io", io);
 app.set("userSockets", userSockets);
 
-// ===== API ROUTES =====
+// ===== ROUTES =====
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/meetups", meetupRoutes);
 app.use("/api/groups", groupRoutes);
 app.use("/api/connections", connectionRoutes);
-app.use("/api/groups/:groupId/events", eventRoutes);
-app.use("/api/groups/:groupId/messages", groupMessageRoutes);
 
 // Health check
 app.get("/", (req, res) => {
@@ -296,8 +232,6 @@ app.get("/api", (req, res) => {
       users: "/api/users",
       messages: "/api/messages",
       meetups: "/api/meetups",
-      groups: "/api/groups",
-      connections: "/api/connections",
     },
   });
 });
@@ -309,7 +243,10 @@ app.use((req, res) => {
 
 app.use((err, req, res, next) => {
   logger.error("❌ Global error:", err);
-  const message = process.env.NODE_ENV === "production" ? "Internal server error" : err.message;
+  const message =
+    process.env.NODE_ENV === "production"
+      ? "Internal server error"
+      : err.message;
   res.status(err.status || 500).json({
     message,
     ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
@@ -339,9 +276,11 @@ mongoose
 mongoose.connection.on("disconnected", () => {
   logger.info("⚠️ MongoDB disconnected - attempting reconnect...");
 });
+
 mongoose.connection.on("error", (err) => {
   logger.error("❌ MongoDB error:", err);
 });
+
 mongoose.connection.on("reconnected", () => {
   logger.info("✅ MongoDB reconnected successfully");
 });

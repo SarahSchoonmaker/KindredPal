@@ -45,7 +45,8 @@ const BadgeIcon = ({ children, count }) => (
 const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout, unreadCount, meetupsCount, requestCount } = useAuth();
+  const { logout, unreadCount, meetupsCount, requestCount, groupInviteCount } =
+    useAuth();
 
   const hideFooter = location.pathname.startsWith("/messages");
 
@@ -72,7 +73,9 @@ const Layout = () => {
               className={`nav-link ${location.pathname.startsWith("/groups") ? "active" : ""}`}
               onClick={() => navigate("/groups")}
             >
-              <LayoutGrid size={20} />
+              <BadgeIcon count={groupInviteCount}>
+                <LayoutGrid size={20} />
+              </BadgeIcon>
               <span>Groups</span>
             </button>
 

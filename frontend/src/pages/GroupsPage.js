@@ -8,7 +8,6 @@ import {
   Lock,
   Globe,
   Users,
-  LayoutGrid,
   SlidersHorizontal,
   X,
 } from "lucide-react";
@@ -33,16 +32,16 @@ const CATEGORIES = [
   "Single Parent Support",
   "Addiction Recovery",
   "Autism & Special Needs Families",
-  "Singles Support",
+  "Singles Social Support",
   "Married No Kids",
   "Career Change Support",
   "Financial Recovery",
-  "Singles Social Support",
-  "Local Activity Groups",
   "Sports & Fitness",
+  "Local Activity Groups",
 ];
 
 const CATEGORY_ICONS = {
+  All: "✨",
   "Caregiver Support": "🤲",
   "Grief & Loss": "🌿",
   "Sober & Clean Living": "🍃",
@@ -60,14 +59,12 @@ const CATEGORY_ICONS = {
   "Single Parent Support": "👨‍👧",
   "Addiction Recovery": "⭐",
   "Autism & Special Needs Families": "🦋",
-  "Singles Support": "🌟",
+  "Singles Social Support": "🌟",
   "Married No Kids": "💑",
   "Career Change Support": "💼",
   "Financial Recovery": "💰",
-  "Singles Social Support": "🌟",
-  "Local Activity Groups": "🎯",
   "Sports & Fitness": "🏃",
-  All: "✨",
+  "Local Activity Groups": "🎯",
 };
 
 const RELIGION_OPTIONS = [
@@ -326,7 +323,7 @@ function FilterDrawer({ filters, onChange, onClose, userProfile }) {
             value={filters.state || ""}
             onChange={(e) => set("state", e.target.value)}
           >
-            <option value="">Any state</option>
+            <option value="">Any State</option>
             {US_STATES_FILTER.map((s) => (
               <option key={s} value={s}>
                 {s}
@@ -461,10 +458,12 @@ function FilterDrawer({ filters, onChange, onClose, userProfile }) {
 
 export default function GroupsPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, groupInviteCount } = useAuth();
   const [groups, setGroups] = useState([]);
   const [myGroups, setMyGroups] = useState([]);
   const [forYouGroups, setForYouGroups] = useState([]);
+  const [invitedGroups, setInvitedGroups] = useState([]);
+  const [rsvpStatus, setRsvpStatus] = useState({});
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("discover");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -539,14 +538,16 @@ export default function GroupsPage() {
       if (filters.family?.length) params.family = filters.family;
       if (search) params.search = search;
 
-      const [discoverRes, myRes] = await Promise.all([
+      const [discoverRes, myRes, invitesRes] = await Promise.all([
         groupsAPI.getGroups(params),
         groupsAPI.getMyGroups(),
+        groupsAPI.getMyInvites().catch(() => ({ data: { groups: [] } })),
       ]);
 
       const allGroups = discoverRes.data.groups || [];
       setGroups(allGroups);
       setMyGroups(myRes.data.groups || []);
+      setInvitedGroups(invitesRes.data.groups || []);
 
       // "For You" — groups that share at least one value with user
       if (
@@ -614,6 +615,22 @@ export default function GroupsPage() {
       : activeTab === "foryou"
         ? forYouGroups
         : groups;
+
+  const handleRsvp = async (groupId, response) => {
+    setRsvpStatus((prev) => ({ ...prev, [groupId]: response }));
+    try {
+      await groupsAPI.rsvpInvite(groupId, response);
+      if (response === "accept") {
+        setInvitedGroups((prev) => prev.filter((g) => g._id !== groupId));
+        fetchGroups();
+      } else if (response === "decline") {
+        setInvitedGroups((prev) => prev.filter((g) => g._id !== groupId));
+      }
+    } catch (err) {
+      setRsvpStatus((prev) => ({ ...prev, [groupId]: null }));
+      alert(err.response?.data?.message || "Could not update RSVP");
+    }
+  };
   const displayedGroups = applyFilters(baseGroups);
 
   return (
@@ -621,7 +638,6 @@ export default function GroupsPage() {
       {/* Header */}
       <div className="groups-header">
         <div className="groups-header-content">
-          <LayoutGrid size={28} className="groups-header-icon" />
           <div>
             <h1>Community Groups</h1>
             <p>
@@ -680,7 +696,7 @@ export default function GroupsPage() {
               value={locationState}
               onChange={(e) => setLocationState(e.target.value)}
             >
-              <option value="">Any state</option>
+              <option value="">Any State</option>
               {[
                 "AL",
                 "AK",
@@ -808,8 +824,14 @@ export default function GroupsPage() {
         <button
           className={`groups-tab ${activeTab === "my" ? "active" : ""}`}
           onClick={() => setActiveTab("my")}
+          style={{ position: "relative" }}
         >
-          My Groups {myGroups.length > 0 ? `(${myGroups.length})` : ""}
+          My Groups &amp; Invites
+          {(groupInviteCount > 0 || invitedGroups.length > 0) && (
+            <span className="tab-invite-badge">
+              {groupInviteCount || invitedGroups.length}
+            </span>
+          )}
         </button>
       </div>
 
@@ -836,7 +858,64 @@ export default function GroupsPage() {
         </div>
       ) : displayedGroups.length === 0 ? (
         <div className="groups-empty">
-          <span className="empty-icon">👥</span>
+          <svg
+            width="80"
+            height="80"
+            viewBox="0 0 80 80"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            style={{ marginBottom: 12 }}
+          >
+            {/* Dashed circle ring */}
+            <circle
+              cx="40"
+              cy="40"
+              r="36"
+              stroke="#e2e8f0"
+              strokeWidth="2"
+              strokeDasharray="4 3"
+              fill="none"
+            />
+
+            {/* Center person — blue */}
+            <circle cx="40" cy="28" r="7" fill="#2B6CB0" />
+            <path
+              d="M27 52c0-7.2 5.8-13 13-13s13 5.8 13 13"
+              stroke="#2B6CB0"
+              strokeWidth="3"
+              strokeLinecap="round"
+              fill="none"
+            />
+
+            {/* Top-right person — green */}
+            <circle cx="60" cy="24" r="5" fill="#38A169" />
+            <path
+              d="M51 44c0-5 4-9 9-9s9 4 9 9"
+              stroke="#38A169"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              fill="none"
+            />
+
+            {/* Top-left person — orange */}
+            <circle cx="20" cy="24" r="5" fill="#ED8936" />
+            <path
+              d="M11 44c0-5 4-9 9-9s9 4 9 9"
+              stroke="#ED8936"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              fill="none"
+            />
+
+            {/* Bottom-right person — purple */}
+            <circle cx="63" cy="50" r="4" fill="#805AD5" />
+
+            {/* Bottom-left person — pink */}
+            <circle cx="17" cy="50" r="4" fill="#D53F8C" />
+
+            {/* Bottom person — teal */}
+            <circle cx="40" cy="64" r="4" fill="#319795" />
+          </svg>
           <h3>
             {activeTab === "my"
               ? "No Groups Yet"
@@ -863,16 +942,81 @@ export default function GroupsPage() {
           )}
         </div>
       ) : (
-        <div className="groups-grid">
-          {displayedGroups.map((group) => (
-            <GroupCard
-              key={group._id}
-              group={group}
-              onClick={(id) => navigate(`/groups/${id}`)}
-              currentUser={user}
-            />
-          ))}
-        </div>
+        <>
+          {/* Group invites — shown at top of My Groups & Invites tab */}
+          {activeTab === "my" && invitedGroups.length > 0 && (
+            <div className="group-invites-section">
+              <h3 className="group-invites-section-title">
+                <span className="group-invites-section-badge">
+                  {invitedGroups.length}
+                </span>
+                Pending Invitation{invitedGroups.length > 1 ? "s" : ""}
+              </h3>
+              {invitedGroups.map((group) => {
+                const status = rsvpStatus[group._id];
+                return (
+                  <div key={group._id} className="group-invite-rsvp-card">
+                    <div className="group-invite-rsvp-info">
+                      <span className="group-invite-rsvp-icon">
+                        {CATEGORY_ICONS[group.category] || "👥"}
+                      </span>
+                      <div>
+                        <div className="group-invite-rsvp-name">
+                          {group.name}
+                        </div>
+                        <div className="group-invite-rsvp-meta">
+                          {group.category} · Invited by{" "}
+                          {group.createdBy?.name || "Group Admin"}
+                        </div>
+                      </div>
+                    </div>
+                    {status ? (
+                      <div className="group-invite-rsvp-confirmed">
+                        {status === "accept"
+                          ? "✓ Accepted"
+                          : status === "maybe"
+                            ? "~ Maybe"
+                            : "✕ Can't Make It"}
+                      </div>
+                    ) : (
+                      <div className="group-invite-rsvp-btns">
+                        <button
+                          className="btn-rsvp btn-rsvp-accept"
+                          onClick={() => handleRsvp(group._id, "accept")}
+                        >
+                          ✓ Accept
+                        </button>
+                        <button
+                          className="btn-rsvp btn-rsvp-maybe"
+                          onClick={() => handleRsvp(group._id, "maybe")}
+                        >
+                          ~ Maybe
+                        </button>
+                        <button
+                          className="btn-rsvp btn-rsvp-decline"
+                          onClick={() => handleRsvp(group._id, "decline")}
+                        >
+                          ✕ Can't Make It
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="groups-grid">
+            {displayedGroups.map((group) => (
+              <GroupCard
+                key={group._id}
+                group={group}
+                onClick={(id) => navigate(`/groups/${id}`)}
+                currentUser={user}
+              />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

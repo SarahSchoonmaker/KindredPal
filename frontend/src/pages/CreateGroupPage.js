@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { groupsAPI } from "../services/api";
-import { ArrowLeft } from "lucide-react";
+import { groupsAPI, connectionsAPI } from "../services/api";
+import { ArrowLeft, Send } from "lucide-react";
 import "./CreateGroupPage.css";
+
 const US_STATES = [
   "AL",
   "AK",
@@ -75,13 +76,12 @@ const CATEGORIES = [
   "Single Parent Support",
   "Addiction Recovery",
   "Autism & Special Needs Families",
-  "Singles Support",
+  "Singles Social Support",
   "Married No Kids",
   "Career Change Support",
   "Financial Recovery",
-  "Singles Social Support",
-  "Local Activity Groups",
   "Sports & Fitness",
+  "Local Activity Groups",
 ];
 
 export default function CreateGroupPage() {
@@ -99,6 +99,11 @@ export default function CreateGroupPage() {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [createdGroup, setCreatedGroup] = useState(null);
+  const [connections, setConnections] = useState([]);
+  const [inviting, setInviting] = useState({});
+  const [invited, setInvited] = useState({});
+  const [loadingConnections, setLoadingConnections] = useState(false);
 
   const set = (field, value) => setForm((f) => ({ ...f, [field]: value }));
 
@@ -108,9 +113,8 @@ export default function CreateGroupPage() {
     if (!form.name.trim()) return setError("Group name is required");
     if (!form.description.trim()) return setError("Description is required");
     if (!form.category) return setError("Please select a category");
-    if (!form.isNationwide && (!form.city.trim() || !form.state.trim())) {
+    if (!form.isNationwide && (!form.city.trim() || !form.state.trim()))
       return setError("Please enter a city and state, or mark as Nationwide");
-    }
     setSaving(true);
     try {
       const res = await groupsAPI.createGroup({
@@ -118,7 +122,17 @@ export default function CreateGroupPage() {
         city: form.isNationwide ? "" : form.city.trim(),
         state: form.isNationwide ? "" : form.state.trim(),
       });
-      navigate(`/groups/${res.data._id}`);
+      setCreatedGroup(res.data);
+      if (form.isPrivate) {
+        setLoadingConnections(true);
+        const connRes = await connectionsAPI
+          .getConnections()
+          .catch(() => ({ data: { connections: [] } }));
+        setConnections(connRes.data.connections || []);
+        setLoadingConnections(false);
+      } else {
+        navigate(`/groups/${res.data._id}`);
+      }
     } catch (err) {
       setError(err.response?.data?.message || "Could not create group");
     } finally {
@@ -126,17 +140,128 @@ export default function CreateGroupPage() {
     }
   };
 
+  if (createdGroup) {
+    return (
+      <div className="create-group-page">
+        <div className="create-group-card">
+          <div className="invite-step-header">
+            <div className="invite-step-icon">🎉</div>
+            <h1>Group Created!</h1>
+            <p className="create-group-subtitle">
+              <strong>{createdGroup.name}</strong> is ready.
+              {connections.length > 0
+                ? " Invite your connections to join."
+                : " You can invite members from the group page."}
+            </p>
+          </div>
+
+          {loadingConnections && (
+            <p className="invite-loading">Loading your connections...</p>
+          )}
+          {!loadingConnections && connections.length === 0 && (
+            <p className="invite-loading">
+              You have no connections yet. You can invite members from the group
+              page once you've connected with people.
+            </p>
+          )}
+
+          {connections.length > 0 && (
+            <div className="invite-connections-list">
+              {connections.map((conn) => (
+                <div
+                  key={conn.user._id || conn.connectionId}
+                  className="invite-conn-row"
+                >
+                  <img
+                    src={
+                      conn.user.profilePhoto || "https://via.placeholder.com/40"
+                    }
+                    alt={conn.user.name}
+                    className="invite-conn-avatar"
+                  />
+                  <div className="invite-conn-info">
+                    <span className="invite-conn-name">{conn.user.name}</span>
+                    {conn.user.city && (
+                      <span className="invite-conn-loc">
+                        {conn.user.city}, {conn.user.state}
+                      </span>
+                    )}
+                  </div>
+                  {invited[
+                    conn.user._id?.toString() || conn.user.id?.toString()
+                  ] ? (
+                    <span className="invite-sent-badge">✓ Invited</span>
+                  ) : (
+                    <button
+                      className="btn-invite-conn"
+                      disabled={
+                        inviting[
+                          conn.user._id?.toString() || conn.user.id?.toString()
+                        ]
+                      }
+                      onClick={async () => {
+                        const uid =
+                          conn.user._id?.toString() || conn.user.id?.toString();
+                        if (!uid) return;
+                        setInviting((p) => ({ ...p, [uid]: true }));
+                        try {
+                          console.log("Inviting:", {
+                            groupId: createdGroup._id,
+                            userId: uid,
+                            groupIdType: typeof createdGroup._id,
+                          });
+                          await groupsAPI.inviteToGroup(createdGroup._id, uid);
+                          setInvited((p) => ({ ...p, [uid]: true }));
+                        } catch (err) {
+                          console.error(
+                            "Invite error:",
+                            err.response?.status,
+                            err.response?.data,
+                            err.config?.url,
+                          );
+                          alert(`Invite failed: ${err.response?.data?.message || err.message}
+URL: ${err.config?.url}`);
+                        } finally {
+                          setInviting((p) => ({ ...p, [uid]: false }));
+                        }
+                      }}
+                    >
+                      <Send size={13} />{" "}
+                      {inviting[
+                        conn.user._id?.toString() || conn.user.id?.toString()
+                      ]
+                        ? "Sending..."
+                        : "Invite"}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="invite-step-actions">
+            <button
+              className="btn-go-to-group"
+              onClick={() => navigate(`/groups/${createdGroup._id}`)}
+            >
+              Go to Group →
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="create-group-page">
       <button className="back-btn" onClick={() => navigate("/groups")}>
         <ArrowLeft size={16} /> Back to Groups
       </button>
-
       <div className="create-group-card">
         <h1>Create a Group</h1>
         <p className="create-group-subtitle">
-          Start a community group for people who share your interests, faith, or
-          life stage.
+          Start a community support group for people navigating similar life
+          experiences.
         </p>
 
         {error && <div className="form-error">{error}</div>}
@@ -148,7 +273,7 @@ export default function CreateGroupPage() {
               type="text"
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
-              placeholder="e.g. Christian Fellowship — Poughkeepsie"
+              placeholder="e.g. Caregiver Support — Boca Raton"
               maxLength={100}
             />
           </div>
@@ -214,7 +339,7 @@ export default function CreateGroupPage() {
                     onChange={(e) => set("state", e.target.value)}
                     className="state-input"
                   >
-                    <option value="">ST</option>
+                    <option value="">State</option>
                     {US_STATES.map((s) => (
                       <option key={s} value={s}>
                         {s}
@@ -241,7 +366,7 @@ export default function CreateGroupPage() {
                 <span className="toggle-label">Private group</span>
                 <p className="toggle-hint">
                   {form.isPrivate
-                    ? "Members must request to join — you approve them"
+                    ? "Members must be invited — you control who joins"
                     : "Anyone can join instantly"}
                 </p>
               </div>

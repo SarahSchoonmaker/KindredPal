@@ -16,32 +16,6 @@ const groupSchema = new mongoose.Schema(
     category: {
       type: String,
       required: true,
-      enum: [
-        "Caregiver Support",
-        "Grief & Loss",
-        "Sober & Clean Living",
-        "New Parent Support",
-        "Chronic Illness Support",
-        "Anxiety & Mental Wellness",
-        "Veteran Support",
-        "Senior Wellness",
-        "Loneliness & Social Connection",
-        "Divorce Recovery",
-        "Faith & Spiritual Support",
-        "Life Transitions",
-        "Trauma Recovery",
-        "Cancer Support",
-        "Single Parent Support",
-        "Addiction Recovery",
-        "Autism & Special Needs Families",
-        "Singles Support",
-        "Married No Kids",
-        "Career Change Support",
-        "Financial Recovery",
-        "Singles Social Support",
-        "Local Activity Groups",
-        "Sports & Fitness",
-      ],
     },
     // Location
     city: { type: String, trim: true },
@@ -86,6 +60,11 @@ const groupSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
+
+    // Invited users (pending group invites)
+    invitedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    // Users who responded "maybe" to an invite
+    maybeUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 
     // Tags for searchability
     tags: [{ type: String, trim: true }],

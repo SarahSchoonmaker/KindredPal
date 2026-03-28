@@ -27,7 +27,9 @@ const getSeenIds = (userId, type) => {
   try {
     const raw = localStorage.getItem(seenKey(userId, type));
     return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 };
 
 const saveSeenIds = (userId, type, ids) => {
@@ -48,19 +50,20 @@ const countUnseen = (userId, type, allIds) => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser]               = useState(null);
-  const [loading, setLoading]         = useState(true);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
   const [meetupsCount, setMeetupsCount] = useState(0);
+  const [groupInviteCount, setGroupInviteCount] = useState(0);
   // ── connection request badge (replaces interestedCount) ──────
   const [requestCount, setRequestCount] = useState(0);
 
-  const navigate  = useNavigate();
-  const location  = useLocation();
+  const navigate = useNavigate();
+  const location = useLocation();
   const socketRef = useRef(null);
   // ── Debounce flag — prevent hammering the counts endpoint ────
   const fetchingCounts = useRef(false);
-  const countsTimer    = useRef(null);
+  const countsTimer = useRef(null);
 
   const isAuthenticated = !!user;
   const userId = user?.id || user?._id;
@@ -89,12 +92,19 @@ export const AuthProvider = ({ children }) => {
         ]);
 
         if (countsRes.status === "fulfilled") {
-          const { unread, meetupInviteIds = [], meetups } = countsRes.value.data;
+          const {
+            unread,
+            meetupInviteIds = [],
+            meetups,
+            groupInviteCount: gic = 0,
+          } = countsRes.value.data;
           setUnreadCount(unread ?? 0);
-          const unseenMeetups = meetupInviteIds.length > 0
-            ? countUnseen(uid, "meetups", meetupInviteIds)
-            : (meetups ?? 0);
-          setMeetupsCount(unseenMeetups);
+          const unseenMeetups =
+            meetupInviteIds.length > 0
+              ? countUnseen(uid, "meetups", meetupInviteIds)
+              : (meetups ?? 0);
+          setMeetupsCount(unseenMeetups + gic);
+          setGroupInviteCount(gic);
         }
 
         if (requestsRes.status === "fulfilled") {
@@ -223,7 +233,10 @@ export const AuthProvider = ({ children }) => {
       }
       return { success: false, error: "Signup failed" };
     } catch (error) {
-      return { success: false, error: error.response?.data?.message || "Signup failed" };
+      return {
+        success: false,
+        error: error.response?.data?.message || "Signup failed",
+      };
     }
   };
 
@@ -232,13 +245,19 @@ export const AuthProvider = ({ children }) => {
       const response = await api.post("/auth/login", { email, password });
       if (response.data.token) {
         // Wipe all per-user state from localStorage
-        const keysToRemove = Object.keys(localStorage).filter((k) =>
-          k.startsWith("seen_") ||
-          k.startsWith("likedUserIds") ||
-          k.startsWith("connectedInterestedIds") ||
-          k.startsWith("removedMatchIds") ||
-          k.startsWith("seenMeetupIds") ||
-          ["likedUserIds","connectedInterestedIds","removedMatchIds","seenMeetupIds"].includes(k)
+        const keysToRemove = Object.keys(localStorage).filter(
+          (k) =>
+            k.startsWith("seen_") ||
+            k.startsWith("likedUserIds") ||
+            k.startsWith("connectedInterestedIds") ||
+            k.startsWith("removedMatchIds") ||
+            k.startsWith("seenMeetupIds") ||
+            [
+              "likedUserIds",
+              "connectedInterestedIds",
+              "removedMatchIds",
+              "seenMeetupIds",
+            ].includes(k),
         );
         keysToRemove.forEach((k) => localStorage.removeItem(k));
         localStorage.setItem("token", response.data.token);
@@ -247,19 +266,28 @@ export const AuthProvider = ({ children }) => {
       }
       return { success: false, error: "Login failed" };
     } catch (error) {
-      return { success: false, error: error.response?.data?.message || "Login failed" };
+      return {
+        success: false,
+        error: error.response?.data?.message || "Login failed",
+      };
     }
   };
 
   const logout = () => {
     localStorage.removeItem("token");
-    const keysToRemove = Object.keys(localStorage).filter((k) =>
-      k.startsWith("seen_") ||
-      k.startsWith("likedUserIds") ||
-      k.startsWith("connectedInterestedIds") ||
-      k.startsWith("removedMatchIds") ||
-      k.startsWith("seenMeetupIds") ||
-      ["likedUserIds","connectedInterestedIds","removedMatchIds","seenMeetupIds"].includes(k)
+    const keysToRemove = Object.keys(localStorage).filter(
+      (k) =>
+        k.startsWith("seen_") ||
+        k.startsWith("likedUserIds") ||
+        k.startsWith("connectedInterestedIds") ||
+        k.startsWith("removedMatchIds") ||
+        k.startsWith("seenMeetupIds") ||
+        [
+          "likedUserIds",
+          "connectedInterestedIds",
+          "removedMatchIds",
+          "seenMeetupIds",
+        ].includes(k),
     );
     keysToRemove.forEach((k) => localStorage.removeItem(k));
     setUser(null);
@@ -283,9 +311,9 @@ export const AuthProvider = ({ children }) => {
     [userId],
   );
 
-  const updateUser      = (updatedUser) => setUser(updatedUser);
+  const updateUser = (updatedUser) => setUser(updatedUser);
   const incrementUnread = () => setUnreadCount((prev) => prev + 1);
-  const clearUnread     = () => setUnreadCount(0);
+  const clearUnread = () => setUnreadCount(0);
 
   const value = {
     user,
@@ -299,7 +327,8 @@ export const AuthProvider = ({ children }) => {
     refreshUser,
     unreadCount,
     meetupsCount,
-    requestCount,         // ← new: connection request badge
+    groupInviteCount,
+    requestCount, // ← new: connection request badge
     setUnreadCount,
     setMeetupsCount,
     setRequestCount,
@@ -308,7 +337,9 @@ export const AuthProvider = ({ children }) => {
     fetchUnreadCount,
     fetchAllCounts,
     markMeetupsSeen,
-    get socket() { return socketRef.current; },
+    get socket() {
+      return socketRef.current;
+    },
   };
 
   return (
