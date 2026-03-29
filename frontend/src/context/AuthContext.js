@@ -328,6 +328,9 @@ export const AuthProvider = ({ children }) => {
     unreadCount,
     meetupsCount,
     groupInviteCount,
+    decrementGroupInviteCount: () =>
+      setGroupInviteCount((n) => Math.max(0, n - 1)),
+    clearGroupInviteCount: () => setGroupInviteCount(0),
     requestCount, // ← new: connection request badge
     setUnreadCount,
     setMeetupsCount,

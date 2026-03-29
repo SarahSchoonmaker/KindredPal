@@ -458,7 +458,12 @@ function FilterDrawer({ filters, onChange, onClose, userProfile }) {
 
 export default function GroupsPage() {
   const navigate = useNavigate();
-  const { user, groupInviteCount } = useAuth();
+  const {
+    user,
+    groupInviteCount,
+    decrementGroupInviteCount,
+    clearGroupInviteCount,
+  } = useAuth();
   const [groups, setGroups] = useState([]);
   const [myGroups, setMyGroups] = useState([]);
   const [forYouGroups, setForYouGroups] = useState([]);
@@ -606,12 +611,13 @@ export default function GroupsPage() {
 
   useEffect(() => {
     if (activeTab === "my") {
+      clearGroupInviteCount();
       groupsAPI
         .getMyInvites()
         .then((res) => setInvitedGroups(res.data.groups || []))
         .catch(() => {});
     }
-  }, [activeTab]);
+  }, [activeTab, clearGroupInviteCount]);
 
   useEffect(() => {
     if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current);
@@ -635,10 +641,13 @@ export default function GroupsPage() {
     setRsvpStatus((prev) => ({ ...prev, [groupId]: response }));
     try {
       await groupsAPI.rsvpInvite(groupId, response);
+      // Decrement badge immediately
+      decrementGroupInviteCount();
       if (response === "accept") {
         setInvitedGroups((prev) => prev.filter((g) => g._id !== groupId));
         fetchGroups();
-      } else if (response === "decline") {
+      } else {
+        // maybe or decline — remove from pending list
         setInvitedGroups((prev) => prev.filter((g) => g._id !== groupId));
       }
     } catch (err) {
@@ -838,14 +847,15 @@ export default function GroupsPage() {
         )}
         <button
           className={`groups-tab ${activeTab === "my" ? "active" : ""}`}
-          onClick={() => setActiveTab("my")}
+          onClick={() => {
+            setActiveTab("my");
+            clearGroupInviteCount();
+          }}
           style={{ position: "relative" }}
         >
           My Groups &amp; Invites
-          {(groupInviteCount > 0 || invitedGroups.length > 0) && (
-            <span className="tab-invite-badge">
-              {groupInviteCount || invitedGroups.length}
-            </span>
+          {groupInviteCount > 0 && (
+            <span className="tab-invite-badge">{groupInviteCount}</span>
           )}
         </button>
       </div>
