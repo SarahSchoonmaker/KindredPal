@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   ScrollView,
@@ -7,27 +7,43 @@ import {
   TextInput,
   Switch,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { Text, ActivityIndicator } from "react-native-paper";
 import api from "../services/api";
 
 const CATEGORIES = [
+  "Caregiver Support",
+  "Grief & Loss",
+  "Sober & Clean Living",
+  "New Parent Support",
+  "Chronic Illness Support",
+  "Anxiety & Mental Wellness",
+  "Veteran Support",
+  "Senior Wellness",
+  "Loneliness & Social Connection",
+  "Divorce Recovery",
+  "Faith & Spiritual Support",
+  "Life Transitions",
+  "Trauma Recovery",
+  "Cancer Support",
+  "Single Parent Support",
+  "Addiction Recovery",
+  "Autism & Special Needs Families",
+  "Singles Social Support",
+  "Married No Kids",
+  "Career Change Support",
+  "Financial Recovery",
   "Sports & Fitness",
-  "Faith & Spirituality",
-  "Life Stage",
-  "Hobbies & Interests",
-  "Social Gatherings",
-  "Support & Wellness",
-  "Professional & Networking",
-  "Arts & Culture",
-  "Outdoor & Adventure",
-  "Other",
+  "Local Activity Groups",
 ];
 
 export default function CreateGroupScreen({ navigation }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [isNationwide, setIsNationwide] = useState(false);
@@ -75,137 +91,200 @@ export default function CreateGroupScreen({ navigation }) {
     }
   };
 
+  const scrollRef = useRef(null);
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Create a Group</Text>
-      <Text style={styles.subtitle}>
-        Start a community group for people in your area who share your interests
-        or life stage.
-      </Text>
-
-      {/* Group Name */}
-      <View style={styles.field}>
-        <Text style={styles.label}>Group Name *</Text>
-        <TextInput
-          style={styles.input}
-          value={name}
-          onChangeText={setName}
-          placeholder="e.g. Tennis Group — Poughkeepsie"
-          maxLength={100}
-          placeholderTextColor="#A0AEC0"
-        />
-      </View>
-
-      {/* Description */}
-      <View style={styles.field}>
-        <Text style={styles.label}>Description *</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          value={description}
-          onChangeText={setDescription}
-          placeholder="What is this group about? Who should join?"
-          maxLength={500}
-          multiline
-          numberOfLines={4}
-          placeholderTextColor="#A0AEC0"
-        />
-        <Text style={styles.charCount}>{description.length}/500</Text>
-      </View>
-
-      {/* Category */}
-      <View style={styles.field}>
-        <Text style={styles.label}>Category *</Text>
-        <View style={styles.categoryGrid}>
-          {CATEGORIES.map((cat) => (
-            <TouchableOpacity
-              key={cat}
-              style={[
-                styles.categoryChip,
-                category === cat && styles.categoryChipActive,
-              ]}
-              onPress={() => setCategory(cat)}
-            >
-              <Text
-                style={[
-                  styles.categoryChipText,
-                  category === cat && styles.categoryChipTextActive,
-                ]}
-              >
-                {cat}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      {/* Location */}
-      <View style={styles.field}>
-        <Text style={styles.label}>Location</Text>
-        <View style={styles.toggleRow}>
-          <Text style={styles.toggleLabel}>Nationwide group</Text>
-          <Switch
-            value={isNationwide}
-            onValueChange={setIsNationwide}
-            trackColor={{ true: "#2B6CB0" }}
-          />
-        </View>
-        {!isNationwide && (
-          <View style={styles.locationRow}>
-            <TextInput
-              style={[styles.input, styles.cityInput]}
-              value={city}
-              onChangeText={setCity}
-              placeholder="City"
-              placeholderTextColor="#A0AEC0"
-            />
-            <TextInput
-              style={[styles.input, styles.stateInput]}
-              value={state}
-              onChangeText={setState}
-              placeholder="State"
-              maxLength={2}
-              autoCapitalize="characters"
-              placeholderTextColor="#A0AEC0"
-            />
-          </View>
-        )}
-      </View>
-
-      {/* Privacy */}
-      <View style={styles.field}>
-        <Text style={styles.label}>Privacy</Text>
-        <View style={styles.toggleRow}>
-          <View>
-            <Text style={styles.toggleLabel}>Private group</Text>
-            <Text style={styles.toggleHint}>
-              {isPrivate
-                ? "Members must request to join — you approve them"
-                : "Anyone can join instantly"}
-            </Text>
-          </View>
-          <Switch
-            value={isPrivate}
-            onValueChange={setIsPrivate}
-            trackColor={{ true: "#2B6CB0" }}
-          />
-        </View>
-      </View>
-
-      {/* Submit */}
-      <TouchableOpacity
-        style={[styles.createButton, saving && styles.createButtonDisabled]}
-        onPress={handleCreate}
-        disabled={saving}
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+    >
+      <ScrollView
+        ref={scrollRef}
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
       >
-        {saving ? (
-          <ActivityIndicator color="white" size="small" />
-        ) : (
-          <Text style={styles.createButtonText}>Create Group</Text>
-        )}
-      </TouchableOpacity>
+        <Text style={styles.title}>Create a Group</Text>
+        <Text style={styles.subtitle}>
+          Start a peer support or wellness group for people in your area.
+        </Text>
 
-      <View style={{ height: 40 }} />
-    </ScrollView>
+        {/* Group Name */}
+        <View style={styles.field}>
+          <Text style={styles.label}>Group Name *</Text>
+          <TextInput
+            style={styles.input}
+            value={name}
+            onChangeText={setName}
+            placeholder="e.g. Caregiver Support — Boca Raton"
+            maxLength={100}
+            placeholderTextColor="#A0AEC0"
+          />
+        </View>
+
+        {/* Description */}
+        <View style={styles.field}>
+          <Text style={styles.label}>Description *</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={description}
+            onChangeText={setDescription}
+            placeholder="What is this group about? Who should join?"
+            maxLength={500}
+            multiline
+            numberOfLines={4}
+            placeholderTextColor="#A0AEC0"
+          />
+          <Text style={styles.charCount}>{description.length}/500</Text>
+        </View>
+
+        {/* Category */}
+        <View style={styles.field}>
+          <Text style={styles.label}>Category *</Text>
+          <TouchableOpacity
+            style={styles.categoryDropdown}
+            onPress={() => setShowCategoryPicker(true)}
+          >
+            <Text
+              style={[
+                styles.categoryDropdownText,
+                !category && { color: "#a0aec0" },
+              ]}
+            >
+              {category || "Select a category..."}
+            </Text>
+            <Text style={styles.categoryDropdownArrow}>▾</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Location */}
+        <View style={styles.field}>
+          <Text style={styles.label}>Location</Text>
+          <View style={styles.toggleRow}>
+            <Text style={styles.toggleLabel}>Nationwide group</Text>
+            <Switch
+              value={isNationwide}
+              onValueChange={setIsNationwide}
+              trackColor={{ true: "#2B6CB0" }}
+            />
+          </View>
+          {!isNationwide && (
+            <View style={styles.locationRow}>
+              <TextInput
+                style={[styles.input, styles.cityInput]}
+                value={city}
+                onChangeText={setCity}
+                placeholder="City"
+                placeholderTextColor="#A0AEC0"
+                onFocus={() =>
+                  setTimeout(
+                    () => scrollRef.current?.scrollToEnd({ animated: true }),
+                    300,
+                  )
+                }
+              />
+              <TextInput
+                style={[styles.input, styles.stateInput]}
+                value={state}
+                onChangeText={setState}
+                placeholder="ST"
+                maxLength={2}
+                autoCapitalize="characters"
+                placeholderTextColor="#A0AEC0"
+                onFocus={() =>
+                  setTimeout(
+                    () => scrollRef.current?.scrollToEnd({ animated: true }),
+                    300,
+                  )
+                }
+              />
+            </View>
+          )}
+        </View>
+
+        {/* Privacy */}
+        <View style={styles.field}>
+          <Text style={styles.label}>Privacy</Text>
+          <View style={styles.toggleRow}>
+            <View>
+              <Text style={styles.toggleLabel}>Private group</Text>
+              <Text style={styles.toggleHint}>
+                {isPrivate
+                  ? "Members must be invited — you control who joins"
+                  : "Anyone can join instantly"}
+              </Text>
+            </View>
+            <Switch
+              value={isPrivate}
+              onValueChange={setIsPrivate}
+              trackColor={{ true: "#2B6CB0" }}
+            />
+          </View>
+        </View>
+
+        {/* Submit */}
+        <TouchableOpacity
+          style={[styles.createButton, saving && styles.createButtonDisabled]}
+          onPress={handleCreate}
+          disabled={saving}
+        >
+          {saving ? (
+            <ActivityIndicator color="white" size="small" />
+          ) : (
+            <Text style={styles.createButtonText}>Create Group</Text>
+          )}
+        </TouchableOpacity>
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
+
+      {/* Category Picker Modal */}
+      <Modal
+        visible={showCategoryPicker}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowCategoryPicker(false)}
+      >
+        <View style={styles.pickerModal}>
+          <View style={styles.pickerHeader}>
+            <Text style={styles.pickerTitle}>Select Category</Text>
+            <TouchableOpacity onPress={() => setShowCategoryPicker(false)}>
+              <Text style={styles.pickerCancel}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={CATEGORIES}
+            keyExtractor={(item) => item}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[
+                  styles.pickerItem,
+                  category === item && styles.pickerItemActive,
+                ]}
+                onPress={() => {
+                  setCategory(item);
+                  setShowCategoryPicker(false);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.pickerItemText,
+                    category === item && styles.pickerItemTextActive,
+                  ]}
+                >
+                  {item}
+                </Text>
+                {category === item && <Text style={styles.pickerCheck}>✓</Text>}
+              </TouchableOpacity>
+            )}
+            ItemSeparatorComponent={() => (
+              <View style={styles.pickerSeparator} />
+            )}
+          />
+        </View>
+      </Modal>
+    </KeyboardAvoidingView>
   );
 }
 
