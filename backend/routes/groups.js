@@ -560,6 +560,12 @@ router.post("/:id/invite/:userId", auth, async (req, res) => {
 
     const targetId = req.params.userId;
 
+    // Validate targetId is a valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(targetId)) {
+      return res.status(400).json({ message: "Invalid user ID" });
+    }
+    const targetObjectId = new mongoose.Types.ObjectId(targetId);
+
     // Already a member
     if (group.members.some((m) => m.toString() === targetId)) {
       return res.status(400).json({ message: "User is already a member" });
@@ -570,7 +576,7 @@ router.post("/:id/invite/:userId", auth, async (req, res) => {
     if (!group.invitedUsers.some((u) => u.toString() === targetId)) {
       await Group.findByIdAndUpdate(
         req.params.id,
-        { $addToSet: { invitedUsers: targetId } },
+        { $addToSet: { invitedUsers: targetObjectId } },
         { runValidators: false },
       );
     }
@@ -645,10 +651,14 @@ router.post("/:id/rsvp-invite", auth, async (req, res) => {
     }
 
     if (response === "accept") {
+      const userObjectId = new mongoose.Types.ObjectId(userId);
       // Add to members, remove from invitedUsers
       const updated = await Group.findByIdAndUpdate(
         req.params.id,
-        { $pull: { invitedUsers: userId }, $addToSet: { members: userId } },
+        {
+          $pull: { invitedUsers: userObjectId },
+          $addToSet: { members: userObjectId },
+        },
         { new: true, runValidators: false },
       );
       // Keep memberCount in sync
@@ -663,10 +673,10 @@ router.post("/:id/rsvp-invite", auth, async (req, res) => {
     }
 
     if (response === "maybe") {
-      // Keep in invitedUsers but record their maybe response — don't add as member yet
+      const userObjectId = new mongoose.Types.ObjectId(userId);
       await Group.findByIdAndUpdate(
         req.params.id,
-        { $addToSet: { maybeUsers: userId } },
+        { $addToSet: { maybeUsers: userObjectId } },
         { runValidators: false },
       );
       return res.json({
@@ -676,9 +686,10 @@ router.post("/:id/rsvp-invite", auth, async (req, res) => {
     }
 
     if (response === "decline") {
+      const userObjectId = new mongoose.Types.ObjectId(userId);
       await Group.findByIdAndUpdate(
         req.params.id,
-        { $pull: { invitedUsers: userId, maybeUsers: userId } },
+        { $pull: { invitedUsers: userObjectId, maybeUsers: userObjectId } },
         { runValidators: false },
       );
       return res.json({ message: "Invitation declined.", joined: false });
