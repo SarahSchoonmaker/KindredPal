@@ -397,7 +397,7 @@ export default function GroupDetailScreen({ route, navigation }) {
         <View style={styles.stats}>
           <View style={styles.stat}>
             <Text style={styles.statNumber}>
-              {group.memberCount || group.members?.length || 0}
+              {group.members?.length || group.memberCount || 0}
             </Text>
             <Text style={styles.statLabel}>Members</Text>
           </View>

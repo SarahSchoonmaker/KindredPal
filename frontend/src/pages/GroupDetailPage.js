@@ -1288,7 +1288,11 @@ export default function GroupDetailPage() {
           className={`gd-tab ${activeTab === "members" ? "active" : ""}`}
           onClick={() => setActiveTab("members")}
         >
-          Members ({group.members?.length || 0})
+          Members (
+          {(group.members?.length > 0
+            ? group.members.length
+            : group.memberCount) || 0}
+          )
         </button>
         {(group.isMember || group.isAdmin) && (
           <button
@@ -1311,7 +1315,11 @@ export default function GroupDetailPage() {
       {/* Stats */}
       <div className="group-stats">
         <div className="stat">
-          <strong>{group.memberCount || 0}</strong>
+          <strong>
+            {(group.members?.length > 0
+              ? group.members.length
+              : group.memberCount) || 0}
+          </strong>
           <span>Members</span>
         </div>
         <div className="stat-divider" />
@@ -1411,7 +1419,13 @@ export default function GroupDetailPage() {
         <>
           {(group.isMember || !group.isPrivate) && group.members?.length > 0 ? (
             <div className="group-section">
-              <h2>Members ({group.members.length})</h2>
+              <h2>
+                Members (
+                {(group.members?.length > 0
+                  ? group.members.length
+                  : group.memberCount) || 0}
+                )
+              </h2>
               <div className="members-list">
                 {group.members.map((member) => (
                   <MemberRow
