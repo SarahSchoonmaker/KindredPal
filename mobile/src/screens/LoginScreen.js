@@ -51,6 +51,7 @@ export default function LoginScreen({ navigation }) {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
     >
       <ScrollView
         ref={scrollRef}
@@ -120,6 +121,12 @@ export default function LoginScreen({ navigation }) {
               autoCorrect={false}
               placeholder="your@email.com"
               placeholderTextColor="#a0aec0"
+              onFocus={() =>
+                setTimeout(
+                  () => scrollRef.current?.scrollToEnd({ animated: true }),
+                  300,
+                )
+              }
             />
           </View>
 
@@ -198,8 +205,8 @@ const styles = StyleSheet.create({
   // ── Brand Panel ──
   brandPanel: {
     backgroundColor: MEDIUM_BLUE,
-    paddingTop: 64,
-    paddingBottom: 52,
+    paddingTop: 52,
+    paddingBottom: 32,
     paddingHorizontal: 28,
   },
 
@@ -222,18 +229,18 @@ const styles = StyleSheet.create({
   },
 
   headline: {
-    fontSize: 34,
+    fontSize: 32,
     fontWeight: "800",
     color: "white",
-    lineHeight: 40,
+    lineHeight: 38,
     letterSpacing: -0.5,
-    marginBottom: 14,
+    marginBottom: 8,
   },
   subheadline: {
-    fontSize: 15,
+    fontSize: 14,
     color: "rgba(255,255,255,0.8)",
-    lineHeight: 22,
-    marginBottom: 32,
+    lineHeight: 20,
+    marginBottom: 20,
   },
 
   features: { gap: 18 },
@@ -267,7 +274,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     paddingHorizontal: 28,
-    paddingTop: 40,
+    paddingTop: 28,
     paddingBottom: 52,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -4 },
