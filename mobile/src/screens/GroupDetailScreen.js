@@ -101,6 +101,11 @@ export default function GroupDetailScreen({ route, navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState("about");
 
+  // Edit group
+  const [showEdit, setShowEdit] = useState(false);
+  const [editForm, setEditForm] = useState({});
+  const [editSaving, setEditSaving] = useState(false);
+
   // Chat
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");

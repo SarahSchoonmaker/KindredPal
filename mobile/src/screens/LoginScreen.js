@@ -25,6 +25,7 @@ export default function LoginScreen({ navigation }) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const scrollRef = React.useRef(null);
 
   const handleLogin = async () => {
     if (!email || !password) return;
@@ -52,6 +53,7 @@ export default function LoginScreen({ navigation }) {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -131,6 +133,12 @@ export default function LoginScreen({ navigation }) {
                 secureTextEntry={!showPassword}
                 placeholder="••••••••"
                 placeholderTextColor="#a0aec0"
+                onFocus={() =>
+                  setTimeout(
+                    () => scrollRef.current?.scrollToEnd({ animated: true }),
+                    300,
+                  )
+                }
               />
               <TouchableOpacity
                 style={styles.eyeBtn}
