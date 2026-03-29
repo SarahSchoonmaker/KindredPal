@@ -359,4 +359,84 @@ const styles = StyleSheet.create({
   },
   createButtonDisabled: { opacity: 0.6 },
   createButtonText: { color: "white", fontSize: 16, fontWeight: "700" },
+
+  // ── Category dropdown button ──
+  categoryDropdown: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "white",
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 15,
+  },
+  categoryDropdownText: {
+    fontSize: 15,
+    color: "#2D3748",
+    flex: 1,
+  },
+  categoryDropdownArrow: {
+    fontSize: 18,
+    color: "#718096",
+    marginLeft: 8,
+  },
+
+  // ── Category picker modal ──
+  pickerModal: {
+    flex: 1,
+    backgroundColor: "white",
+  },
+  pickerHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+    backgroundColor: "white",
+  },
+  pickerTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#1a202c",
+  },
+  pickerCancel: {
+    fontSize: 16,
+    color: "#2B6CB0",
+    fontWeight: "600",
+  },
+  pickerItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    backgroundColor: "white",
+  },
+  pickerItemActive: {
+    backgroundColor: "#EBF4FF",
+  },
+  pickerItemText: {
+    fontSize: 16,
+    color: "#2D3748",
+    flex: 1,
+  },
+  pickerItemTextActive: {
+    color: "#2B6CB0",
+    fontWeight: "700",
+  },
+  pickerCheck: {
+    fontSize: 18,
+    color: "#2B6CB0",
+    fontWeight: "700",
+    marginLeft: 12,
+  },
+  pickerSeparator: {
+    height: 1,
+    backgroundColor: "#F0F4F8",
+    marginHorizontal: 20,
+  },
 });
