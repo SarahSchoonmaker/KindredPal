@@ -230,6 +230,30 @@ export default function GroupDetailScreen({ route, navigation }) {
     }
   };
 
+  const handleRsvp = async (response) => {
+    try {
+      await api.post(`/groups/${groupId}/rsvp-invite`, { response });
+      if (response === "accept") {
+        await fetchGroup();
+        Alert.alert("Joined!", `You have joined ${group?.name}!`);
+      } else if (response === "maybe") {
+        await fetchGroup();
+        Alert.alert(
+          "Noted",
+          "Marked as maybe. The group admin will see your response.",
+        );
+      } else {
+        navigation.goBack();
+      }
+    } catch (err) {
+      Alert.alert(
+        "Error",
+        err.response?.data?.message ||
+          "Could not update response. Please try again.",
+      );
+    }
+  };
+
   const handleLeave = () => {
     Alert.alert("Leave Group", `Leave ${group?.name}?`, [
       { text: "Cancel", style: "cancel" },
@@ -427,6 +451,32 @@ export default function GroupDetailScreen({ route, navigation }) {
               <LogOut size={16} color="#E53E3E" />
               <Text style={styles.leaveButtonText}>Leave Group</Text>
             </TouchableOpacity>
+          ) : group.isInvited ? (
+            <View style={styles.rsvpContainer}>
+              <Text style={styles.rsvpLabel}>
+                You've been invited to join this group:
+              </Text>
+              <View style={styles.rsvpRow}>
+                <TouchableOpacity
+                  style={styles.rsvpAcceptBtn}
+                  onPress={() => handleRsvp("accept")}
+                >
+                  <Text style={styles.rsvpAcceptText}>✓ Accept</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.rsvpMaybeBtn}
+                  onPress={() => handleRsvp("maybe")}
+                >
+                  <Text style={styles.rsvpMaybeText}>~ Maybe</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.rsvpDeclineBtn}
+                  onPress={() => handleRsvp("decline")}
+                >
+                  <Text style={styles.rsvpDeclineText}>✕ Can't</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           ) : group.isPending ? (
             <View style={styles.pendingButton}>
               <Text style={styles.pendingButtonText}>
@@ -1014,6 +1064,42 @@ const styles = StyleSheet.create({
     borderColor: "#2B6CB0",
   },
   editButtonText: { color: "#2B6CB0", fontSize: 14, fontWeight: "700" },
+  rsvpContainer: { marginBottom: 10 },
+  rsvpLabel: {
+    fontSize: 13,
+    color: "#4a5568",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  rsvpRow: { flexDirection: "row", gap: 8 },
+  rsvpAcceptBtn: {
+    flex: 1,
+    backgroundColor: "#2B6CB0",
+    borderRadius: 10,
+    paddingVertical: 11,
+    alignItems: "center",
+  },
+  rsvpAcceptText: { color: "white", fontSize: 14, fontWeight: "700" },
+  rsvpMaybeBtn: {
+    flex: 1,
+    backgroundColor: "white",
+    borderRadius: 10,
+    paddingVertical: 11,
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#f6ad55",
+  },
+  rsvpMaybeText: { color: "#d69e2e", fontSize: 14, fontWeight: "600" },
+  rsvpDeclineBtn: {
+    flex: 1,
+    backgroundColor: "white",
+    borderRadius: 10,
+    paddingVertical: 11,
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+  },
+  rsvpDeclineText: { color: "#718096", fontSize: 14, fontWeight: "600" },
 
   // Edit modal
   editModalHeader: {

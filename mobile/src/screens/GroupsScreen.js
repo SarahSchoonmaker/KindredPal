@@ -9,6 +9,7 @@ import {
   Image,
   FlatList,
   Modal,
+  Alert,
 } from "react-native";
 import { Text, ActivityIndicator } from "react-native-paper";
 import {
@@ -588,25 +589,54 @@ export default function GroupsScreen({ navigation }) {
                 <TouchableOpacity
                   style={styles.btnAccept}
                   onPress={async () => {
-                    await api.post(`/groups/${g._id}/accept-invite`);
-                    setInvitedGroups((prev) =>
-                      prev.filter((x) => x._id !== g._id),
-                    );
-                    fetchGroups();
+                    try {
+                      await api.post(`/groups/${g._id}/rsvp-invite`, {
+                        response: "accept",
+                      });
+                      setInvitedGroups((prev) =>
+                        prev.filter((x) => x._id !== g._id),
+                      );
+                      fetchGroups();
+                    } catch (err) {
+                      Alert.alert(
+                        "Error",
+                        err.response?.data?.message ||
+                          "Could not accept invite",
+                      );
+                    }
                   }}
                 >
-                  <Text style={styles.btnAcceptText}>Accept</Text>
+                  <Text style={styles.btnAcceptText}>✓ Accept</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.btnMaybe}
+                  onPress={async () => {
+                    try {
+                      await api.post(`/groups/${g._id}/rsvp-invite`, {
+                        response: "maybe",
+                      });
+                      setInvitedGroups((prev) =>
+                        prev.filter((x) => x._id !== g._id),
+                      );
+                    } catch {}
+                  }}
+                >
+                  <Text style={styles.btnMaybeText}>~ Maybe</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.btnDecline}
                   onPress={async () => {
-                    await api.post(`/groups/${g._id}/decline-invite`);
-                    setInvitedGroups((prev) =>
-                      prev.filter((x) => x._id !== g._id),
-                    );
+                    try {
+                      await api.post(`/groups/${g._id}/rsvp-invite`, {
+                        response: "decline",
+                      });
+                      setInvitedGroups((prev) =>
+                        prev.filter((x) => x._id !== g._id),
+                      );
+                    } catch {}
                   }}
                 >
-                  <Text style={styles.btnDeclineText}>Decline</Text>
+                  <Text style={styles.btnDeclineText}>✕ Can't</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1200,6 +1230,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   btnAcceptText: { color: "white", fontSize: 13, fontWeight: "700" },
+  btnMaybe: {
+    flex: 1,
+    backgroundColor: "white",
+    borderRadius: 8,
+    paddingVertical: 9,
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#f6ad55",
+  },
+  btnMaybeText: { color: "#d69e2e", fontSize: 13, fontWeight: "600" },
   btnDecline: {
     flex: 1,
     backgroundColor: "white",
