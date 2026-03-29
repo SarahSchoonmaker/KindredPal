@@ -249,6 +249,7 @@ function GroupCard({ group, onPress }) {
 export default function GroupsScreen({ navigation }) {
   const [groups, setGroups] = useState([]);
   const [myGroups, setMyGroups] = useState([]);
+  const [invitedGroups, setInvitedGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
@@ -283,13 +284,15 @@ export default function GroupsScreen({ navigation }) {
       if (filters.religion?.length) params.religion = filters.religion;
       if (filters.lifeStage?.length) params.lifeStage = filters.lifeStage;
 
-      const [discoverRes, myRes] = await Promise.all([
+      const [discoverRes, myRes, invitesRes] = await Promise.all([
         api.get("/groups", { params: { ...params, limit: 100 } }),
         api.get("/groups/my"),
+        api.get("/groups/my-invites").catch(() => ({ data: { groups: [] } })),
       ]);
 
       setGroups(discoverRes.data.groups || []);
       setMyGroups(myRes.data.groups || []);
+      setInvitedGroups(invitesRes.data.groups || []);
     } catch (err) {
       console.error("Error fetching groups:", err);
     } finally {
