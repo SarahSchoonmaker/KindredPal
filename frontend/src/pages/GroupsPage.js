@@ -538,16 +538,14 @@ export default function GroupsPage() {
       if (filters.family?.length) params.family = filters.family;
       if (search) params.search = search;
 
-      const [discoverRes, myRes, invitesRes] = await Promise.all([
+      const [discoverRes, myRes] = await Promise.all([
         groupsAPI.getGroups(params),
         groupsAPI.getMyGroups(),
-        groupsAPI.getMyInvites().catch(() => ({ data: { groups: [] } })),
       ]);
 
       const allGroups = discoverRes.data.groups || [];
       setGroups(allGroups);
       setMyGroups(myRes.data.groups || []);
-      setInvitedGroups(invitesRes.data.groups || []);
 
       // "For You" — groups that share at least one value with user
       if (
@@ -597,6 +595,23 @@ export default function GroupsPage() {
     filters.lifeStage,
     filters.family,
   ]);
+
+  // Fetch invites once on mount and whenever tab switches to "my"
+  useEffect(() => {
+    groupsAPI
+      .getMyInvites()
+      .then((res) => setInvitedGroups(res.data.groups || []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "my") {
+      groupsAPI
+        .getMyInvites()
+        .then((res) => setInvitedGroups(res.data.groups || []))
+        .catch(() => {});
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current);

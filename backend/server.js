@@ -127,10 +127,20 @@ app.use(mongoSanitize());
 // ===== RATE LIMITING =====
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 500,
   message: "Too many requests, please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting for authenticated group/connection polling routes
+    const pollingPaths = [
+      "/api/groups/my",
+      "/api/groups/my-invites",
+      "/api/users/counts",
+      "/api/connections",
+    ];
+    return pollingPaths.some((p) => req.path.startsWith(p));
+  },
 });
 app.use("/api/", limiter);
 

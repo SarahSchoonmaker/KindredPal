@@ -139,11 +139,11 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // Fetch counts once on login, then every 90 seconds (was 60s — reduces 429s)
+  // Fetch counts once on login, then every 3 minutes
   useEffect(() => {
     if (!userId) return;
     debouncedFetchCounts(userId);
-    const interval = setInterval(() => fetchAllCounts(userId), 90000);
+    const interval = setInterval(() => fetchAllCounts(userId), 180000);
     return () => {
       clearInterval(interval);
       if (countsTimer.current) clearTimeout(countsTimer.current);
