@@ -1,4 +1,5 @@
 import axios from "axios";
+import * as SecureStore from "expo-secure-store";
 
 const API_URL = "https://kindredpal-production.up.railway.app/api";
 
@@ -8,35 +9,33 @@ const api = axios.create({
   timeout: 30000,
 });
 
+// ── Request interceptor — attach token from SecureStore ──────────────────────
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    } else {
-      delete config.headers.Authorization;
-    }
-    if (config.method === "get") {
-      config.params = { ...config.params, _t: Date.now() };
+  async (config) => {
+    try {
+      const token = await SecureStore.getItemAsync("token");
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      } else {
+        delete config.headers.Authorization;
+      }
+    } catch (e) {
+      // SecureStore failure — proceed without token
     }
     return config;
   },
   (error) => Promise.reject(error),
 );
 
+// ── Response interceptor — handle 401 ────────────────────────────────────────
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.message === "Network Error" && !error.response) {
-      console.error("❌ CORS or Network Error:", {
-        url: error.config?.url,
-        method: error.config?.method,
-        baseURL: error.config?.baseURL,
-      });
-    }
+  async (error) => {
     if (error.response?.status === 401) {
-      console.warn("⚠️ Unauthorized - clearing token");
-      localStorage.removeItem("token");
+      try {
+        await SecureStore.deleteItemAsync("token");
+        await SecureStore.deleteItemAsync("userId");
+      } catch (e) {}
     }
     return Promise.reject(error);
   },
@@ -55,12 +54,8 @@ export const authAPI = {
 // ===== USERS =====
 export const userAPI = {
   getDiscoverUsers: () => api.get("/users/discover"),
-  likeUser: (userId) => api.post(`/users/like/${userId}`),
-  passUser: (userId) => api.post(`/users/pass/${userId}`),
   updateProfile: (data) => api.put("/users/profile", data),
-  getMatches: () => api.get("/users/matches"),
   getUserProfile: (userId) => api.get(`/users/profile/${userId}`),
-  getLikesYou: () => api.get("/users/likes-you"),
   getCounts: () => api.get("/users/counts"),
   updateNotificationSettings: (settings) =>
     api.put("/users/notification-settings", settings),
@@ -70,8 +65,6 @@ export const userAPI = {
   blockUser: (userId) => api.post(`/users/${userId}/block`),
   unblockUser: (userId) => api.delete(`/users/${userId}/block`),
   getBlockedUsers: () => api.get("/users/blocked"),
-  unmatchUser: (userId) => api.post(`/users/unmatch/${userId}`),
-  clearPassed: () => api.delete("/users/passed"),
 };
 
 // ===== MESSAGES =====
@@ -82,8 +75,6 @@ export const messageAPI = {
     api.post("/messages", { recipientId, content }),
   markAsRead: (messageId) => api.put(`/messages/${messageId}/read`),
   getUnreadCount: () => api.get("/messages/unread/count"),
-  getUnreadCountForUser: (userId) =>
-    api.get(`/messages/unread/count/${userId}`),
 };
 
 // ===== MEETUPS =====
@@ -141,6 +132,7 @@ export const connectionsAPI = {
   getStatus: (userId) => api.get(`/connections/status/${userId}`),
 };
 
+// ===== GROUP CHAT =====
 export const groupChatAPI = {
   getMessages: (groupId, params = {}) =>
     api.get(`/groups/${groupId}/messages`, { params }),
@@ -150,6 +142,7 @@ export const groupChatAPI = {
     api.delete(`/groups/${groupId}/messages/${msgId}`),
 };
 
+// ===== EVENTS =====
 export const eventsAPI = {
   getEvents: (groupId) => api.get(`/groups/${groupId}/events`),
   createEvent: (groupId, data) => api.post(`/groups/${groupId}/events`, data),
