@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { groupsAPI } from "../services/api";
+import api, { groupsAPI } from "../services/api";
 import {
   Search,
   Plus,
@@ -603,8 +603,8 @@ export default function GroupsPage() {
 
   // Fetch invites once on mount and whenever tab switches to "my"
   useEffect(() => {
-    groupsAPI
-      .getMyInvites()
+    api
+      .get("/groups/my-invites")
       .then((res) => setInvitedGroups(res.data.groups || []))
       .catch(() => {});
   }, []);
@@ -612,8 +612,8 @@ export default function GroupsPage() {
   useEffect(() => {
     if (activeTab === "my") {
       clearGroupInviteCount();
-      groupsAPI
-        .getMyInvites()
+      api
+        .get("/groups/my-invites")
         .then((res) => setInvitedGroups(res.data.groups || []))
         .catch(() => {});
     }
@@ -640,7 +640,7 @@ export default function GroupsPage() {
   const handleRsvp = async (groupId, response) => {
     setRsvpStatus((prev) => ({ ...prev, [groupId]: response }));
     try {
-      await groupsAPI.rsvpInvite(groupId, response);
+      await api.post(`/groups/${groupId}/rsvp-invite`, { response });
       // Decrement badge immediately
       decrementGroupInviteCount();
       if (response === "accept") {
