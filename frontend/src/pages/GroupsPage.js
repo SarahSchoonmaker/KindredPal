@@ -644,8 +644,16 @@ export default function GroupsPage() {
       // Decrement badge immediately
       decrementGroupInviteCount();
       if (response === "accept") {
+        // Move group from invited to myGroups immediately
+        const acceptedGroup = invitedGroups.find((g) => g._id === groupId);
+        if (acceptedGroup) {
+          setMyGroups((prev) => [
+            ...prev,
+            { ...acceptedGroup, isMember: true },
+          ]);
+        }
         setInvitedGroups((prev) => prev.filter((g) => g._id !== groupId));
-        fetchGroups();
+        fetchGroups(); // refresh in background
       } else {
         // maybe or decline — remove from pending list
         setInvitedGroups((prev) => prev.filter((g) => g._id !== groupId));

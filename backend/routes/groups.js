@@ -173,15 +173,15 @@ router.get("/", auth, async (req, res) => {
 // Groups the current user has joined
 router.get("/my", auth, async (req, res) => {
   try {
+    const userId = req.user.id || req.user._id;
     const groups = await Group.find({
-      $or: [{ members: req.user.id }, { createdBy: req.user.id }],
+      $or: [{ members: userId }, { createdBy: userId }],
       isActive: true,
     })
       .populate("createdBy", "name profilePhoto")
       .sort({ updatedAt: -1 })
       .lean();
 
-    const userId = req.user.id;
     const result = groups.map((g) => ({ ...g, isMember: true }));
     // Compute memberValues summary for each group (for "People like me" tags)
     const groupsWithValues = result.map((g) => ({
@@ -282,6 +282,9 @@ router.get("/:id", auth, async (req, res) => {
     ) {
       return res.status(403).json({ message: "This is a private group" });
     }
+
+    // Keep memberCount in sync with actual members array
+    group.memberCount = (group.members || []).length;
 
     // Hide pending requests from non-admins
     if (!group.isAdmin) delete group.pendingRequests;
@@ -616,20 +619,46 @@ router.post("/:id/rsvp-invite", auth, async (req, res) => {
     const group = await Group.findById(req.params.id);
     if (!group) return res.status(404).json({ message: "Group not found" });
 
-    // Only allow if actually invited
+    // Check if invited or already a member
     const isInvited = (group.invitedUsers || []).some(
       (u) => u.toString() === userId,
     );
-    if (!isInvited)
-      return res.status(403).json({ message: "No pending invite found" });
+    const isAlreadyMember = (group.members || []).some(
+      (m) => m.toString() === userId,
+    );
+
+    if (!isInvited && !isAlreadyMember) {
+      console.log("rsvp-invite not invited:", {
+        userId,
+        invitedUsers: (group.invitedUsers || []).map((u) => u.toString()),
+      });
+      return res
+        .status(403)
+        .json({
+          message: "No pending invite found. You may need to refresh the page.",
+        });
+    }
+
+    // Already a member — idempotent success
+    if (isAlreadyMember && response === "accept") {
+      return res.json({ message: "You are already a member!", joined: true });
+    }
 
     if (response === "accept") {
       // Add to members, remove from invitedUsers
-      await Group.findByIdAndUpdate(
+      const updated = await Group.findByIdAndUpdate(
         req.params.id,
         { $pull: { invitedUsers: userId }, $addToSet: { members: userId } },
-        { runValidators: false },
+        { new: true, runValidators: false },
       );
+      // Keep memberCount in sync
+      if (updated) {
+        await Group.findByIdAndUpdate(
+          req.params.id,
+          { $set: { memberCount: updated.members.length } },
+          { runValidators: false },
+        );
+      }
       return res.json({ message: "You have joined the group!", joined: true });
     }
 

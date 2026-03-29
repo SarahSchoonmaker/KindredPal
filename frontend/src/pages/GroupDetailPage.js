@@ -964,12 +964,21 @@ export default function GroupDetailPage() {
     try {
       await groupsAPI.rsvpInvite(groupId, response);
       if (response === "accept") {
-        fetchGroup();
+        // Refresh group — user is now a member
+        await fetchGroup();
+      } else if (response === "maybe") {
+        alert("Marked as maybe! The group admin will see your response.");
+        await fetchGroup();
       } else {
-        window.history.back();
+        // declined
+        navigate("/groups");
       }
     } catch (err) {
-      alert(err.response?.data?.message || "Could not update response");
+      console.error("RSVP error:", err.response?.status, err.response?.data);
+      alert(
+        err.response?.data?.message ||
+          "Could not update response. Please try again.",
+      );
     }
   };
 
