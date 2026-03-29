@@ -246,7 +246,7 @@ function GroupCard({ group, onPress }) {
   );
 }
 
-export default function GroupsScreen({ navigation }) {
+export default function GroupsScreen({ navigation, route }) {
   const [groups, setGroups] = useState([]);
   const [myGroups, setMyGroups] = useState([]);
   const [invitedGroups, setInvitedGroups] = useState([]);
@@ -312,6 +312,14 @@ export default function GroupsScreen({ navigation }) {
       fetchGroups();
     }, [fetchGroups]),
   );
+
+  // Refresh when navigated back with refresh param (e.g. after creating a group)
+  useEffect(() => {
+    if (route?.params?.refresh) {
+      fetchGroups();
+      setActiveTab("my"); // Switch to My Groups so user sees their new group
+    }
+  }, [route?.params?.refresh]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);

@@ -79,8 +79,24 @@ export default function CreateGroupScreen({ navigation }) {
       Alert.alert("Success", "Your group has been created!", [
         {
           text: "View Group",
+          onPress: () => {
+            // Go back to Groups tab first so My Groups refreshes, then push GroupDetail
+            navigation.navigate("MainTabs", {
+              screen: "Groups",
+              params: { refresh: Date.now() },
+            });
+            setTimeout(() => {
+              navigation.navigate("GroupDetail", { groupId: res.data._id });
+            }, 100);
+          },
+        },
+        {
+          text: "Back to Groups",
           onPress: () =>
-            navigation.replace("GroupDetail", { groupId: res.data._id }),
+            navigation.navigate("MainTabs", {
+              screen: "Groups",
+              params: { refresh: Date.now() },
+            }),
         },
       ]);
     } catch (err) {
