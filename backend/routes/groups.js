@@ -93,7 +93,14 @@ router.get("/", auth, async (req, res) => {
     }
 
     if (category) query.category = category;
-    if (search) query.$text = { $search: search };
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+        { category: { $regex: search, $options: "i" } },
+        { city: { $regex: search, $options: "i" } },
+      ];
+    }
 
     // Values filters
     if (filterReligion) {
@@ -112,7 +119,7 @@ router.get("/", auth, async (req, res) => {
         "members",
         "religion politicalBeliefs lifeStage familySituation",
       )
-      .sort({ memberCount: -1, createdAt: -1 })
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit))
       .lean();
