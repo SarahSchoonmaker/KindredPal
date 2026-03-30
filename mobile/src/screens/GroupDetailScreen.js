@@ -286,23 +286,36 @@ export default function GroupDetailScreen({ route, navigation }) {
   const handleDelete = () => {
     Alert.alert(
       "Delete Group",
-      `Are you sure you want to delete "${group?.name}"? This cannot be undone.`,
+      `Are you sure you want to delete "${group?.name}"? This cannot be undone and all members will lose access.`,
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Delete",
+          text: "Delete Forever",
           style: "destructive",
           onPress: async () => {
             try {
-              await api.delete(`/groups/${groupId}`);
-              navigation.navigate("MainTabs", {
-                screen: "Groups",
-                params: { refresh: Date.now() },
-              });
+              const res = await api.delete(`/groups/${groupId}`);
+              console.log("Delete response:", res.data);
+              Alert.alert("Deleted", `"${group?.name}" has been deleted.`, [
+                {
+                  text: "OK",
+                  onPress: () =>
+                    navigation.navigate("MainTabs", {
+                      screen: "Groups",
+                      params: { refresh: Date.now() },
+                    }),
+                },
+              ]);
             } catch (err) {
+              console.error(
+                "Delete error:",
+                err.response?.status,
+                err.response?.data,
+              );
               Alert.alert(
-                "Error",
-                err.response?.data?.message || "Could not delete group",
+                "Could Not Delete",
+                err.response?.data?.message ||
+                  `Error ${err.response?.status || "unknown"}. Please try again.`,
               );
             }
           },
@@ -482,7 +495,9 @@ export default function GroupDetailScreen({ route, navigation }) {
               <Text style={styles.editButtonText}>✏️ Edit Group</Text>
             </TouchableOpacity>
           )}
-          {group.isCreator && (
+          {(group.isCreator ||
+            (group.isAdmin &&
+              group.createdBy?._id?.toString() === currentUserId)) && (
             <TouchableOpacity
               style={styles.deleteButton}
               onPress={handleDelete}

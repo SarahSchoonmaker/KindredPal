@@ -520,13 +520,26 @@ router.put("/:id", auth, async (req, res) => {
 router.delete("/:id", auth, async (req, res) => {
   try {
     const userId = req.user.id?.toString() || req.user._id?.toString();
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid group ID" });
+    }
+
     const group = await Group.findById(req.params.id).lean();
     if (!group) return res.status(404).json({ message: "Group not found" });
 
     const createdById = group.createdBy?.toString();
+    const isCreator = createdById === userId;
     const isAdmin =
-      createdById === userId ||
-      (group.admins || []).some((a) => a.toString() === userId);
+      isCreator || (group.admins || []).some((a) => a.toString() === userId);
+
+    console.log("DELETE /groups/:id", {
+      userId,
+      createdById,
+      isCreator,
+      isAdmin,
+      groupId: req.params.id,
+    });
 
     if (!isAdmin) {
       return res
@@ -539,7 +552,7 @@ router.delete("/:id", auth, async (req, res) => {
       { $set: { isActive: false } },
       { runValidators: false },
     );
-    res.json({ message: "Group deleted" });
+    res.json({ message: "Group deleted successfully" });
   } catch (err) {
     console.error("DELETE /groups/:id error:", err.message);
     res.status(500).json({ message: err.message || "Server error" });
