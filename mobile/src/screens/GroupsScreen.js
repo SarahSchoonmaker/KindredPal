@@ -219,7 +219,7 @@ function GroupCard({ group, onPress }) {
         <View style={styles.memberCount}>
           <Users size={13} color="#718096" />
           <Text style={styles.memberCountText}>
-            {group.memberCount || 0} members
+            {(group.members?.length ?? group.memberCount) || 0} members
           </Text>
         </View>
         {group.isMember ? (

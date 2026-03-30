@@ -179,6 +179,7 @@ router.get("/my", auth, async (req, res) => {
       isActive: true,
     })
       .populate("createdBy", "name profilePhoto")
+      .populate("members", "_id")
       .sort({ updatedAt: -1 })
       .lean();
 

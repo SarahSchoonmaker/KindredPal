@@ -13,14 +13,39 @@ import {
   Modal,
 } from "react-native";
 import { Text, ActivityIndicator } from "react-native-paper";
-import { MessageCircle, UserPlus, UserCheck, Clock, Users } from "lucide-react-native";
+import {
+  MessageCircle,
+  UserPlus,
+  UserCheck,
+  Clock,
+  Users,
+} from "lucide-react-native";
 import api from "../services/api";
 
 const CATEGORY_ICONS = {
-  "Sports & Fitness": "🏃", "Faith & Spirituality": "🙏", "Life Stage": "🌱",
-  "Hobbies & Interests": "🎯", "Social & Singles": "👥", "Support & Wellness": "🌿",
-  "Professional & Networking": "💼", "Arts & Culture": "🎨",
-  "Outdoor & Adventure": "🏕️", "Other": "✨",
+  "Caregiver Support": "🤲",
+  "Grief & Loss": "🌿",
+  "Sober & Clean Living": "🍃",
+  "New Parent Support": "👶",
+  "Chronic Illness Support": "🎗️",
+  "Anxiety & Mental Wellness": "🧘",
+  "Veteran Support": "🎖️",
+  "Senior Wellness": "🌻",
+  "Loneliness & Social Connection": "💙",
+  "Divorce Recovery": "🌱",
+  "Faith & Spiritual Support": "🙏",
+  "Life Transitions": "🔄",
+  "Trauma Recovery": "🕊️",
+  "Cancer Support": "💛",
+  "Single Parent Support": "👨‍👧",
+  "Addiction Recovery": "⭐",
+  "Autism & Special Needs Families": "🦋",
+  "Singles Social Support": "🌟",
+  "Married No Kids": "💑",
+  "Career Change Support": "💼",
+  "Financial Recovery": "💰",
+  "Sports & Fitness": "🏃",
+  "Local Activity Groups": "🎯",
 };
 
 function TagPill({ label, color = "#EBF4FF", textColor = "#2B6CB0" }) {
@@ -35,7 +60,10 @@ export default function MemberProfileScreen({ route, navigation }) {
   const { userId, sharedGroups = [] } = route.params;
 
   useLayoutEffect(() => {
-    navigation.setOptions({ headerBackTitle: "Back", headerBackButtonMenuEnabled: false });
+    navigation.setOptions({
+      headerBackTitle: "Back",
+      headerBackButtonMenuEnabled: false,
+    });
   }, []);
 
   const [profile, setProfile] = useState(null);
@@ -58,7 +86,11 @@ export default function MemberProfileScreen({ route, navigation }) {
         setConnectionStatus(statusRes.data.status || "none");
         setConnectionId(statusRes.data.connectionId);
         setIsSender(statusRes.data.isSender);
-        navigation.setOptions({ title: profileRes.data.name, headerBackTitle: "Back", headerBackButtonMenuEnabled: false });
+        navigation.setOptions({
+          title: profileRes.data.name,
+          headerBackTitle: "Back",
+          headerBackButtonMenuEnabled: false,
+        });
       } catch (err) {
         console.error("MemberProfile fetch error:", err);
       } finally {
@@ -79,12 +111,12 @@ export default function MemberProfileScreen({ route, navigation }) {
       setIsSender(true);
       Alert.alert(
         "Request Sent! 🎉",
-        `Your connection request has been sent to ${profile?.name}.`
+        `Your connection request has been sent to ${profile?.name}.`,
       );
     } catch (err) {
       Alert.alert(
         "Could Not Send Request",
-        err.response?.data?.message || "Please try again"
+        err.response?.data?.message || "Please try again",
       );
     } finally {
       setSending(false);
@@ -93,7 +125,9 @@ export default function MemberProfileScreen({ route, navigation }) {
   };
 
   const handleMessage = () => {
-    navigation.navigate("Chat", { match: { ...profile, _id: profile._id || profile.id } });
+    navigation.navigate("Chat", {
+      match: { ...profile, _id: profile._id || profile.id },
+    });
   };
 
   if (loading) {
@@ -186,9 +220,10 @@ export default function MemberProfileScreen({ route, navigation }) {
         {/* Shared groups */}
         {sharedGroups.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              <Users size={16} color="#2B6CB0" /> Groups in Common
-            </Text>
+            <View style={styles.sectionTitleRow}>
+              <Users size={16} color="#2B6CB0" />
+              <Text style={styles.sectionTitle}>Groups in Common</Text>
+            </View>
             {sharedGroups.map((g) => (
               <View key={g._id} style={styles.sharedGroup}>
                 <Text style={styles.sharedGroupIcon}>
@@ -214,7 +249,12 @@ export default function MemberProfileScreen({ route, navigation }) {
             <Text style={styles.sectionTitle}>Life Stage</Text>
             <View style={styles.pills}>
               {profile.lifeStage.map((s) => (
-                <TagPill key={s} label={s} color="#F0FFF4" textColor="#276749" />
+                <TagPill
+                  key={s}
+                  label={s}
+                  color="#F0FFF4"
+                  textColor="#276749"
+                />
               ))}
             </View>
           </View>
@@ -226,12 +266,21 @@ export default function MemberProfileScreen({ route, navigation }) {
             <Text style={styles.sectionTitle}>Values</Text>
             <View style={styles.pills}>
               {profile.religion && profile.religion !== "Prefer not to say" && (
-                <TagPill label={`⛪ ${profile.religion}`} color="#FFFAF0" textColor="#744210" />
+                <TagPill
+                  label={`⛪ ${profile.religion}`}
+                  color="#FFFAF0"
+                  textColor="#744210"
+                />
               )}
               {profile.politicalBeliefs
                 ?.filter((b) => b !== "Prefer not to say")
                 .map((b) => (
-                  <TagPill key={b} label={`🏛 ${b}`} color="#FAF5FF" textColor="#553C9A" />
+                  <TagPill
+                    key={b}
+                    label={`🏛 ${b}`}
+                    color="#FAF5FF"
+                    textColor="#553C9A"
+                  />
                 ))}
             </View>
           </View>
@@ -261,9 +310,7 @@ export default function MemberProfileScreen({ route, navigation }) {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>
-              Connect with {profile.name}
-            </Text>
+            <Text style={styles.modalTitle}>Connect with {profile.name}</Text>
             <Text style={styles.modalSubtitle}>
               Add an optional message to introduce yourself (optional)
             </Text>
@@ -385,6 +432,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E2E8F0",
   },
+  sectionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 10,
+  },
   sectionTitle: {
     fontSize: 15,
     fontWeight: "700",
@@ -425,8 +478,18 @@ const styles = StyleSheet.create({
     padding: 24,
     paddingBottom: 40,
   },
-  modalTitle: { fontSize: 18, fontWeight: "700", color: "#2D3748", marginBottom: 6 },
-  modalSubtitle: { fontSize: 14, color: "#718096", marginBottom: 16, lineHeight: 20 },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#2D3748",
+    marginBottom: 6,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: "#718096",
+    marginBottom: 16,
+    lineHeight: 20,
+  },
   modalInput: {
     backgroundColor: "#F7FAFC",
     borderRadius: 10,
@@ -438,7 +501,13 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
     minHeight: 80,
   },
-  charCount: { fontSize: 12, color: "#A0AEC0", textAlign: "right", marginTop: 4, marginBottom: 16 },
+  charCount: {
+    fontSize: 12,
+    color: "#A0AEC0",
+    textAlign: "right",
+    marginTop: 4,
+    marginBottom: 16,
+  },
   modalActions: { flexDirection: "row", gap: 12 },
   modalCancel: {
     flex: 1,
