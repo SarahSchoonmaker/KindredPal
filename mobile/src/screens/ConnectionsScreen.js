@@ -15,7 +15,7 @@ import { MessageCircle, UserCheck, UserX, Users } from "lucide-react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import api from "../services/api";
 
-function RequestCard({ request, onAccept, onDecline }) {
+function RequestCard({ request, onAccept, onDecline, onViewProfile }) {
   const { from } = request;
   return (
     <View style={styles.requestCard}>
@@ -24,10 +24,15 @@ function RequestCard({ request, onAccept, onDecline }) {
           <Text style={styles.newBadgeText}>New Request</Text>
         </View>
       </View>
-      <View style={styles.personRow}>
+      <TouchableOpacity
+        style={styles.personRow}
+        onPress={() => onViewProfile(from)}
+      >
         <Image source={{ uri: from.profilePhoto }} style={styles.photo} />
         <View style={styles.personInfo}>
-          <Text style={styles.personName}>{from.name}</Text>
+          <Text style={[styles.personName, { color: "#2B6CB0" }]}>
+            {from.name}
+          </Text>
           <Text style={styles.personLocation}>
             {from.city}, {from.state}
           </Text>
@@ -37,7 +42,7 @@ function RequestCard({ request, onAccept, onDecline }) {
             </Text>
           )}
         </View>
-      </View>
+      </TouchableOpacity>
       {request.message ? (
         <Text style={styles.requestMessage}>"{request.message}"</Text>
       ) : null}
@@ -61,22 +66,32 @@ function RequestCard({ request, onAccept, onDecline }) {
   );
 }
 
-function ConnectionCard({ connection, onMessage, onRemove }) {
+function ConnectionCard({ connection, onMessage, onRemove, onViewProfile }) {
   const { user } = connection;
   return (
     <View style={styles.connectionCard}>
-      <Image source={{ uri: user.profilePhoto }} style={styles.photo} />
-      <View style={styles.personInfo}>
-        <Text style={styles.personName}>{user.name}</Text>
-        <Text style={styles.personLocation}>
-          {user.city}, {user.state}
-        </Text>
-        {user.bio ? (
-          <Text style={styles.personBio} numberOfLines={1}>
-            {user.bio}
+      <TouchableOpacity
+        onPress={() => onViewProfile(user)}
+        style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
+      >
+        <Image
+          source={{ uri: user.profilePhoto }}
+          style={[styles.photo, { marginRight: 12 }]}
+        />
+        <View style={styles.personInfo}>
+          <Text style={[styles.personName, { color: "#2B6CB0" }]}>
+            {user.name}
           </Text>
-        ) : null}
-      </View>
+          <Text style={styles.personLocation}>
+            {user.city}, {user.state}
+          </Text>
+          {user.bio ? (
+            <Text style={styles.personBio} numberOfLines={1}>
+              {user.bio}
+            </Text>
+          ) : null}
+        </View>
+      </TouchableOpacity>
       <TouchableOpacity
         style={styles.messageBtn}
         onPress={() => onMessage(user)}
@@ -121,7 +136,7 @@ export default function ConnectionsScreen({ navigation }) {
   useFocusEffect(
     useCallback(() => {
       if (!loading) fetchAll();
-    }, [fetchAll])
+    }, [fetchAll]),
   );
 
   const handleAccept = async (connectionId) => {
@@ -153,6 +168,15 @@ export default function ConnectionsScreen({ navigation }) {
 
   const handleMessage = (user) => {
     navigation.navigate("Chat", { match: user });
+  };
+
+  const handleViewProfile = (user) => {
+    const userId = user._id || user.id;
+    if (!userId) return;
+    navigation.navigate("MemberProfile", {
+      userId: userId.toString(),
+      sharedGroups: [],
+    });
   };
 
   const handleRemove = (connectionId, name) => {
@@ -191,7 +215,12 @@ export default function ConnectionsScreen({ navigation }) {
           style={[styles.tab, activeTab === "connections" && styles.tabActive]}
           onPress={() => setActiveTab("connections")}
         >
-          <Text style={[styles.tabText, activeTab === "connections" && styles.tabTextActive]}>
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === "connections" && styles.tabTextActive,
+            ]}
+          >
             Connections ({connections.length})
           </Text>
         </TouchableOpacity>
@@ -199,7 +228,12 @@ export default function ConnectionsScreen({ navigation }) {
           style={[styles.tab, activeTab === "requests" && styles.tabActive]}
           onPress={() => setActiveTab("requests")}
         >
-          <Text style={[styles.tabText, activeTab === "requests" && styles.tabTextActive]}>
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === "requests" && styles.tabTextActive,
+            ]}
+          >
             Requests {pendingCount > 0 ? `(${pendingCount})` : ""}
           </Text>
           {pendingCount > 0 && <View style={styles.dot} />}
@@ -211,14 +245,23 @@ export default function ConnectionsScreen({ navigation }) {
         <FlatList
           data={requests}
           keyExtractor={(item) => item._id}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchAll(); }} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true);
+                fetchAll();
+              }}
+            />
+          }
           contentContainerStyle={styles.list}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyIcon}>📬</Text>
               <Text style={styles.emptyTitle}>No Pending Requests</Text>
               <Text style={styles.emptyText}>
-                When someone from your groups sends you a connection request, it will appear here.
+                When someone from your groups sends you a connection request, it
+                will appear here.
               </Text>
             </View>
           }
@@ -237,14 +280,23 @@ export default function ConnectionsScreen({ navigation }) {
         <FlatList
           data={connections}
           keyExtractor={(item) => item.connectionId}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchAll(); }} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true);
+                fetchAll();
+              }}
+            />
+          }
           contentContainerStyle={styles.list}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Users size={48} color="#CBD5E0" />
               <Text style={styles.emptyTitle}>No Connections Yet</Text>
               <Text style={styles.emptyText}>
-                Join groups and send connection requests to people who share your values and life stage.
+                Join groups and send connection requests to people who share
+                your values and life stage.
               </Text>
               <TouchableOpacity
                 style={styles.emptyBtn}
@@ -317,7 +369,12 @@ const styles = StyleSheet.create({
   },
   newBadgeText: { fontSize: 11, fontWeight: "700", color: "#2B6CB0" },
   personRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
-  photo: { width: 52, height: 52, borderRadius: 26, backgroundColor: "#E2E8F0" },
+  photo: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#E2E8F0",
+  },
   personInfo: { flex: 1, marginLeft: 12 },
   personName: { fontSize: 16, fontWeight: "700", color: "#2D3748" },
   personLocation: { fontSize: 13, color: "#718096", marginTop: 1 },
@@ -381,8 +438,19 @@ const styles = StyleSheet.create({
   // Empty state
   empty: { alignItems: "center", paddingVertical: 60, paddingHorizontal: 32 },
   emptyIcon: { fontSize: 52, marginBottom: 16 },
-  emptyTitle: { fontSize: 20, fontWeight: "700", color: "#2D3748", marginBottom: 8 },
-  emptyText: { fontSize: 14, color: "#718096", textAlign: "center", lineHeight: 20, marginBottom: 20 },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#2D3748",
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: "#718096",
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 20,
+  },
   emptyBtn: {
     backgroundColor: "#2B6CB0",
     paddingHorizontal: 24,

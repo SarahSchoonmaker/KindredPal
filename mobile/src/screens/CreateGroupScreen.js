@@ -76,29 +76,26 @@ export default function CreateGroupScreen({ navigation }) {
         isNationwide,
         isPrivate,
       });
-      Alert.alert("Success", "Your group has been created!", [
-        {
-          text: "View Group",
-          onPress: () => {
-            // Go back to Groups tab first so My Groups refreshes, then push GroupDetail
-            navigation.navigate("MainTabs", {
-              screen: "Groups",
-              params: { refresh: Date.now(), switchToMy: true },
-            });
-            setTimeout(() => {
-              navigation.navigate("GroupDetail", { groupId: res.data._id });
-            }, 100);
+      const newGroupId = res.data._id;
+      Alert.alert(
+        "Group Created!",
+        "Your group has been created successfully.",
+        [
+          {
+            text: "View Group",
+            onPress: () => {
+              // Pop back to the tab stack first, then navigate to GroupDetail
+              // useFocusEffect in GroupsScreen will auto-refresh on focus
+              navigation.popToTop();
+              navigation.navigate("GroupDetail", { groupId: newGroupId });
+            },
           },
-        },
-        {
-          text: "Back to Groups",
-          onPress: () =>
-            navigation.navigate("MainTabs", {
-              screen: "Groups",
-              params: { refresh: Date.now() },
-            }),
-        },
-      ]);
+          {
+            text: "Back to Groups",
+            onPress: () => navigation.popToTop(),
+          },
+        ],
+      );
     } catch (err) {
       Alert.alert(
         "Error",

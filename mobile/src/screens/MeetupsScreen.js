@@ -61,8 +61,8 @@ export default function MeetupsScreen({ navigation, route }) {
   // Refresh on re-focus (e.g. after delete) without wipe
   useFocusEffect(
     useCallback(() => {
-      if (!loading) fetchMeetups();
-    }, [fetchMeetups, loading]),
+      fetchMeetups();
+    }, [fetchMeetups]),
   );
 
   // Refresh when navigating back with refresh param (after delete)

@@ -321,7 +321,7 @@ export default function GroupsScreen({ navigation, route }) {
     searchDebounceRef.current = setTimeout(() => fetchGroups(), 500);
   };
 
-  // On re-focus: silent background refresh (no spinner, no wipe)
+  // On re-focus: always refetch — handles returning from CreateGroup, Leave, Delete
   useFocusEffect(
     useCallback(() => {
       fetchGroups();
