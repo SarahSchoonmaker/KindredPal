@@ -268,7 +268,10 @@ export default function GroupDetailScreen({ route, navigation }) {
         onPress: async () => {
           try {
             await api.post(`/groups/${groupId}/leave`);
-            navigation.goBack();
+            navigation.navigate("MainTabs", {
+              screen: "Groups",
+              params: { refresh: Date.now() },
+            });
           } catch (err) {
             Alert.alert(
               "Error",
@@ -697,7 +700,8 @@ export default function GroupDetailScreen({ route, navigation }) {
       >
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 40 : 0}
         >
           <View style={styles.editModalHeader}>
             <Text style={styles.editModalTitle}>Edit Group</Text>
@@ -707,6 +711,7 @@ export default function GroupDetailScreen({ route, navigation }) {
           </View>
           <ScrollView
             style={styles.editModalScroll}
+            contentContainerStyle={{ paddingBottom: 20 }}
             keyboardShouldPersistTaps="handled"
           >
             <View style={styles.editField}>
@@ -801,11 +806,13 @@ export default function GroupDetailScreen({ route, navigation }) {
                 </Text>
               </TouchableOpacity>
             </View>
-            <View style={{ height: 20 }} />
-          </ScrollView>
-          <View style={styles.editModalFooter}>
+            {/* Save button inside ScrollView so keyboard pushes it up */}
             <TouchableOpacity
-              style={[styles.editSaveBtn, editSaving && { opacity: 0.6 }]}
+              style={[
+                styles.editSaveBtn,
+                { marginTop: 16, marginBottom: 8 },
+                editSaving && { opacity: 0.6 },
+              ]}
               onPress={handleSaveEdit}
               disabled={editSaving}
             >
@@ -813,7 +820,7 @@ export default function GroupDetailScreen({ route, navigation }) {
                 {editSaving ? "Saving..." : "Save Changes"}
               </Text>
             </TouchableOpacity>
-          </View>
+          </ScrollView>
         </KeyboardAvoidingView>
       </Modal>
     </View>

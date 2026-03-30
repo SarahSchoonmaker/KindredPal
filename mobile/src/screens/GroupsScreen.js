@@ -299,7 +299,14 @@ export default function GroupsScreen({ navigation, route }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedCategory, search, locationCity, locationState, locationDistance]);
+  }, [
+    selectedCategory,
+    search,
+    locationCity,
+    locationState,
+    locationDistance,
+    filters,
+  ]);
 
   // Load once on mount
   useEffect(() => {
