@@ -283,6 +283,34 @@ export default function GroupDetailScreen({ route, navigation }) {
     ]);
   };
 
+  const handleDelete = () => {
+    Alert.alert(
+      "Delete Group",
+      `Are you sure you want to delete "${group?.name}"? This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await api.delete(`/groups/${groupId}`);
+              navigation.navigate("MainTabs", {
+                screen: "Groups",
+                params: { refresh: Date.now() },
+              });
+            } catch (err) {
+              Alert.alert(
+                "Error",
+                err.response?.data?.message || "Could not delete group",
+              );
+            }
+          },
+        },
+      ],
+    );
+  };
+
   // ── Member actions ──────────────────────────────────────────
   const handleViewProfile = (member) => {
     const id = member._id?.toString() || member.toString();
@@ -452,6 +480,14 @@ export default function GroupDetailScreen({ route, navigation }) {
               onPress={handleOpenEdit}
             >
               <Text style={styles.editButtonText}>✏️ Edit Group</Text>
+            </TouchableOpacity>
+          )}
+          {group.isCreator && (
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={handleDelete}
+            >
+              <Text style={styles.deleteButtonText}>🗑️ Delete Group</Text>
             </TouchableOpacity>
           )}
           {group.isMember ? (
@@ -1076,6 +1112,16 @@ const styles = StyleSheet.create({
     borderColor: "#2B6CB0",
   },
   editButtonText: { color: "#2B6CB0", fontSize: 14, fontWeight: "700" },
+  deleteButton: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: "center",
+    marginBottom: 10,
+    borderWidth: 1.5,
+    borderColor: "#E53E3E",
+  },
+  deleteButtonText: { color: "#E53E3E", fontSize: 14, fontWeight: "700" },
   rsvpContainer: { marginBottom: 10 },
   rsvpLabel: {
     fontSize: 13,
