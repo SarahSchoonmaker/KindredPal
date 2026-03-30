@@ -386,8 +386,14 @@ export default function GroupDetailScreen({ route, navigation }) {
     try {
       await api.put(`/groups/${groupId}`, editForm);
       setShowEdit(false);
-      fetchGroup();
+      await fetchGroup();
+      Alert.alert("Saved", "Group updated successfully.");
     } catch (err) {
+      console.error(
+        "Edit group error:",
+        err.response?.status,
+        err.response?.data,
+      );
       Alert.alert(
         "Error",
         err.response?.data?.message || "Could not save changes",
@@ -930,6 +936,12 @@ const styles = StyleSheet.create({
   metaBadgeText: { fontSize: 12, color: "#718096", fontWeight: "600" },
   categoryText: { fontSize: 13, color: "#718096" },
   locationText: { fontSize: 13, color: "#718096" },
+  createdByText: {
+    fontSize: 13,
+    color: "#2B6CB0",
+    fontWeight: "600",
+    marginBottom: 4,
+  },
 
   // Stats
   stats: {

@@ -313,6 +313,14 @@ export default function GroupsScreen({ navigation, route }) {
     fetchGroups();
   }, [fetchGroups]);
 
+  // Debounced search — fetch 500ms after user stops typing
+  const searchDebounceRef = React.useRef(null);
+  const handleSearchChange = (text) => {
+    setSearch(text);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => fetchGroups(), 500);
+  };
+
   // On re-focus: silent background refresh (no spinner, no wipe)
   useFocusEffect(
     useCallback(() => {
@@ -524,11 +532,21 @@ export default function GroupsScreen({ navigation, route }) {
             style={styles.searchInput}
             placeholder="Search groups..."
             value={search}
-            onChangeText={setSearch}
+            onChangeText={handleSearchChange}
             onSubmitEditing={fetchGroups}
             returnKeyType="search"
             placeholderTextColor="#a0aec0"
           />
+          {search.length > 0 && (
+            <TouchableOpacity
+              onPress={() => {
+                setSearch("");
+                fetchGroups();
+              }}
+            >
+              <X size={15} color="#a0aec0" />
+            </TouchableOpacity>
+          )}
         </View>
         <TouchableOpacity
           style={[
