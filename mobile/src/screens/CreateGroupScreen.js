@@ -83,7 +83,7 @@ export default function CreateGroupScreen({ navigation }) {
             // Go back to Groups tab first so My Groups refreshes, then push GroupDetail
             navigation.navigate("MainTabs", {
               screen: "Groups",
-              params: { refresh: Date.now() },
+              params: { refresh: Date.now(), switchToMy: true },
             });
             setTimeout(() => {
               navigation.navigate("GroupDetail", { groupId: res.data._id });

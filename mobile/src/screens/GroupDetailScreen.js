@@ -294,18 +294,12 @@ export default function GroupDetailScreen({ route, navigation }) {
           style: "destructive",
           onPress: async () => {
             try {
-              const res = await api.delete(`/groups/${groupId}`);
-              console.log("Delete response:", res.data);
-              Alert.alert("Deleted", `"${group?.name}" has been deleted.`, [
-                {
-                  text: "OK",
-                  onPress: () =>
-                    navigation.navigate("MainTabs", {
-                      screen: "Groups",
-                      params: { refresh: Date.now() },
-                    }),
-                },
-              ]);
+              await api.delete(`/groups/${groupId}`);
+              // Navigate immediately — don't wait for user to tap OK
+              navigation.navigate("MainTabs", {
+                screen: "Groups",
+                params: { refresh: Date.now() },
+              });
             } catch (err) {
               console.error(
                 "Delete error:",

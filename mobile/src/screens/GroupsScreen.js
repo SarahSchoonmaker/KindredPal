@@ -328,11 +328,15 @@ export default function GroupsScreen({ navigation, route }) {
     }, [fetchGroups]),
   );
 
-  // Refresh when navigated back with refresh param (e.g. after creating a group)
+  // Refresh when navigated back with refresh param (after create/delete/leave)
   useEffect(() => {
     if (route?.params?.refresh) {
+      // Clear both lists immediately so deleted group disappears at once
+      setGroups([]);
+      setMyGroups([]);
       fetchGroups();
-      setActiveTab("my"); // Switch to My Groups so user sees their new group
+      // Only auto-switch to My tab if explicitly requested
+      if (route?.params?.switchToMy) setActiveTab("my");
     }
   }, [route?.params?.refresh]);
 
