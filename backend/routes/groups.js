@@ -9,14 +9,12 @@ const { sendGroupInviteEmail } = require("../services/notificationService");
 const multer = require("multer");
 const cloudinary = require("cloudinary").v2;
 
-// Cloudinary config (uses env vars CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET)
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Multer — memory storage, 5MB limit, images only
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
@@ -26,33 +24,26 @@ const upload = multer({
   },
 });
 
-// ─── GET /api/groups ─────────────────────────────────────────────────────────
-// List groups near user + nationwide groups
-// Optional query: ?category=Faith&search=tennis&city=Poughkeepsie&state=NY
+// ─── GET /api/groups ──────────────────────────────────────────────────────────
 router.get("/", auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("city state");
+    const userId =
+      req.user.id?.toString() || req.user._id?.toString() || req.userId;
+
     const {
       category,
       search,
       page = 1,
       limit = 20,
-      // Location filters
       city: filterCity,
       state: filterState,
-      // Values filters
       religion: filterReligion,
       lifeStage: filterLifeStage,
-      family: filterFamily,
-      politics: filterPolitics,
-      // Distance (miles) — requires city/state to calculate
       distance,
     } = req.query;
 
     const query = { isActive: { $ne: false } };
 
-    // Location filtering — ONLY filter when user has explicitly provided filter params
-    // No filter = show all public groups nationwide
     const searchCity = filterCity?.trim();
     const searchState = filterState?.trim();
 
@@ -110,8 +101,6 @@ router.get("/", auth, async (req, res) => {
       .limit(parseInt(limit))
       .lean();
 
-    // Add isMember flag + memberValues summary (for "People like me" tags, threshold: 3+)
-    const userId = req.user.id;
     const groupsWithMembership = groups.map((g) => {
       const members = g.members || [];
       const THRESHOLD = 3;
@@ -132,7 +121,7 @@ router.get("/", auth, async (req, res) => {
 
       return {
         ...g,
-        members: g.members.map((m) => m._id || m), // strip back to IDs for list view
+        members: g.members.map((m) => m._id || m),
         isMember: g.members.some((m) => (m._id || m).toString() === userId),
         isPending: g.pendingRequests?.some(
           (r) => r.userId?.toString() === userId,
@@ -149,7 +138,6 @@ router.get("/", auth, async (req, res) => {
     });
 
     const total = await Group.countDocuments(query);
-
     res.json({
       groups: groupsWithMembership,
       total,
@@ -163,26 +151,37 @@ router.get("/", auth, async (req, res) => {
 });
 
 // ─── GET /api/groups/my ───────────────────────────────────────────────────────
-// Groups the current user has joined
 router.get("/my", auth, async (req, res) => {
   try {
-    // FIX: cast to ObjectId explicitly so Mongoose $or query works correctly
-    // on ObjectId fields (members, createdBy) regardless of Mongoose version.
-    // Also use $ne false so groups without isActive set are included.
+    // KEY FIX: req.user is a Mongoose document. req.user.id is a virtual getter
+    // that returns _id as string — but in $or queries against ObjectId array
+    // fields, Mongoose needs an actual ObjectId, not a string, to match reliably.
+    // Explicit cast eliminates the mobile-vs-web inconsistency entirely.
     const rawId = req.user.id || req.user._id || req.userId;
+    console.log("GET /groups/my rawId:", rawId, "type:", typeof rawId);
+
     if (!mongoose.Types.ObjectId.isValid(rawId)) {
+      console.error("GET /groups/my invalid userId:", rawId);
       return res.status(400).json({ message: "Invalid user ID" });
     }
     const userId = new mongoose.Types.ObjectId(rawId);
 
     const groups = await Group.find({
       $or: [{ members: userId }, { createdBy: userId }],
+      // $ne false catches docs where isActive is missing (seeded groups, old records)
       isActive: { $ne: false },
     })
       .populate("createdBy", "name profilePhoto")
       .populate("members", "_id")
       .sort({ updatedAt: -1 })
       .lean();
+
+    console.log(
+      "GET /groups/my found:",
+      groups.length,
+      "groups for user:",
+      rawId,
+    );
 
     const result = groups.map((g) => ({
       ...g,
@@ -213,10 +212,10 @@ router.get("/my", auth, async (req, res) => {
 });
 
 // ─── GET /api/groups/my-invites ──────────────────────────────────────────────
-// MUST be before /:id to avoid Express catching "my-invites" as an :id param
 router.get("/my-invites", auth, async (req, res) => {
   try {
-    const userId = req.user.id?.toString() || req.user._id?.toString();
+    const userId =
+      req.user.id?.toString() || req.user._id?.toString() || req.userId;
     const groups = await Group.find({
       invitedUsers: userId,
       isActive: { $ne: false },
@@ -232,10 +231,8 @@ router.get("/my-invites", auth, async (req, res) => {
 });
 
 // ─── GET /api/groups/:id ──────────────────────────────────────────────────────
-// Get single group with members
 router.get("/:id", auth, async (req, res) => {
   try {
-    // Guard against reserved words and invalid IDs
     const reserved = ["my", "my-invites", "seed", "discover"];
     if (
       !req.params.id ||
@@ -258,7 +255,8 @@ router.get("/:id", auth, async (req, res) => {
 
     if (!group) return res.status(404).json({ message: "Group not found" });
 
-    const userId = req.user.id?.toString() || req.user._id?.toString();
+    const userId =
+      req.user.id?.toString() || req.user._id?.toString() || req.userId;
     group.isMember = group.members.some((m) => m._id.toString() === userId);
     group.isAdmin =
       (group.admins || []).some((a) => a.toString() === userId) ||
@@ -274,7 +272,6 @@ router.get("/:id", auth, async (req, res) => {
       (r) => r.userId?.toString() === userId,
     );
 
-    // Block non-members from private groups (unless invited or creator)
     if (
       group.isPrivate &&
       !group.isMember &&
@@ -285,10 +282,7 @@ router.get("/:id", auth, async (req, res) => {
       return res.status(403).json({ message: "This is a private group" });
     }
 
-    // Keep memberCount in sync with actual members array
     group.memberCount = (group.members || []).length;
-
-    // Hide pending requests from non-admins
     if (!group.isAdmin) delete group.pendingRequests;
 
     res.json(group);
@@ -299,7 +293,6 @@ router.get("/:id", auth, async (req, res) => {
 });
 
 // ─── POST /api/groups ─────────────────────────────────────────────────────────
-// Create a new group
 router.post("/", auth, async (req, res) => {
   try {
     const {
@@ -320,6 +313,8 @@ router.post("/", auth, async (req, res) => {
         .json({ message: "Name, description, and category are required" });
     }
 
+    const userId = req.user.id || req.user._id || req.userId;
+
     const group = new Group({
       name,
       description,
@@ -332,9 +327,9 @@ router.post("/", auth, async (req, res) => {
       tags: tags || [],
       address: req.body.address || "",
       zipCode: req.body.zipCode || "",
-      createdBy: req.user.id,
-      members: [req.user.id],
-      admins: [req.user.id],
+      createdBy: userId,
+      members: [userId],
+      admins: [userId],
       memberCount: 1,
       isActive: true,
     });
@@ -342,9 +337,15 @@ router.post("/", auth, async (req, res) => {
     await group.save();
     await group.populate("createdBy", "name profilePhoto");
 
+    console.log("POST /groups created:", group._id, "by user:", userId);
     res
       .status(201)
-      .json({ ...group.toObject(), isMember: true, isAdmin: true });
+      .json({
+        ...group.toObject(),
+        isMember: true,
+        isAdmin: true,
+        isCreator: true,
+      });
   } catch (err) {
     console.error("POST /groups error:", err);
     res.status(500).json({ message: "Server error" });
@@ -352,34 +353,31 @@ router.post("/", auth, async (req, res) => {
 });
 
 // ─── POST /api/groups/:id/join ────────────────────────────────────────────────
-// Join a public group OR request to join a private group
 router.post("/:id/join", auth, async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
     if (!group) return res.status(404).json({ message: "Group not found" });
 
-    const userId = req.user.id;
-    const isMember = group.members.some((m) => m.toString() === userId);
+    const userId = req.user.id || req.user._id || req.userId;
+    const isMember = group.members.some(
+      (m) => m.toString() === userId.toString(),
+    );
     if (isMember) return res.status(400).json({ message: "Already a member" });
 
     if (group.isPrivate) {
-      // Add to pending requests
       const alreadyPending = group.pendingRequests.some(
-        (r) => r.userId?.toString() === userId,
+        (r) => r.userId?.toString() === userId.toString(),
       );
       if (alreadyPending)
         return res.status(400).json({ message: "Request already pending" });
-
       group.pendingRequests.push({ userId });
       await group.save();
       return res.json({ message: "Join request sent", isPending: true });
     }
 
-    // Public group — join immediately
     group.members.push(userId);
     group.memberCount = group.members.length;
     await group.save();
-
     res.json({ message: "Joined group", isMember: true });
   } catch (err) {
     console.error("POST /groups/:id/join error:", err);
@@ -393,20 +391,20 @@ router.post("/:id/leave", auth, async (req, res) => {
     const group = await Group.findById(req.params.id);
     if (!group) return res.status(404).json({ message: "Group not found" });
 
-    const userId = req.user.id;
+    const userId = (req.user.id || req.user._id || req.userId).toString();
 
-    // Creator cannot leave their own group
     if (group.createdBy.toString() === userId) {
-      return res.status(400).json({
-        message: "Group creator cannot leave. Delete the group instead.",
-      });
+      return res
+        .status(400)
+        .json({
+          message: "Group creator cannot leave. Delete the group instead.",
+        });
     }
 
     group.members = group.members.filter((m) => m.toString() !== userId);
     group.admins = group.admins.filter((a) => a.toString() !== userId);
     group.memberCount = group.members.length;
     await group.save();
-
     res.json({ message: "Left group" });
   } catch (err) {
     console.error("POST /groups/:id/leave error:", err);
@@ -414,16 +412,16 @@ router.post("/:id/leave", auth, async (req, res) => {
   }
 });
 
-// ─── POST /api/groups/:id/approve/:userId ─────────────────────────────────────
-// Admin approves a join request for private group
+// ─── POST /api/groups/:id/approve/:userId ────────────────────────────────────
 router.post("/:id/approve/:userId", auth, async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
     if (!group) return res.status(404).json({ message: "Group not found" });
 
+    const requesterId = (req.user.id || req.user._id || req.userId).toString();
     const isAdmin =
-      group.admins.some((a) => a.toString() === req.user.id) ||
-      group.createdBy?.toString() === req.user.id;
+      group.admins.some((a) => a.toString() === requesterId) ||
+      group.createdBy?.toString() === requesterId;
     if (!isAdmin) return res.status(403).json({ message: "Not authorized" });
 
     const targetUserId = req.params.userId;
@@ -435,7 +433,6 @@ router.post("/:id/approve/:userId", auth, async (req, res) => {
       group.memberCount = group.members.length;
     }
     await group.save();
-
     res.json({ message: "User approved" });
   } catch (err) {
     console.error("POST /groups/:id/approve error:", err);
@@ -443,22 +440,22 @@ router.post("/:id/approve/:userId", auth, async (req, res) => {
   }
 });
 
-// ─── POST /api/groups/:id/reject/:userId ──────────────────────────────────────
+// ─── POST /api/groups/:id/reject/:userId ─────────────────────────────────────
 router.post("/:id/reject/:userId", auth, async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
     if (!group) return res.status(404).json({ message: "Group not found" });
 
+    const requesterId = (req.user.id || req.user._id || req.userId).toString();
     const isAdmin =
-      group.admins.some((a) => a.toString() === req.user.id) ||
-      group.createdBy?.toString() === req.user.id;
+      group.admins.some((a) => a.toString() === requesterId) ||
+      group.createdBy?.toString() === requesterId;
     if (!isAdmin) return res.status(403).json({ message: "Not authorized" });
 
     group.pendingRequests = group.pendingRequests.filter(
       (r) => r.userId?.toString() !== req.params.userId,
     );
     await group.save();
-
     res.json({ message: "Request rejected" });
   } catch (err) {
     res.status(500).json({ message: "Server error" });
@@ -466,10 +463,9 @@ router.post("/:id/reject/:userId", auth, async (req, res) => {
 });
 
 // ─── PUT /api/groups/:id ──────────────────────────────────────────────────────
-// Update group (admin only)
 router.put("/:id", auth, async (req, res) => {
   try {
-    const userId = req.user.id?.toString() || req.user._id?.toString();
+    const userId = (req.user.id || req.user._id || req.userId)?.toString();
     const group = await Group.findById(req.params.id).lean();
     if (!group) return res.status(404).json({ message: "Group not found" });
 
@@ -478,11 +474,10 @@ router.put("/:id", auth, async (req, res) => {
       createdById === userId ||
       (group.admins || []).some((a) => a.toString() === userId);
 
-    if (!isAdmin) {
+    if (!isAdmin)
       return res
         .status(403)
         .json({ message: "Not authorized to edit this group" });
-    }
 
     const allowed = [
       "name",
@@ -518,7 +513,7 @@ router.put("/:id", auth, async (req, res) => {
 // ─── DELETE /api/groups/:id ───────────────────────────────────────────────────
 router.delete("/:id", auth, async (req, res) => {
   try {
-    const userId = req.user.id?.toString() || req.user._id?.toString();
+    const userId = (req.user.id || req.user._id || req.userId)?.toString();
 
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ message: "Invalid group ID" });
@@ -532,11 +527,17 @@ router.delete("/:id", auth, async (req, res) => {
     const isAdmin =
       isCreator || (group.admins || []).some((a) => a.toString() === userId);
 
-    if (!isAdmin) {
+    console.log("DELETE /groups/:id", {
+      userId,
+      createdById,
+      isCreator,
+      isAdmin,
+    });
+
+    if (!isAdmin)
       return res
         .status(403)
         .json({ message: "Only the group creator can delete this group" });
-    }
 
     await Group.findByIdAndUpdate(
       req.params.id,
@@ -551,10 +552,9 @@ router.delete("/:id", auth, async (req, res) => {
 });
 
 // ─── POST /api/groups/:id/invite/:userId ─────────────────────────────────────
-// Admin invites a connection to join a group
 router.post("/:id/invite/:userId", auth, async (req, res) => {
   try {
-    const adminId = req.user.id?.toString() || req.user._id?.toString();
+    const adminId = (req.user.id || req.user._id || req.userId)?.toString();
     const group = await Group.findById(req.params.id);
     if (!group) return res.status(404).json({ message: "Group not found" });
 
@@ -564,19 +564,13 @@ router.post("/:id/invite/:userId", auth, async (req, res) => {
     if (!isAdmin) return res.status(403).json({ message: "Not authorized" });
 
     const targetId = req.params.userId;
-
-    // Validate targetId is a valid ObjectId
-    if (!mongoose.Types.ObjectId.isValid(targetId)) {
+    if (!mongoose.Types.ObjectId.isValid(targetId))
       return res.status(400).json({ message: "Invalid user ID" });
-    }
     const targetObjectId = new mongoose.Types.ObjectId(targetId);
 
-    // Already a member
-    if (group.members.some((m) => m.toString() === targetId)) {
+    if (group.members.some((m) => m.toString() === targetId))
       return res.status(400).json({ message: "User is already a member" });
-    }
 
-    // Add to invitedUsers if not already there
     if (!group.invitedUsers) group.invitedUsers = [];
     if (!group.invitedUsers.some((u) => u.toString() === targetId)) {
       await Group.findByIdAndUpdate(
@@ -586,25 +580,17 @@ router.post("/:id/invite/:userId", auth, async (req, res) => {
       );
     }
 
-    // Send email notification in background — never block or crash the response
     try {
       const invitee = await User.findById(targetId).select("name email").lean();
       const inviter = await User.findById(adminId).select("name").lean();
       const updatedGroup = await Group.findById(req.params.id).lean();
       if (invitee?.email && typeof sendGroupInviteEmail === "function") {
         sendGroupInviteEmail({ invitee, inviter, group: updatedGroup }).catch(
-          (e) =>
-            console.warn(
-              "Group invite email failed (non-critical):",
-              e.message,
-            ),
+          (e) => console.warn("Group invite email failed:", e.message),
         );
       }
     } catch (emailErr) {
-      console.warn(
-        "Group invite email setup failed (non-critical):",
-        emailErr.message,
-      );
+      console.warn("Group invite email setup failed:", emailErr.message);
     }
 
     res.json({ message: "Invitation sent" });
@@ -615,11 +601,10 @@ router.post("/:id/invite/:userId", auth, async (req, res) => {
 });
 
 // ─── POST /api/groups/:id/rsvp-invite ────────────────────────────────────────
-// User responds to a group invite: accept | maybe | decline
 router.post("/:id/rsvp-invite", auth, async (req, res) => {
   try {
-    const userId = req.user.id?.toString() || req.user._id?.toString();
-    const { response } = req.body; // "accept" | "maybe" | "decline"
+    const userId = (req.user.id || req.user._id || req.userId)?.toString();
+    const { response } = req.body;
 
     if (!["accept", "maybe", "decline"].includes(response)) {
       return res
@@ -630,7 +615,6 @@ router.post("/:id/rsvp-invite", auth, async (req, res) => {
     const group = await Group.findById(req.params.id);
     if (!group) return res.status(404).json({ message: "Group not found" });
 
-    // Check if invited or already a member
     const isInvited = (group.invitedUsers || []).some(
       (u) => u.toString() === userId,
     );
@@ -639,15 +623,15 @@ router.post("/:id/rsvp-invite", auth, async (req, res) => {
     );
 
     if (!isInvited && !isAlreadyMember) {
-      return res.status(403).json({
-        message: "No pending invite found. You may need to refresh the page.",
-      });
+      return res
+        .status(403)
+        .json({
+          message: "No pending invite found. You may need to refresh the page.",
+        });
     }
 
-    // Already a member — idempotent success
-    if (isAlreadyMember && response === "accept") {
+    if (isAlreadyMember && response === "accept")
       return res.json({ message: "You are already a member!", joined: true });
-    }
 
     if (response === "accept") {
       const userObjectId = new mongoose.Types.ObjectId(userId);
@@ -659,13 +643,12 @@ router.post("/:id/rsvp-invite", auth, async (req, res) => {
         },
         { new: true, runValidators: false },
       );
-      if (updated) {
+      if (updated)
         await Group.findByIdAndUpdate(
           req.params.id,
           { $set: { memberCount: updated.members.length } },
           { runValidators: false },
         );
-      }
       return res.json({ message: "You have joined the group!", joined: true });
     }
 
@@ -676,10 +659,7 @@ router.post("/:id/rsvp-invite", auth, async (req, res) => {
         { $addToSet: { maybeUsers: userObjectId } },
         { runValidators: false },
       );
-      return res.json({
-        message: "Marked as maybe. The group admin will see your response.",
-        joined: false,
-      });
+      return res.json({ message: "Marked as maybe.", joined: false });
     }
 
     if (response === "decline") {
@@ -697,10 +677,10 @@ router.post("/:id/rsvp-invite", auth, async (req, res) => {
   }
 });
 
-// ─── POST /api/groups/:id/accept-invite ─── (legacy, keep for mobile compat)
+// ─── POST /api/groups/:id/accept-invite (legacy) ─────────────────────────────
 router.post("/:id/accept-invite", auth, async (req, res) => {
   try {
-    const userId = req.user.id?.toString() || req.user._id?.toString();
+    const userId = (req.user.id || req.user._id || req.userId)?.toString();
     await Group.findByIdAndUpdate(
       req.params.id,
       { $pull: { invitedUsers: userId }, $addToSet: { members: userId } },
@@ -715,7 +695,7 @@ router.post("/:id/accept-invite", auth, async (req, res) => {
 // ─── POST /api/groups/:id/decline-invite ─────────────────────────────────────
 router.post("/:id/decline-invite", auth, async (req, res) => {
   try {
-    const userId = req.user.id?.toString() || req.user._id?.toString();
+    const userId = (req.user.id || req.user._id || req.userId)?.toString();
     await Group.findByIdAndUpdate(
       req.params.id,
       { $pull: { invitedUsers: userId } },
@@ -739,11 +719,9 @@ router.get("/:id/members", auth, async (req, res) => {
 
     if (!group) return res.status(404).json({ message: "Group not found" });
 
-    // Must be a member to see members of private group
     if (group.isPrivate) {
-      const isMember = group.members.some(
-        (m) => m._id.toString() === req.user.id,
-      );
+      const userId = (req.user.id || req.user._id || req.userId)?.toString();
+      const isMember = group.members.some((m) => m._id.toString() === userId);
       if (!isMember)
         return res
           .status(403)
@@ -757,12 +735,13 @@ router.get("/:id/members", auth, async (req, res) => {
 });
 
 // ─── POST /api/groups/seed ────────────────────────────────────────────────────
-// Seed default groups for a city/state (admin use)
 router.post("/seed", auth, async (req, res) => {
   try {
     const { city, state } = req.body;
     if (!city || !state)
       return res.status(400).json({ message: "city and state required" });
+
+    const userId = req.user.id || req.user._id || req.userId;
 
     const seedGroups = [
       {
@@ -785,15 +764,15 @@ router.post("/seed", auth, async (req, res) => {
       },
       {
         name: `Fitness Buddies — ${city}`,
-        description: `Find your fitness accountability partner in ${city}. Gym, running, hiking — all welcome.`,
+        description: `Find your fitness accountability partner in ${city}.`,
         category: "Sports & Fitness",
         tags: ["fitness", "gym", "workout", "running"],
       },
       {
         name: `Volunteers of ${city}`,
-        description: `Connect with people who want to give back in ${city}. Find volunteer opportunities and meet like-minded people.`,
+        description: `Connect with people who want to give back in ${city}.`,
         category: "Volunteers & Causes",
-        tags: ["volunteer", "community", "giving", "nonprofit"],
+        tags: ["volunteer", "community", "giving"],
       },
       {
         name: `Book Club — ${city}`,
@@ -803,81 +782,57 @@ router.post("/seed", auth, async (req, res) => {
       },
       {
         name: `New to ${city}`,
-        description: `Just moved to ${city}? Meet other newcomers, discover the area, and build your social circle.`,
+        description: `Just moved to ${city}? Meet other newcomers and build your social circle.`,
         category: "New to the Area",
         tags: ["new", "newcomer", "relocation"],
       },
       {
         name: `Outdoor Adventures — ${city}`,
-        description: `Hiking, cycling, kayaking and more for outdoor lovers in ${city} and surrounding areas.`,
+        description: `Hiking, cycling, kayaking and more for outdoor lovers in ${city}.`,
         category: "Outdoor & Adventure",
-        tags: ["hiking", "outdoors", "nature", "cycling"],
+        tags: ["hiking", "outdoors", "nature"],
       },
       {
         name: `Foodies of ${city}`,
-        description: `Restaurant discoveries, cooking nights, and food adventures in ${city}. All cuisines welcome.`,
+        description: `Restaurant discoveries, cooking nights, and food adventures in ${city}.`,
         category: "Food & Dining",
-        tags: ["food", "restaurants", "cooking", "dining"],
+        tags: ["food", "restaurants", "cooking"],
       },
       {
         name: `Learning & Growth — ${city}`,
-        description: `Skill sharing, language exchange, workshops and personal development for curious minds in ${city}.`,
+        description: `Skill sharing, language exchange, and personal development in ${city}.`,
         category: "Learning & Education",
-        tags: ["learning", "skills", "education", "growth"],
+        tags: ["learning", "skills", "education"],
       },
       {
         name: `Business Owners of ${city}`,
-        description: `A community for entrepreneurs, small business owners, and founders in ${city}. Share resources, get advice, and grow together.`,
+        description: `A community for entrepreneurs and founders in ${city}.`,
         category: "Business Owners & Entrepreneurs",
-        tags: [
-          "business",
-          "entrepreneur",
-          "startup",
-          "small business",
-          "founder",
-        ],
+        tags: ["business", "entrepreneur", "startup"],
       },
       {
         name: `Sober Living — ${city}`,
-        description: `A supportive, judgment-free community for people living sober or alcohol-free in ${city}.`,
+        description: `A supportive community for people living sober in ${city}.`,
         category: "Sober & Clean Living",
-        tags: ["sober", "sobriety", "recovery", "clean living", "AA", "NA"],
+        tags: ["sober", "sobriety", "recovery"],
       },
       {
         name: `Single Parents of ${city}`,
-        description: `Support, community, and friendship for single moms and dads in ${city}.`,
+        description: `Support and community for single moms and dads in ${city}.`,
         category: "Single Parents",
-        tags: [
-          "single parent",
-          "single mom",
-          "single dad",
-          "parenting",
-          "kids",
-        ],
+        tags: ["single parent", "parenting"],
       },
       {
         name: `Aging Gracefully — ${city}`,
-        description: `A warm, welcoming community for older adults in ${city} who want connection, companionship, and friendship.`,
+        description: `A welcoming community for older adults in ${city}.`,
         category: "Aging Gracefully",
-        tags: [
-          "seniors",
-          "aging",
-          "companionship",
-          "older adults",
-          "community",
-        ],
+        tags: ["seniors", "aging", "companionship"],
       },
       {
         name: `Life Transitions — ${city}`,
-        description: `Support for navigating life's big changes in ${city} — caregivers, divorce, relocation, loss, and starting over.`,
+        description: `Support for navigating life's big changes in ${city}.`,
         category: "Life Transitions",
-        tags: [
-          "life transitions",
-          "support",
-          "caregivers",
-          "divorce",
-          "starting over",
-        ],
+        tags: ["life transitions", "support", "caregivers"],
       },
     ];
 
@@ -889,9 +844,9 @@ router.post("/seed", auth, async (req, res) => {
           ...seed,
           city,
           state,
-          createdBy: req.user.id,
-          members: [req.user.id],
-          admins: [req.user.id],
+          createdBy: userId,
+          members: [userId],
+          admins: [userId],
           memberCount: 1,
           isSeeded: true,
         });
@@ -908,20 +863,18 @@ router.post("/seed", auth, async (req, res) => {
 });
 
 // ─── POST /api/groups/:id/photo ──────────────────────────────────────────────
-// Upload group cover photo (admin only)
 router.post("/:id/photo", auth, upload.single("photo"), async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
     if (!group) return res.status(404).json({ message: "Group not found" });
 
+    const userId = (req.user.id || req.user._id || req.userId)?.toString();
     const isAdmin =
-      group.admins.some((a) => a.toString() === req.user.id) ||
-      group.createdBy?.toString() === req.user.id;
+      group.admins.some((a) => a.toString() === userId) ||
+      group.createdBy?.toString() === userId;
     if (!isAdmin) return res.status(403).json({ message: "Not authorized" });
-
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
-    // Upload to Cloudinary
     const result = await new Promise((resolve, reject) => {
       cloudinary.uploader
         .upload_stream(
@@ -939,7 +892,6 @@ router.post("/:id/photo", auth, upload.single("photo"), async (req, res) => {
         .end(req.file.buffer);
     });
 
-    // Delete old photo from Cloudinary if exists
     if (group.coverPhoto && group.coverPhoto.includes("cloudinary")) {
       const publicId = group.coverPhoto.split("/").pop().split(".")[0];
       await cloudinary.uploader
@@ -949,7 +901,6 @@ router.post("/:id/photo", auth, upload.single("photo"), async (req, res) => {
 
     group.coverPhoto = result.secure_url;
     await group.save();
-
     res.json({ coverPhoto: result.secure_url });
   } catch (err) {
     console.error("Photo upload error:", err);
