@@ -76,7 +76,8 @@ export default function CreateGroupScreen({ navigation }) {
         isNationwide,
         isPrivate,
       });
-      const newGroupId = res.data._id;
+      const newGroup = res.data;
+      const newGroupId = newGroup._id;
 
       Alert.alert(
         "Group Created! 🎉",
@@ -85,25 +86,28 @@ export default function CreateGroupScreen({ navigation }) {
           {
             text: "View Group",
             onPress: () => {
-              // FIX: Use a two-step navigation:
-              // 1. goBack() returns to the Groups tab screen, which triggers
-              //    useFocusEffect → fetchGroups() so the new group appears
-              //    in both My Groups tab and Discover immediately.
-              // 2. Then navigate to GroupDetail so user can see their new group.
-              // We do step 2 in a setTimeout so goBack() finishes animating
-              // before we push GroupDetail — otherwise the stack gets confused.
-              navigation.goBack();
+              // FIX: Pass the newly created group data back to GroupsScreen
+              // via navigation params so it can be added to the list immediately
+              // without waiting for a server round-trip.
+              // Then navigate to GroupDetail after a short delay.
+              navigation.navigate("Groups", {
+                newGroup: newGroup,
+                timestamp: Date.now(),
+              });
               setTimeout(() => {
                 navigation.navigate("GroupDetail", { groupId: newGroupId });
-              }, 350);
+              }, 100);
             },
           },
           {
             text: "Back to Groups",
             onPress: () => {
-              // FIX: goBack() returns to GroupsScreen and triggers
-              // useFocusEffect which calls fetchGroups() — new group appears.
-              navigation.goBack();
+              // FIX: Pass the newly created group back so GroupsScreen can
+              // add it immediately to both My Groups and Discover lists.
+              navigation.navigate("Groups", {
+                newGroup: newGroup,
+                timestamp: Date.now(),
+              });
             },
           },
         ],
@@ -135,7 +139,6 @@ export default function CreateGroupScreen({ navigation }) {
           Start a peer support or wellness group for people in your area.
         </Text>
 
-        {/* Group Name */}
         <View style={styles.field}>
           <Text style={styles.label}>Group Name *</Text>
           <TextInput
@@ -148,7 +151,6 @@ export default function CreateGroupScreen({ navigation }) {
           />
         </View>
 
-        {/* Description */}
         <View style={styles.field}>
           <Text style={styles.label}>Description *</Text>
           <TextInput
@@ -164,7 +166,6 @@ export default function CreateGroupScreen({ navigation }) {
           <Text style={styles.charCount}>{description.length}/500</Text>
         </View>
 
-        {/* Category */}
         <View style={styles.field}>
           <Text style={styles.label}>Category *</Text>
           <TouchableOpacity
@@ -183,7 +184,6 @@ export default function CreateGroupScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Location */}
         <View style={styles.field}>
           <Text style={styles.label}>Location</Text>
           <View style={styles.toggleRow}>
@@ -228,7 +228,6 @@ export default function CreateGroupScreen({ navigation }) {
           )}
         </View>
 
-        {/* Privacy */}
         <View style={styles.field}>
           <Text style={styles.label}>Privacy</Text>
           <View style={styles.toggleRow}>
@@ -248,7 +247,6 @@ export default function CreateGroupScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Submit */}
         <TouchableOpacity
           style={[styles.createButton, saving && styles.createButtonDisabled]}
           onPress={handleCreate}
@@ -264,7 +262,6 @@ export default function CreateGroupScreen({ navigation }) {
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      {/* Category Picker Modal */}
       <Modal
         visible={showCategoryPicker}
         animationType="slide"

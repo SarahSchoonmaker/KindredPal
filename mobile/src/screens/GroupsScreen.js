@@ -231,13 +231,13 @@ function GroupCard({ group, onPress }) {
   );
 }
 
-export default function GroupsScreen({ navigation }) {
+export default function GroupsScreen({ navigation, route }) {
   const [groups, setGroups] = useState([]);
   const [myGroups, setMyGroups] = useState([]);
   const [invitedGroups, setInvitedGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState("discover");
+  const [activeTab, setActiveTab] = useState("my"); // FIX: default to "my" so new groups are visible immediately
   const [showFilters, setShowFilters] = useState(false);
   const [showStateList, setShowStateList] = useState(false);
   const [showDistanceList, setShowDistanceList] = useState(false);
@@ -259,13 +259,14 @@ export default function GroupsScreen({ navigation }) {
     religion: [],
     lifeStage: [],
   });
+  // Track last processed param timestamp to avoid re-processing
+  const lastParamTimestamp = useRef(0);
 
   const setFilter = useCallback((key, value) => {
     filtersRef.current[key] = value;
     setFilterUI((prev) => ({ ...prev, [key]: value }));
   }, []);
 
-  // Stable fetchGroups — reads from ref, never recreated, no stale closures
   const fetchGroups = useCallback(async (showLoader = false) => {
     if (showLoader) setLoading(true);
     try {
@@ -300,33 +301,55 @@ export default function GroupsScreen({ navigation }) {
     fetchGroups(true);
   }, [fetchGroups]);
 
-  // Fires on every screen focus — catches returns from Create/Edit
+  // FIX: Handle newGroup and deletedGroupId params from CreateGroupScreen
+  // and GroupDetailScreen. We do this optimistically — update the list
+  // immediately from the param data, then also trigger a server fetch
+  // with a delay to ensure eventual consistency.
+  useEffect(() => {
+    const params = route?.params;
+    if (!params) return;
+
+    const timestamp = params.timestamp || 0;
+    if (timestamp <= lastParamTimestamp.current) return;
+    lastParamTimestamp.current = timestamp;
+
+    if (params.newGroup) {
+      // Optimistically add the new group to both lists immediately
+      const newGroup = { ...params.newGroup, isMember: true };
+      setMyGroups((prev) => {
+        const exists = prev.some((g) => g._id === newGroup._id);
+        return exists ? prev : [newGroup, ...prev];
+      });
+      setGroups((prev) => {
+        const exists = prev.some((g) => g._id === newGroup._id);
+        return exists ? prev : [newGroup, ...prev];
+      });
+      // Switch to My Groups tab so user sees their new group
+      setActiveTab("my");
+      // Also do a delayed server fetch to confirm
+      setTimeout(() => fetchGroups(), 1500);
+      // Clear the param
+      navigation.setParams({ newGroup: undefined, timestamp: undefined });
+    }
+
+    if (params.deletedGroupId) {
+      const deletedId = params.deletedGroupId;
+      // Optimistically remove from both lists immediately
+      setMyGroups((prev) => prev.filter((g) => g._id !== deletedId));
+      setGroups((prev) => prev.filter((g) => g._id !== deletedId));
+      // Delayed server fetch to confirm
+      setTimeout(() => fetchGroups(), 1000);
+      // Clear the param
+      navigation.setParams({ deletedGroupId: undefined, timestamp: undefined });
+    }
+  }, [route?.params, fetchGroups, navigation]);
+
+  // useFocusEffect — standard refresh on tab focus
   useFocusEffect(
     useCallback(() => {
       fetchGroups();
     }, [fetchGroups]),
   );
-
-  // FIX: Listen for a custom 'groupDeleted' event dispatched by GroupDetailScreen.
-  // We can't pass functions through route.params (they get serialized to undefined),
-  // so we use navigation's built-in event emitter instead. GroupDetailScreen fires
-  // navigation.navigate('Groups', { deletedGroupId }) and we catch it here to
-  // instantly remove the group from the list without waiting for a server round-trip.
-  useEffect(() => {
-    const unsubscribe = navigation.addListener("focus", () => {
-      // Check if we were navigated back with a deletedGroupId param
-      const deletedId = navigation
-        .getState()
-        ?.routes?.find((r) => r.name === "Groups")?.params?.deletedGroupId;
-      if (deletedId) {
-        setGroups((prev) => prev.filter((g) => g._id !== deletedId));
-        setMyGroups((prev) => prev.filter((g) => g._id !== deletedId));
-        // Clear the param so it doesn't re-fire
-        navigation.setParams({ deletedGroupId: undefined });
-      }
-    });
-    return unsubscribe;
-  }, [navigation]);
 
   const debounceRef = useRef(null);
   const handleSearchChange = (text) => {
@@ -772,7 +795,7 @@ export default function GroupsScreen({ navigation }) {
             </Text>
             <Text style={styles.emptyText}>
               {activeTab === "my"
-                ? "Join a group from Discover!"
+                ? "Create or join a group to get started!"
                 : "Try a different search or category"}
             </Text>
           </View>

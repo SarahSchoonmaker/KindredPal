@@ -1,5 +1,3 @@
-// mobile/src/screens/ConnectionsScreen.js
-// Shows: accepted connections + pending requests received
 import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
@@ -17,6 +15,7 @@ import api from "../services/api";
 
 function RequestCard({ request, onAccept, onDecline, onViewProfile }) {
   const { from } = request;
+  if (!from) return null;
   return (
     <View style={styles.requestCard}>
       <View style={styles.requestHeader}>
@@ -28,13 +27,18 @@ function RequestCard({ request, onAccept, onDecline, onViewProfile }) {
         style={styles.personRow}
         onPress={() => onViewProfile(from)}
       >
-        <Image source={{ uri: from.profilePhoto }} style={styles.photo} />
+        <Image
+          source={{
+            uri: from.profilePhoto || "https://via.placeholder.com/52",
+          }}
+          style={styles.photo}
+        />
         <View style={styles.personInfo}>
           <Text style={[styles.personName, { color: "#2B6CB0" }]}>
             {from.name}
           </Text>
           <Text style={styles.personLocation}>
-            {from.city}, {from.state}
+            {[from.city, from.state].filter(Boolean).join(", ")}
           </Text>
           {from.lifeStage?.length > 0 && (
             <Text style={styles.personMeta} numberOfLines={1}>
@@ -68,6 +72,7 @@ function RequestCard({ request, onAccept, onDecline, onViewProfile }) {
 
 function ConnectionCard({ connection, onMessage, onRemove, onViewProfile }) {
   const { user } = connection;
+  if (!user) return null;
   return (
     <View style={styles.connectionCard}>
       <TouchableOpacity
@@ -75,7 +80,9 @@ function ConnectionCard({ connection, onMessage, onRemove, onViewProfile }) {
         style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
       >
         <Image
-          source={{ uri: user.profilePhoto }}
+          source={{
+            uri: user.profilePhoto || "https://via.placeholder.com/52",
+          }}
           style={[styles.photo, { marginRight: 12 }]}
         />
         <View style={styles.personInfo}>
@@ -83,7 +90,7 @@ function ConnectionCard({ connection, onMessage, onRemove, onViewProfile }) {
             {user.name}
           </Text>
           <Text style={styles.personLocation}>
-            {user.city}, {user.state}
+            {[user.city, user.state].filter(Boolean).join(", ")}
           </Text>
           {user.bio ? (
             <Text style={styles.personBio} numberOfLines={1}>
@@ -115,9 +122,7 @@ export default function ConnectionsScreen({ navigation }) {
         api.get("/connections"),
         api.get("/connections/requests"),
       ]);
-      const conns = connRes.data.connections || [];
-      console.log("✅ Connections loaded:", conns.length);
-      setConnections(conns);
+      setConnections(connRes.data.connections || []);
       setRequests(reqRes.data.requests || []);
     } catch (err) {
       console.error("ConnectionsScreen fetch error:", err);
@@ -127,23 +132,21 @@ export default function ConnectionsScreen({ navigation }) {
     }
   }, []);
 
-  // Load once on mount
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
 
-  // Silent refresh on re-focus
   useFocusEffect(
     useCallback(() => {
       if (!loading) fetchAll();
-    }, [fetchAll]),
+    }, [fetchAll, loading]),
   );
 
   const handleAccept = async (connectionId) => {
     try {
       await api.post(`/connections/accept/${connectionId}`);
       fetchAll();
-    } catch (err) {
+    } catch {
       Alert.alert("Error", "Could not accept request");
     }
   };
@@ -158,7 +161,7 @@ export default function ConnectionsScreen({ navigation }) {
           try {
             await api.post(`/connections/decline/${connectionId}`);
             fetchAll();
-          } catch (err) {
+          } catch {
             Alert.alert("Error", "Could not decline request");
           }
         },
@@ -167,16 +170,40 @@ export default function ConnectionsScreen({ navigation }) {
   };
 
   const handleMessage = (user) => {
-    navigation.navigate("Chat", { match: user });
-  };
-
-  const handleViewProfile = (user) => {
     const userId = user._id || user.id;
     if (!userId) return;
-    navigation.navigate("MemberProfile", {
-      userId: userId.toString(),
-      sharedGroups: [],
+    navigation.navigate("Chat", {
+      match: {
+        _id: userId.toString(),
+        id: userId.toString(),
+        name: user.name || "User",
+        profilePhoto: user.profilePhoto || null,
+      },
     });
+  };
+
+  // FIX: Navigate to UserProfile (not MemberProfile which requires sharedGroups
+  // from a group context). UserProfile is the correct screen for viewing any
+  // user's profile from the Connections tab.
+  // Falls back to MemberProfile with empty sharedGroups if UserProfile doesn't
+  // exist in your navigator yet.
+  const handleViewProfile = (user) => {
+    const userId = (user._id || user.id)?.toString();
+    if (!userId) return;
+
+    // Try UserProfile first (designed for connection context)
+    const state = navigation.getState();
+    const hasUserProfile = state?.routeNames?.includes("UserProfile");
+
+    if (hasUserProfile) {
+      navigation.navigate("UserProfile", { userId });
+    } else {
+      // Fallback: MemberProfile with empty sharedGroups
+      navigation.navigate("MemberProfile", {
+        userId,
+        sharedGroups: [],
+      });
+    }
   };
 
   const handleRemove = (connectionId, name) => {
@@ -189,7 +216,7 @@ export default function ConnectionsScreen({ navigation }) {
           try {
             await api.delete(`/connections/${connectionId}`);
             fetchAll();
-          } catch (err) {
+          } catch {
             Alert.alert("Error", "Could not remove connection");
           }
         },
@@ -234,7 +261,7 @@ export default function ConnectionsScreen({ navigation }) {
               activeTab === "requests" && styles.tabTextActive,
             ]}
           >
-            Requests {pendingCount > 0 ? `(${pendingCount})` : ""}
+            Requests{pendingCount > 0 ? ` (${pendingCount})` : ""}
           </Text>
           {pendingCount > 0 && <View style={styles.dot} />}
         </TouchableOpacity>
@@ -270,6 +297,7 @@ export default function ConnectionsScreen({ navigation }) {
               request={item}
               onAccept={handleAccept}
               onDecline={handleDecline}
+              onViewProfile={handleViewProfile}
             />
           )}
         />
@@ -279,7 +307,7 @@ export default function ConnectionsScreen({ navigation }) {
       {activeTab === "connections" && (
         <FlatList
           data={connections}
-          keyExtractor={(item) => item.connectionId}
+          keyExtractor={(item) => item.connectionId || item._id}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -307,10 +335,15 @@ export default function ConnectionsScreen({ navigation }) {
             </View>
           }
           renderItem={({ item }) => (
+            // FIX: onViewProfile was missing from ConnectionCard renderItem —
+            // this was the direct cause of the crash. The prop was declared in
+            // ConnectionCard but never passed, so calling onViewProfile() threw
+            // "undefined is not a function" and crashed the app.
             <ConnectionCard
               connection={item}
               onMessage={handleMessage}
               onRemove={handleRemove}
+              onViewProfile={handleViewProfile}
             />
           )}
         />
@@ -322,7 +355,6 @@ export default function ConnectionsScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F7FAFC" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-
   tabs: {
     flexDirection: "row",
     backgroundColor: "white",
@@ -343,10 +375,7 @@ const styles = StyleSheet.create({
   tabText: { fontSize: 14, fontWeight: "600", color: "#718096" },
   tabTextActive: { color: "#2B6CB0" },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#E53E3E" },
-
   list: { padding: 12 },
-
-  // Request card
   requestCard: {
     backgroundColor: "white",
     borderRadius: 12,
@@ -413,8 +442,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#2B6CB0",
   },
   acceptBtnText: { color: "white", fontWeight: "700", fontSize: 14 },
-
-  // Connection card
   connectionCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -434,8 +461,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-
-  // Empty state
   empty: { alignItems: "center", paddingVertical: 60, paddingHorizontal: 32 },
   emptyIcon: { fontSize: 52, marginBottom: 16 },
   emptyTitle: {
