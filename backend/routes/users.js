@@ -63,7 +63,6 @@ router.get("/test/databases", async (req, res) => {
   }
 });
 
-// ===== DEBUG: See exactly what's stored for current user + state mismatches =====
 router.get("/debug/discover", auth, async (req, res) => {
   try {
     const currentUser = await User.findById(req.userId)
@@ -134,18 +133,12 @@ router.get("/discover", auth, async (req, res) => {
   try {
     console.log("\n===== DISCOVER CALLED =====");
     console.log("User ID:", req.userId);
-    console.log("Query params:", req.query);
 
     const currentUser = await User.findById(req.userId)
       .select(
         "_id email city state latitude longitude locationPreference filterPoliticalBeliefs filterReligions filterLifeStages matches likes passed blockedUsers",
       )
       .lean();
-
-    console.log(
-      "Current user found:",
-      currentUser ? currentUser.email : "NOT FOUND",
-    );
 
     if (!currentUser) {
       return res.status(404).json({ message: "User not found" });
@@ -155,7 +148,6 @@ router.get("/discover", auth, async (req, res) => {
       req.query.locationPreference ||
       currentUser.locationPreference ||
       "Same state";
-
     const filterPolitical = req.query.filterPoliticalBeliefs
       ? JSON.parse(req.query.filterPoliticalBeliefs)
       : currentUser.filterPoliticalBeliefs || [];
@@ -166,9 +158,6 @@ router.get("/discover", auth, async (req, res) => {
       ? JSON.parse(req.query.filterLifeStages)
       : currentUser.filterLifeStages || [];
 
-    console.log("📍 Active filters:");
-    console.log("   Location:", locationPref);
-
     const excludedIds = [
       currentUser._id,
       ...(currentUser.matches || []),
@@ -176,64 +165,36 @@ router.get("/discover", auth, async (req, res) => {
       ...(currentUser.passed || []),
       ...(currentUser.blockedUsers || []),
     ];
-    console.log("🚫 Excluding:", excludedIds.length, "users");
 
-    let query = {
-      _id: { $nin: excludedIds },
-      isDeleted: { $ne: true },
-    };
+    let query = { _id: { $nin: excludedIds }, isDeleted: { $ne: true } };
 
-    // ✅ LOCATION FILTER — guard against empty state/city
     const needsDistanceCalc = locationPref.includes("miles");
 
     if (!needsDistanceCalc) {
       if (locationPref === "Same city") {
         if (currentUser.city && currentUser.state) {
-          // ✅ Case-insensitive match for both city and state
           query.city = {
             $regex: new RegExp(`^${currentUser.city.trim()}$`, "i"),
           };
           query.state = {
             $regex: new RegExp(`^${currentUser.state.trim()}$`, "i"),
           };
-          console.log(
-            "🏙️ Filter: Same city -",
-            currentUser.city,
-            currentUser.state,
-          );
-        } else {
-          console.log(
-            "⚠️ Same city requested but user missing city/state — showing Anywhere",
-          );
         }
       } else if (locationPref === "Same state") {
         if (currentUser.state) {
-          // ✅ Case-insensitive match — handles "FL" vs "fl" vs "Florida" inconsistency
           query.state = {
             $regex: new RegExp(`^${currentUser.state.trim()}$`, "i"),
           };
-          console.log("🗺️ Filter: Same state -", currentUser.state);
-        } else {
-          console.log(
-            "⚠️ Same state requested but user missing state — showing Anywhere",
-          );
         }
-      } else {
-        console.log("🌍 Filter: Anywhere (no restriction)");
       }
     }
 
-    if (filterPolitical && filterPolitical.length > 0) {
+    if (filterPolitical && filterPolitical.length > 0)
       query.politicalBeliefs = { $in: filterPolitical };
-    }
-    if (filterReligions && filterReligions.length > 0) {
+    if (filterReligions && filterReligions.length > 0)
       query.religion = { $in: filterReligions };
-    }
-    if (filterLifeStages && filterLifeStages.length > 0) {
+    if (filterLifeStages && filterLifeStages.length > 0)
       query.lifeStage = { $in: filterLifeStages };
-    }
-
-    console.log("🔎 Final query:", JSON.stringify(query, null, 2));
 
     let users = await User.find(query)
       .select(
@@ -241,15 +202,11 @@ router.get("/discover", auth, async (req, res) => {
       )
       .lean();
 
-    console.log(`✅ Database returned ${users.length} users`);
-
     if (needsDistanceCalc) {
       const miles = parseInt(locationPref.match(/\d+/)[0]);
       if (!currentUser.latitude || !currentUser.longitude) {
-        console.log("⚠️ User missing coordinates - falling back to same state");
-        if (currentUser.state) {
+        if (currentUser.state)
           users = users.filter((u) => u.state === currentUser.state);
-        }
       } else {
         users = users.filter((user) => {
           if (!user.latitude || !user.longitude) return false;
@@ -263,7 +220,6 @@ router.get("/discover", auth, async (req, res) => {
           );
         });
       }
-      console.log(`📍 After distance filter: ${users.length} users`);
     }
 
     users.forEach((user) => {
@@ -276,11 +232,6 @@ router.get("/discover", auth, async (req, res) => {
     const skip = (page - 1) * limit;
     const totalCount = users.length;
     const paginatedUsers = users.slice(skip, skip + limit);
-
-    console.log(
-      `✅ Returning ${paginatedUsers.length}/${totalCount} users (page ${page})`,
-    );
-    console.log("===== DISCOVER COMPLETE =====\n");
 
     return res.json({
       users: paginatedUsers,
@@ -336,7 +287,6 @@ router.post("/like/:userId", auth, async (req, res) => {
       await currentUser.save();
       await likedUser.save();
 
-      // Emit socket events for real-time badge updates
       const io = req.app.get("io");
       if (io) {
         io.to(likedUserId).emit("new-match");
@@ -353,7 +303,6 @@ router.post("/like/:userId", auth, async (req, res) => {
       });
     }
 
-    // Emit new-like event so their badge updates
     const io = req.app.get("io");
     if (io) io.to(likedUserId).emit("new-like");
 
@@ -380,7 +329,7 @@ router.post("/pass/:userId", auth, async (req, res) => {
   }
 });
 
-// ===== CLEAR PASSED (for testing / admin reset) =====
+// ===== CLEAR PASSED =====
 router.delete("/passed", auth, async (req, res) => {
   try {
     await User.findByIdAndUpdate(req.userId, { $set: { passed: [] } });
@@ -467,7 +416,6 @@ router.put("/profile", auth, async (req, res) => {
       "onboardingComplete",
       "isVerified",
     ];
-    // String fields that must NOT be arrays (frontend bug sends them as arrays sometimes)
     const STRING_FIELDS = [
       "politicalBeliefs",
       "religion",
@@ -483,10 +431,8 @@ router.put("/profile", auth, async (req, res) => {
     allowedUpdates.forEach((field) => {
       if (updates[field] === undefined) return;
       let val = updates[field];
-      // Coerce array -> string for fields that should be strings
-      if (STRING_FIELDS.includes(field) && Array.isArray(val)) {
+      if (STRING_FIELDS.includes(field) && Array.isArray(val))
         val = val[0] ?? "";
-      }
       filteredUpdates[field] = val;
     });
 
@@ -690,10 +636,12 @@ router.post("/push-token", auth, async (req, res) => {
 // ===== GET ALL BADGE COUNTS =====
 router.get("/counts", auth, async (req, res) => {
   try {
-    const userId = req.user.id;
+    // Normalize userId — this route is accessed by mobile which may use
+    // either req.userId or req.user.id depending on middleware version
+    const userId = req.userId || req.user?.id;
 
     const unread = await Message.countDocuments({
-      recipient: userId,
+      recipientId: userId,
       read: false,
     });
 
@@ -706,19 +654,19 @@ router.get("/counts", auth, async (req, res) => {
       (m) => !m.rsvps.some((r) => r.user.toString() === userId),
     );
 
-    // Count pending group invites
     const Group = require("../models/Group");
     const pendingGroupInvites = await Group.find({
       invitedUsers: userId,
       isActive: { $ne: false },
-      members: { $ne: userId }, // not already a member
+      members: { $ne: userId },
     })
       .select("_id")
       .lean();
 
     const Connection = require("../models/Connection");
+    // FIX: Connection model uses field "to" for the recipient, not "recipient"
     const requestCount = await Connection.countDocuments({
-      recipient: userId,
+      to: userId,
       status: "pending",
     });
 
