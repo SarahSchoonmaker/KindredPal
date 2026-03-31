@@ -102,13 +102,6 @@ const RELIGION_OPTS = [
   "Other",
 ];
 
-const POLITICS_OPTS = [
-  "Conservative",
-  "Moderate",
-  "Liberal",
-  "Prefer not to say",
-];
-
 const LIFE_STAGE_OPTS = [
   "Single",
   "In a relationship",
@@ -210,11 +203,9 @@ function GroupCard({ group, onPress }) {
           </Text>
         </View>
       </View>
-
       <Text style={styles.cardDescription} numberOfLines={2}>
         {group.description}
       </Text>
-
       <View style={styles.cardFooter}>
         <View style={styles.memberCount}>
           <Users size={13} color="#718096" />
@@ -263,7 +254,6 @@ export default function GroupsScreen({ navigation, route }) {
     religion: [],
     lifeStage: [],
   });
-  // Visible location search bar (separate from filter modal)
   const [locationCity, setLocationCity] = useState("");
   const [locationState, setLocationState] = useState("");
   const [locationDistance, setLocationDistance] = useState("");
@@ -308,12 +298,12 @@ export default function GroupsScreen({ navigation, route }) {
     filters,
   ]);
 
-  // Load once on mount
+  // Load on mount
   useEffect(() => {
     fetchGroups();
   }, [fetchGroups]);
 
-  // Debounced search — fetch 500ms after user stops typing
+  // Debounced search
   const searchDebounceRef = React.useRef(null);
   const handleSearchChange = (text) => {
     setSearch(text);
@@ -321,40 +311,19 @@ export default function GroupsScreen({ navigation, route }) {
     searchDebounceRef.current = setTimeout(() => fetchGroups(), 500);
   };
 
-  // On re-focus: always refetch — handles returning from CreateGroup, Leave, Delete
-  // fetchGroupsRef always points to latest fetchGroups, avoiding stale closure
+  // KEY FIX: fetchGroupsRef always holds the latest fetchGroups
+  // so useFocusEffect never has a stale closure problem
   const fetchGroupsRef = React.useRef(fetchGroups);
   useEffect(() => {
     fetchGroupsRef.current = fetchGroups;
   }, [fetchGroups]);
 
-  // On re-focus: always runs and always calls the latest fetchGroups
+  // Runs on EVERY focus event — handles returning from Create/Delete/Leave/Edit
   useFocusEffect(
     useCallback(() => {
       fetchGroupsRef.current();
-    }, []),
+    }, []), // empty deps = runs every time screen gets focus
   );
-
-  // Switch to My Groups tab after returning from CreateGroup
-  useFocusEffect(
-    useCallback(() => {
-      if (route?.params?.switchToMy) {
-        setActiveTab("my");
-      }
-    }, [route?.params?.switchToMy]),
-  );
-
-  // Refresh when navigated back with refresh param (after create/delete/leave)
-  useEffect(() => {
-    if (route?.params?.refresh) {
-      // Clear both lists immediately so deleted group disappears at once
-      setGroups([]);
-      setMyGroups([]);
-      fetchGroups();
-      // Only auto-switch to My tab if explicitly requested
-      if (route?.params?.switchToMy) setActiveTab("my");
-    }
-  }, [route?.params?.refresh]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -400,7 +369,6 @@ export default function GroupsScreen({ navigation, route }) {
             returnKeyType="done"
             onSubmitEditing={fetchGroups}
           />
-          {/* State picker */}
           <TouchableOpacity
             style={styles.locationStateBtn}
             onPress={() => {
@@ -417,7 +385,6 @@ export default function GroupsScreen({ navigation, route }) {
               {locationState || "State"}
             </Text>
           </TouchableOpacity>
-          {/* Distance picker */}
           <TouchableOpacity
             style={styles.locationDistanceBtn}
             onPress={() => {
@@ -700,7 +667,7 @@ export default function GroupsScreen({ navigation, route }) {
         </View>
       )}
 
-      {/* Group list with category filter as header */}
+      {/* Group list */}
       <FlatList
         data={displayedGroups}
         keyExtractor={(item) => item._id}
@@ -787,12 +754,10 @@ export default function GroupsScreen({ navigation, route }) {
               <X size={22} color="#4a5568" />
             </TouchableOpacity>
           </View>
-
           <ScrollView
             style={styles.modalScroll}
             showsVerticalScrollIndicator={false}
           >
-            {/* Location */}
             <View style={styles.filterSection}>
               <Text style={styles.filterSectionTitle}>📍 Location</Text>
               <View style={styles.locationRow}>
@@ -835,8 +800,6 @@ export default function GroupsScreen({ navigation, route }) {
                 </ScrollView>
               </View>
             </View>
-
-            {/* Distance */}
             <View style={styles.filterSection}>
               <Text style={styles.filterSectionTitle}>📏 Distance / Range</Text>
               <View style={styles.chipRow}>
@@ -867,8 +830,6 @@ export default function GroupsScreen({ navigation, route }) {
                 ))}
               </View>
             </View>
-
-            {/* Faith */}
             <View style={styles.filterSection}>
               <Text style={styles.filterSectionTitle}>🙏 Faith / Religion</Text>
               <View style={styles.chipRow}>
@@ -903,8 +864,6 @@ export default function GroupsScreen({ navigation, route }) {
                 ))}
               </View>
             </View>
-
-            {/* Life Stage */}
             <View style={styles.filterSection}>
               <Text style={styles.filterSectionTitle}>🌱 Life Stage</Text>
               <View style={styles.chipRow}>
@@ -939,11 +898,8 @@ export default function GroupsScreen({ navigation, route }) {
                 ))}
               </View>
             </View>
-
             <View style={{ height: 20 }} />
           </ScrollView>
-
-          {/* Modal footer buttons */}
           <View style={styles.modalFooter}>
             <TouchableOpacity
               style={styles.btnClearFilters}
@@ -980,7 +936,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F7FAFC" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   loadingText: { marginTop: 12, fontSize: 15, color: "#718096" },
-
   searchRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1012,7 +967,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-
   tabs: {
     flexDirection: "row",
     backgroundColor: "white",
@@ -1029,7 +983,6 @@ const styles = StyleSheet.create({
   tabActive: { borderBottomColor: "#2B6CB0" },
   tabText: { fontSize: 13, fontWeight: "600", color: "#718096" },
   tabTextActive: { color: "#2B6CB0" },
-
   categoryGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -1056,10 +1009,7 @@ const styles = StyleSheet.create({
     position: "relative",
     minHeight: 90,
   },
-  catTileActive: {
-    backgroundColor: "#EBF4FF",
-    borderColor: "#2B6CB0",
-  },
+  catTileActive: { backgroundColor: "#EBF4FF", borderColor: "#2B6CB0" },
   catTileEmoji: { fontSize: 28, marginBottom: 6 },
   catTileText: {
     fontSize: 11,
@@ -1081,9 +1031,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   catSpacer: { width: "30%", flexGrow: 1, minWidth: 100 },
-
   listContent: { padding: 12 },
-
   card: {
     backgroundColor: "white",
     borderRadius: 12,
@@ -1150,8 +1098,6 @@ const styles = StyleSheet.create({
     borderColor: "#2B6CB0",
   },
   badgeText: { fontSize: 11, fontWeight: "700" },
-
-  // Location search bar
   locationBar: {
     backgroundColor: "#EBF4FF",
     borderBottomWidth: 1,
@@ -1205,8 +1151,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   locationBtnText: { fontSize: 13, color: "#1e3a5f", fontWeight: "600" },
-
-  // Picker modal
   pickerOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.4)",
@@ -1234,8 +1178,6 @@ const styles = StyleSheet.create({
   pickerItemActive: { backgroundColor: "#EBF4FF" },
   pickerItemText: { fontSize: 15, color: "#2d3748" },
   pickerItemTextActive: { color: "#2B6CB0", fontWeight: "700" },
-
-  // Invite banner
   inviteBanner: {
     backgroundColor: "#fffbeb",
     borderWidth: 1.5,
@@ -1306,7 +1248,6 @@ const styles = StyleSheet.create({
     borderColor: "#e2e8f0",
   },
   btnDeclineText: { color: "#718096", fontSize: 13, fontWeight: "600" },
-
   empty: { alignItems: "center", paddingVertical: 60 },
   emptyIcon: { fontSize: 48, marginBottom: 12 },
   emptyTitle: {
@@ -1321,7 +1262,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: 32,
   },
-
   filterBtn: {
     width: 40,
     height: 40,
@@ -1333,8 +1273,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   filterBtnActive: { backgroundColor: "#2B6CB0", borderColor: "#2B6CB0" },
-
-  // Modal
   modalContainer: { flex: 1, backgroundColor: "white" },
   modalHeader: {
     flexDirection: "row",

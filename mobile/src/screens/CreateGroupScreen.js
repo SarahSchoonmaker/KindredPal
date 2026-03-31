@@ -86,13 +86,13 @@ export default function CreateGroupScreen({ navigation }) {
             onPress: () => {
               // Pop back to the tab stack first, then navigate to GroupDetail
               // useFocusEffect in GroupsScreen will auto-refresh on focus
-              navigation.popToTop();
+              navigation.goBack();
               navigation.navigate("GroupDetail", { groupId: newGroupId });
             },
           },
           {
             text: "Back to Groups",
-            onPress: () => navigation.popToTop(),
+            onPress: () => navigation.goBack(),
           },
         ],
       );
