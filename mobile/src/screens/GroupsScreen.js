@@ -325,7 +325,7 @@ export default function GroupsScreen({ navigation, route }) {
   useFocusEffect(
     useCallback(() => {
       fetchGroups();
-    }, [fetchGroups]),
+    }, []),
   );
 
   // Refresh when navigated back with refresh param (after create/delete/leave)
