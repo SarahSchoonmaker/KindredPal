@@ -19,10 +19,17 @@ const getUser = () => mongoose.model("User");
 router.post(
   "/signup",
   [
-    body("email").isEmail().normalizeEmail().withMessage("Invalid email address"),
-    body("password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters"),
+    body("email")
+      .isEmail()
+      .normalizeEmail()
+      .withMessage("Invalid email address"),
+    body("password")
+      .isLength({ min: 6 })
+      .withMessage("Password must be at least 6 characters"),
     body("name").trim().notEmpty().withMessage("Name is required"),
-    body("age").isInt({ min: 18, max: 120 }).withMessage("Age must be between 18 and 120"),
+    body("age")
+      .isInt({ min: 18, max: 120 })
+      .withMessage("Age must be between 18 and 120"),
     body("city").trim().notEmpty().withMessage("City is required"),
     body("state").trim().notEmpty().withMessage("State is required"),
   ],
@@ -30,7 +37,9 @@ router.post(
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        return res.status(400).json({ message: errors.array()[0].msg, errors: errors.array() });
+        return res
+          .status(400)
+          .json({ message: errors.array()[0].msg, errors: errors.array() });
       }
 
       const User = getUser();
@@ -38,7 +47,9 @@ router.post(
 
       const existingUser = await User.findOne({ email: userData.email });
       if (existingUser) {
-        return res.status(400).json({ message: "User already exists with this email" });
+        return res
+          .status(400)
+          .json({ message: "User already exists with this email" });
       }
 
       const user = new User({
@@ -63,13 +74,17 @@ router.post(
       await user.save();
       logger.info("✅ User saved successfully:", user.email);
 
-      const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+      const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+        expiresIn: "7d",
+      });
 
       const userResponse = buildUserResponse(user);
       res.status(201).json({ token, user: userResponse });
     } catch (error) {
       logger.error("❌ SIGNUP ERROR:", error);
-      res.status(500).json({ message: error.message || "Error creating account" });
+      res
+        .status(500)
+        .json({ message: error.message || "Error creating account" });
     }
   },
 );
@@ -78,8 +93,13 @@ router.post(
 router.post(
   "/login",
   [
-    body("email").isEmail().normalizeEmail().withMessage("Invalid email address"),
-    body("password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters"),
+    body("email")
+      .isEmail()
+      .normalizeEmail()
+      .withMessage("Invalid email address"),
+    body("password")
+      .isLength({ min: 6 })
+      .withMessage("Password must be at least 6 characters"),
   ],
   async (req, res) => {
     try {
@@ -105,7 +125,9 @@ router.post(
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+      const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+        expiresIn: "7d",
+      });
 
       logger.info("✅ Login successful:", email);
       res.json({ token, user: buildUserResponse(user) });
@@ -134,22 +156,36 @@ router.get("/profile", auth, async (req, res) => {
 // ===== FORGOT PASSWORD =====
 router.post(
   "/forgot-password",
-  [body("email").isEmail().normalizeEmail().withMessage("Invalid email address")],
+  [
+    body("email")
+      .isEmail()
+      .normalizeEmail()
+      .withMessage("Invalid email address"),
+  ],
   async (req, res) => {
     try {
       const errors = validationResult(req);
-      if (!errors.isEmpty()) return res.status(400).json({ message: errors.array()[0].msg });
+      if (!errors.isEmpty())
+        return res.status(400).json({ message: errors.array()[0].msg });
 
       const { email } = req.body;
       const User = getUser();
       const user = await User.findOne({ email });
 
       if (!user) {
-        return res.status(200).json({ message: "If an account exists, you will receive a password reset email" });
+        return res
+          .status(200)
+          .json({
+            message:
+              "If an account exists, you will receive a password reset email",
+          });
       }
 
       const resetToken = crypto.randomBytes(32).toString("hex");
-      const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+      const hashedToken = crypto
+        .createHash("sha256")
+        .update(resetToken)
+        .digest("hex");
 
       user.resetPasswordToken = hashedToken;
       user.resetPasswordExpires = Date.now() + 3600000;
@@ -160,7 +196,8 @@ router.post(
       try {
         if (resend) {
           await resend.emails.send({
-            from: process.env.FROM_EMAIL || "KindredPal <onboarding@resend.dev>",
+            from:
+              process.env.FROM_EMAIL || "KindredPal <onboarding@resend.dev>",
             to: user.email,
             subject: "Reset Your KindredPal Password",
             html: `
@@ -190,7 +227,12 @@ router.post(
         logger.error("❌ Email send error:", emailError);
       }
 
-      res.status(200).json({ message: "If an account exists, you will receive a password reset email" });
+      res
+        .status(200)
+        .json({
+          message:
+            "If an account exists, you will receive a password reset email",
+        });
     } catch (error) {
       logger.error("❌ Forgot password error:", error);
       res.status(500).json({ message: "Server error" });
@@ -203,15 +245,21 @@ router.post(
   "/reset-password",
   [
     body("token").notEmpty().withMessage("Reset token is required"),
-    body("newPassword").isLength({ min: 6 }).withMessage("Password must be at least 6 characters"),
+    body("newPassword")
+      .isLength({ min: 6 })
+      .withMessage("Password must be at least 6 characters"),
   ],
   async (req, res) => {
     try {
       const errors = validationResult(req);
-      if (!errors.isEmpty()) return res.status(400).json({ message: errors.array()[0].msg });
+      if (!errors.isEmpty())
+        return res.status(400).json({ message: errors.array()[0].msg });
 
       const { token, newPassword } = req.body;
-      const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+      const hashedToken = crypto
+        .createHash("sha256")
+        .update(token)
+        .digest("hex");
 
       const User = getUser();
       const user = await User.findOne({
@@ -220,7 +268,12 @@ router.post(
       });
 
       if (!user) {
-        return res.status(400).json({ message: "Invalid or expired reset token. Please request a new one." });
+        return res
+          .status(400)
+          .json({
+            message:
+              "Invalid or expired reset token. Please request a new one.",
+          });
       }
 
       user.password = newPassword;
@@ -229,7 +282,12 @@ router.post(
       await user.save();
 
       logger.info("✅ Password reset successful for:", user.email);
-      res.status(200).json({ message: "Password has been reset successfully. You can now log in with your new password." });
+      res
+        .status(200)
+        .json({
+          message:
+            "Password has been reset successfully. You can now log in with your new password.",
+        });
     } catch (error) {
       logger.error("❌ Reset password error:", error);
       res.status(500).json({ message: "Server error" });

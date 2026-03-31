@@ -7,7 +7,9 @@ const auth = async (req, res, next) => {
     const token = req.header("Authorization")?.replace("Bearer ", "");
 
     if (!token) {
-      return res.status(401).json({ message: "No authentication token, access denied" });
+      return res
+        .status(401)
+        .json({ message: "No authentication token, access denied" });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -27,7 +29,15 @@ const auth = async (req, res, next) => {
     }
 
     req.user = user;
-    req.userId = userId;
+    req.userId = userId.toString();
+
+    // FIX: Explicitly set req.user.id as a plain string.
+    // groups.js and connections.js read req.user.id, while meetups.js and
+    // users.js read req.userId. The Mongoose document's virtual .id getter
+    // is not always reliable when accessed as req.user.id — setting it
+    // explicitly as a plain string guarantees all routes get a consistent
+    // non-undefined value regardless of which property they use.
+    req.user.id = userId.toString();
 
     next();
   } catch (error) {
@@ -36,7 +46,9 @@ const auth = async (req, res, next) => {
       return res.status(401).json({ message: "Invalid token" });
     }
     if (error.name === "TokenExpiredError") {
-      return res.status(401).json({ message: "Token expired, please log in again" });
+      return res
+        .status(401)
+        .json({ message: "Token expired, please log in again" });
     }
     res.status(401).json({ message: "Invalid token" });
   }
