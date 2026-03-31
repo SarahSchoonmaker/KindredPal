@@ -1,494 +1,1194 @@
-import React, { useState, useEffect, useCallback, useLayoutEffect } from "react";
+import React, {
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+  useLayoutEffect,
+} from "react";
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Alert, Modal, TextInput, KeyboardAvoidingView, Platform,
+  View,
+  ScrollView,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  Image,
+  RefreshControl,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Modal,
 } from "react-native";
-import { Avatar, Button, Divider, ActivityIndicator } from "react-native-paper";
-import { Calendar, MapPin, Users, Clock, Edit, Trash2, X } from "lucide-react-native";
+import { Text, ActivityIndicator } from "react-native-paper";
+import { MessageCircle, Lock, Globe, LogOut, Send } from "lucide-react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import * as SecureStore from "expo-secure-store";
 import api from "../services/api";
+import { groupChatAPI } from "../services/api";
 
 const BLUE = "#2B6CB0";
 
-// ── Date/time picker helper ───────────────────────────────────────────────────
-// Simple text-based input for date/time since DateTimePicker needs native module
-function DateField({ label, value, onChange }) {
+function MemberCard({
+  member,
+  isCurrentUser,
+  connectionStatus,
+  onPress,
+  onMessage,
+  onConnect,
+}) {
   return (
-    <View style={editStyles.field}>
-      <Text style={editStyles.label}>{label}</Text>
-      <TextInput
-        style={editStyles.input}
-        value={value}
-        onChangeText={onChange}
-        placeholder="YYYY-MM-DD HH:MM"
-        placeholderTextColor="#a0aec0"
+    <TouchableOpacity
+      style={styles.memberCard}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <Image
+        source={{
+          uri: member.profilePhoto || "https://via.placeholder.com/44",
+        }}
+        style={styles.memberPhoto}
       />
-    </View>
+      <View style={styles.memberInfo}>
+        <Text style={styles.memberName}>{member.name || "Member"}</Text>
+        {member.city || member.state ? (
+          <Text style={styles.memberMeta}>
+            {[member.city, member.state].filter(Boolean).join(", ")}
+          </Text>
+        ) : null}
+        {member.denomination ? (
+          <Text style={styles.memberMeta}>{member.denomination}</Text>
+        ) : null}
+      </View>
+      {!isCurrentUser && (
+        <View>
+          {connectionStatus === "accepted" ? (
+            <TouchableOpacity style={styles.btnMessage} onPress={onMessage}>
+              <MessageCircle size={16} color="white" />
+              <Text style={styles.btnMessageText}>Message</Text>
+            </TouchableOpacity>
+          ) : connectionStatus === "pending" ? (
+            <View style={styles.btnPending}>
+              <Text style={styles.btnPendingText}>Pending</Text>
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.btnConnect} onPress={onConnect}>
+              <Text style={styles.btnConnectText}>+ Connect</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+    </TouchableOpacity>
   );
 }
 
-// ── Edit Modal ────────────────────────────────────────────────────────────────
-function EditMeetupModal({ visible, meetup, onClose, onSaved }) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [dateTime, setDateTime] = useState("");
-  const [address, setAddress] = useState("");
-  const [city, setCity] = useState("");
-  const [state, setState] = useState("");
-  const [maxAttendees, setMaxAttendees] = useState("");
-  const [saving, setSaving] = useState(false);
+export default function GroupDetailScreen({ route, navigation }) {
+  const { groupId } = route.params;
 
-  // Populate fields when modal opens
-  useEffect(() => {
-    if (!meetup || !visible) return;
-    setTitle(meetup.title || "");
-    setDescription(meetup.description || "");
-    // Format dateTime to readable string for editing
-    const d = meetup.dateTime ? new Date(meetup.dateTime) : new Date();
-    const pad = n => String(n).padStart(2, "0");
-    setDateTime(
-      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-    );
-    setAddress(meetup.location?.address || "");
-    setCity(meetup.location?.city || "");
-    setState(meetup.location?.state || "");
-    setMaxAttendees(meetup.maxAttendees ? String(meetup.maxAttendees) : "");
-  }, [meetup, visible]);
-
-  const handleSave = async () => {
-    if (!title.trim()) return Alert.alert("Required", "Title is required");
-
-    // Parse dateTime string
-    let parsedDate;
-    try {
-      parsedDate = new Date(dateTime.trim());
-      if (isNaN(parsedDate.getTime())) throw new Error("Invalid date");
-    } catch {
-      return Alert.alert("Invalid Date", "Please use format: YYYY-MM-DD HH:MM");
-    }
-
-    setSaving(true);
-    try {
-      const res = await api.put(`/meetups/${meetup._id}`, {
-        title: title.trim(),
-        description: description.trim(),
-        dateTime: parsedDate.toISOString(),
-        location: {
-          address: address.trim(),
-          city: city.trim(),
-          state: state.trim(),
-        },
-        maxAttendees: maxAttendees ? parseInt(maxAttendees) : null,
-      });
-      onSaved(res.data);
-      onClose();
-    } catch (err) {
-      Alert.alert("Error", err.response?.data?.message || "Could not save changes");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <View style={editStyles.modalHeader}>
-          <Text style={editStyles.modalTitle}>Edit Meetup</Text>
-          <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <X size={22} color="#4a5568" />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView style={editStyles.modalScroll} keyboardShouldPersistTaps="handled">
-
-          <View style={editStyles.field}>
-            <Text style={editStyles.label}>Title *</Text>
-            <TextInput
-              style={editStyles.input}
-              value={title}
-              onChangeText={setTitle}
-              placeholder="Meetup title"
-              placeholderTextColor="#a0aec0"
-              maxLength={100}
-            />
-          </View>
-
-          <View style={editStyles.field}>
-            <Text style={editStyles.label}>Description</Text>
-            <TextInput
-              style={[editStyles.input, editStyles.inputMulti]}
-              value={description}
-              onChangeText={setDescription}
-              placeholder="What's this meetup about?"
-              placeholderTextColor="#a0aec0"
-              multiline
-              numberOfLines={4}
-              maxLength={500}
-            />
-          </View>
-
-          <View style={editStyles.field}>
-            <Text style={editStyles.label}>Date & Time</Text>
-            <TextInput
-              style={editStyles.input}
-              value={dateTime}
-              onChangeText={setDateTime}
-              placeholder="YYYY-MM-DD HH:MM  e.g. 2026-04-15 18:30"
-              placeholderTextColor="#a0aec0"
-            />
-            <Text style={editStyles.hint}>Format: YYYY-MM-DD HH:MM (24hr)</Text>
-          </View>
-
-          <View style={editStyles.field}>
-            <Text style={editStyles.label}>Address</Text>
-            <TextInput
-              style={editStyles.input}
-              value={address}
-              onChangeText={setAddress}
-              placeholder="Street address (optional)"
-              placeholderTextColor="#a0aec0"
-            />
-          </View>
-
-          <View style={editStyles.row}>
-            <View style={{ flex: 1 }}>
-              <Text style={editStyles.label}>City</Text>
-              <TextInput
-                style={editStyles.input}
-                value={city}
-                onChangeText={setCity}
-                placeholder="City"
-                placeholderTextColor="#a0aec0"
-              />
-            </View>
-            <View style={{ width: 80, marginLeft: 10 }}>
-              <Text style={editStyles.label}>State</Text>
-              <TextInput
-                style={editStyles.input}
-                value={state}
-                onChangeText={setState}
-                placeholder="FL"
-                placeholderTextColor="#a0aec0"
-                maxLength={2}
-                autoCapitalize="characters"
-              />
-            </View>
-          </View>
-
-          <View style={editStyles.field}>
-            <Text style={editStyles.label}>Max Attendees</Text>
-            <TextInput
-              style={[editStyles.input, { width: 100 }]}
-              value={maxAttendees}
-              onChangeText={setMaxAttendees}
-              placeholder="Unlimited"
-              placeholderTextColor="#a0aec0"
-              keyboardType="number-pad"
-              maxLength={4}
-            />
-          </View>
-
-          <View style={{ height: 20 }} />
-        </ScrollView>
-
-        <View style={editStyles.modalFooter}>
-          <TouchableOpacity style={editStyles.btnCancel} onPress={onClose}>
-            <Text style={editStyles.btnCancelText}>Cancel</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[editStyles.btnSave, saving && { opacity: 0.6 }]}
-            onPress={handleSave}
-            disabled={saving}
-          >
-            {saving
-              ? <ActivityIndicator size="small" color="white" />
-              : <Text style={editStyles.btnSaveText}>Save Changes</Text>
-            }
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
-  );
-}
-
-// ── Main Screen ───────────────────────────────────────────────────────────────
-export default function MeetupDetailsScreen({ route, navigation }) {
-  const { meetupId } = route.params;
-  const [meetup, setMeetup] = useState(null);
-  const [currentUserId, setCurrentUserId] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [rsvpLoading, setRsvpLoading] = useState(false);
-  const [showEdit, setShowEdit] = useState(false);
-
-  useEffect(() => {
-    SecureStore.getItemAsync("userId").then(id => {
-      if (id) setCurrentUserId(id);
-    });
-  }, []);
-
-  const fetchMeetupDetails = useCallback(async () => {
-    try {
-      const res = await api.get(`/meetups/${meetupId}`);
-      setMeetup(res.data);
-    } catch {
-      Alert.alert("Error", "Failed to load meetup details");
-    } finally {
-      setLoading(false);
-    }
-  }, [meetupId]);
-
-  useEffect(() => { fetchMeetupDetails(); }, [fetchMeetupDetails]);
-
-  // Force back title before first paint — prevents MainTabs flash
   useLayoutEffect(() => {
     navigation.setOptions({
       headerBackTitle: "Back",
       headerBackButtonMenuEnabled: false,
-      title: "Meetup Details",
     });
-  }, []); // empty deps — run once, before render
+  }, []);
 
-  const getUserRSVP = useCallback(() => {
-    if (!meetup || !currentUserId) return null;
-    const rsvp = meetup.rsvps.find(r => r.user._id?.toString() === currentUserId.toString());
-    return rsvp ? rsvp.status : null;
-  }, [meetup, currentUserId]);
+  const [group, setGroup] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [joining, setJoining] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState("about");
+  const [showEdit, setShowEdit] = useState(false);
+  const [editForm, setEditForm] = useState({});
+  const [editSaving, setEditSaving] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const flatListRef = useRef(null);
 
-  const handleRSVP = async (status) => {
-    if (rsvpLoading || getUserRSVP() === status) return;
-    setRsvpLoading(true);
+  // FIX: Store userId in a ref AND state. The ref is available synchronously
+  // on the render immediately after fetchGroup resolves (no async gap), while
+  // the state drives re-renders when SecureStore finishes reading.
+  const currentUserIdRef = useRef(null);
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [connectionStatuses, setConnectionStatuses] = useState({});
+
+  useEffect(() => {
+    SecureStore.getItemAsync("userId").then((id) => {
+      if (id) {
+        currentUserIdRef.current = id;
+        setCurrentUserId(id);
+      }
+    });
+  }, []);
+
+  const fetchGroup = useCallback(async () => {
     try {
-      const res = await api.post(`/meetups/${meetupId}/rsvp`, { status });
-      setMeetup(res.data);
-    } catch {
-      Alert.alert("Error", "Failed to update RSVP");
+      const res = await api.get(`/groups/${groupId}`);
+      setGroup(res.data);
+      navigation.setOptions({
+        title: res.data.name,
+        headerBackTitle: "Back",
+        headerBackButtonMenuEnabled: false,
+      });
+    } catch (err) {
+      console.error("fetchGroup error:", err);
+      Alert.alert("Error", "Could not load group");
     } finally {
-      setRsvpLoading(false);
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [groupId]);
+
+  useEffect(() => {
+    fetchGroup();
+  }, [fetchGroup]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchGroup();
+    }, [fetchGroup]),
+  );
+
+  useEffect(() => {
+    if (!group?.members?.length || !currentUserId) return;
+    const uid = currentUserId;
+    const fetchStatuses = async () => {
+      const statuses = {};
+      const others = group.members.filter(
+        (m) => (m._id?.toString() || m.toString()) !== uid,
+      );
+      await Promise.allSettled(
+        others.map(async (m) => {
+          const id = m._id?.toString() || m.toString();
+          try {
+            const res = await api.get(`/connections/status/${id}`);
+            statuses[id] = res.data?.status || "none";
+          } catch {
+            statuses[id] = "none";
+          }
+        }),
+      );
+      setConnectionStatuses(statuses);
+    };
+    fetchStatuses();
+  }, [group, currentUserId]);
+
+  useEffect(() => {
+    if (activeTab !== "chat") return;
+    setChatLoading(true);
+    groupChatAPI
+      .getMessages(groupId)
+      .then((res) => setChatMessages(res.data.messages || []))
+      .catch((err) => console.error("chat fetch error:", err))
+      .finally(() => setChatLoading(false));
+  }, [activeTab, groupId]);
+
+  const sendChatMessage = async () => {
+    const text = chatInput.trim();
+    if (!text) return;
+    setChatInput("");
+    const optimistic = {
+      _id: `opt_${Date.now()}`,
+      content: text,
+      sender: { _id: currentUserId, name: "You" },
+      createdAt: new Date().toISOString(),
+    };
+    setChatMessages((prev) => [...prev, optimistic]);
+    try {
+      await groupChatAPI.sendMessage(groupId, text);
+    } catch {
+      setChatMessages((prev) => prev.filter((m) => m._id !== optimistic._id));
+      Alert.alert("Error", "Could not send message");
     }
   };
 
-  const handleDelete = () => {
-    Alert.alert("Delete Meetup", "Are you sure you want to delete this meetup?", [
+  const handleJoin = async () => {
+    setJoining(true);
+    try {
+      await api.post(`/groups/${groupId}/join`);
+      await fetchGroup();
+      Alert.alert(
+        group?.isPrivate ? "Request Sent" : "Welcome!",
+        group?.isPrivate
+          ? "Your join request has been sent to the group admin."
+          : `You've joined ${group?.name}!`,
+      );
+    } catch (err) {
+      Alert.alert(
+        "Error",
+        err.response?.data?.message || "Could not join group",
+      );
+    } finally {
+      setJoining(false);
+    }
+  };
+
+  const handleRsvp = async (response) => {
+    try {
+      await api.post(`/groups/${groupId}/rsvp-invite`, { response });
+      if (response === "accept") {
+        await fetchGroup();
+        Alert.alert("Joined!", `You have joined ${group?.name}!`);
+      } else if (response === "maybe") {
+        await fetchGroup();
+        Alert.alert(
+          "Noted",
+          "Marked as maybe. The group admin will see your response.",
+        );
+      } else {
+        navigation.goBack();
+      }
+    } catch (err) {
+      Alert.alert(
+        "Error",
+        err.response?.data?.message ||
+          "Could not update response. Please try again.",
+      );
+    }
+  };
+
+  const handleLeave = () => {
+    Alert.alert("Leave Group", `Leave ${group?.name}?`, [
       { text: "Cancel", style: "cancel" },
       {
-        text: "Delete", style: "destructive",
+        text: "Leave",
+        style: "destructive",
         onPress: async () => {
           try {
-            await api.delete(`/meetups/${meetupId}`);
+            await api.post(`/groups/${groupId}/leave`);
             navigation.goBack();
-          } catch {
-            Alert.alert("Error", "Failed to delete meetup");
+          } catch (err) {
+            Alert.alert(
+              "Error",
+              err.response?.data?.message || "Could not leave group",
+            );
           }
         },
       },
     ]);
   };
 
-  const formatDate = d => new Date(d).toLocaleDateString("en-US", {
-    weekday: "long", month: "long", day: "numeric", year: "numeric",
-  });
+  const handleDelete = () => {
+    Alert.alert(
+      "Delete Group",
+      `Are you sure you want to delete "${group?.name}"? This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete Forever",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await api.delete(`/groups/${groupId}`);
+              navigation.goBack();
+            } catch (err) {
+              console.error(
+                "Delete error:",
+                err.response?.status,
+                err.response?.data,
+              );
+              Alert.alert(
+                "Could Not Delete",
+                err.response?.data?.message ||
+                  `Error ${err.response?.status || "unknown"}. Please try again.`,
+              );
+            }
+          },
+        },
+      ],
+    );
+  };
 
-  const formatTime = d => new Date(d).toLocaleTimeString("en-US", {
-    hour: "numeric", minute: "2-digit",
-  });
+  const handleViewProfile = (member) => {
+    const id = member._id?.toString() || member.toString();
+    if (!id || id === currentUserId) return;
+    navigation.navigate("MemberProfile", {
+      userId: id,
+      sharedGroups: [
+        { _id: group._id, name: group.name, category: group.category },
+      ],
+    });
+  };
 
-  if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color={BLUE} /></View>;
-  }
+  const handleMessage = (member) => {
+    const id = member._id?.toString() || member.toString();
+    if (!id) return;
+    navigation.navigate("Chat", {
+      match: {
+        _id: id,
+        id,
+        name: member.name || "Member",
+        profilePhoto: member.profilePhoto || null,
+      },
+    });
+  };
 
-  if (!meetup) {
-    return <View style={styles.center}><Text>Meetup not found</Text></View>;
-  }
+  const handleConnect = async (member) => {
+    const id = member._id?.toString() || member.toString();
+    if (!id) return;
+    setConnectionStatuses((prev) => ({ ...prev, [id]: "pending" }));
+    try {
+      await api.post(`/connections/request/${id}`, { message: "" });
+    } catch (err) {
+      setConnectionStatuses((prev) => ({ ...prev, [id]: "none" }));
+      Alert.alert(
+        "Error",
+        err.response?.data?.message || "Could not send request",
+      );
+    }
+  };
 
-  const isCreator = currentUserId?.toString() === meetup.creator._id?.toString();
-  const userRSVP = getUserRSVP();
-  const goingCount = meetup.rsvps.filter(r => r.status === "going").length;
-  const maybeCount = meetup.rsvps.filter(r => r.status === "maybe").length;
+  const handleOpenEdit = () => {
+    setEditForm({
+      name: group.name || "",
+      description: group.description || "",
+      category: group.category || "",
+      city: group.city || "",
+      state: group.state || "",
+      isPrivate: group.isPrivate || false,
+      isNationwide: group.isNationwide || false,
+    });
+    setShowEdit(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editForm.name?.trim())
+      return Alert.alert("Required", "Group name is required");
+    if (!editForm.description?.trim())
+      return Alert.alert("Required", "Description is required");
+    setEditSaving(true);
+    try {
+      await api.put(`/groups/${groupId}`, editForm);
+      setShowEdit(false);
+      await fetchGroup();
+      Alert.alert("Saved ✓", "Group updated successfully.");
+    } catch (err) {
+      console.error(
+        "Edit group error:",
+        err.response?.status,
+        err.response?.data,
+      );
+      Alert.alert(
+        "Error",
+        err.response?.data?.message || "Could not save changes",
+      );
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  // ── Admin / creator check ───────────────────────────────────────────────────
+  // FIX: Belt-and-suspenders — trust the server flags first, then fall back to
+  // a client-side check using the userId ref. This handles both the async timing
+  // issue AND any inconsistency in how req.user is set in the auth middleware.
+  const uid = currentUserIdRef.current || currentUserId;
+  const createdById =
+    group?.createdBy?._id?.toString() || group?.createdBy?.toString();
+  const isCreator =
+    group?.isCreator === true ||
+    (uid != null && createdById != null && uid === createdById);
+  const isAdmin =
+    group?.isAdmin === true ||
+    isCreator ||
+    (uid != null &&
+      (group?.admins || []).some(
+        (a) => (a._id?.toString() || a.toString()) === uid,
+      ));
+
+  if (loading)
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={BLUE} />
+      </View>
+    );
+  if (!group)
+    return (
+      <View style={styles.center}>
+        <Text>Group not found</Text>
+      </View>
+    );
+
+  const tabs = [
+    "about",
+    "members",
+    ...(group.isMember || isAdmin ? ["chat"] : []),
+  ];
 
   return (
-    <>
-      <ScrollView style={styles.container}>
-
+    <View style={styles.outerContainer}>
+      <ScrollView
+        style={[styles.container, activeTab === "chat" && { display: "none" }]}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              fetchGroup();
+            }}
+          />
+        }
+      >
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.headerContent}>
-            <Text style={styles.title}>{meetup.title}</Text>
-            <View style={styles.creatorRow}>
-              <Avatar.Image size={36} source={{ uri: meetup.creator.profilePhoto }} />
-              <Text style={styles.hostedBy}>Hosted by {meetup.creator.name}</Text>
-            </View>
+          <View style={styles.headerIcon}>
+            <Text style={styles.headerIconText}>👥</Text>
           </View>
-          {isCreator && (
-            <View style={styles.creatorActions}>
-              <TouchableOpacity style={styles.iconBtn} onPress={() => setShowEdit(true)}>
-                <Edit color={BLUE} size={22} />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.iconBtn} onPress={handleDelete}>
-                <Trash2 color="#E53E3E" size={22} />
-              </TouchableOpacity>
-            </View>
+          <Text style={styles.groupName}>{group.name}</Text>
+          <View style={styles.headerMeta}>
+            {group.isPrivate ? (
+              <View style={styles.metaBadge}>
+                <Lock size={12} color="#718096" />
+                <Text style={styles.metaBadgeText}>Private</Text>
+              </View>
+            ) : (
+              <View style={[styles.metaBadge, styles.metaBadgePublic]}>
+                <Globe size={12} color="#276749" />
+                <Text style={[styles.metaBadgeText, { color: "#276749" }]}>
+                  Public
+                </Text>
+              </View>
+            )}
+            <Text style={styles.categoryText}>{group.category}</Text>
+          </View>
+          {group.city ? (
+            <Text style={styles.locationText}>
+              📍 {group.city}, {group.state}
+            </Text>
+          ) : (
+            <Text style={styles.locationText}>🌍 Nationwide</Text>
           )}
         </View>
 
-        <Divider />
+        {/* Stats */}
+        <View style={styles.stats}>
+          <View style={styles.stat}>
+            <Text style={styles.statNumber}>
+              {group.members?.length || group.memberCount || 0}
+            </Text>
+            <Text style={styles.statLabel}>Members</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.stat}>
+            <Text style={styles.statNumber}>
+              {group.isPrivate ? "🔒" : "🌐"}
+            </Text>
+            <Text style={styles.statLabel}>
+              {group.isPrivate ? "Private" : "Public"}
+            </Text>
+          </View>
+        </View>
 
-        {/* Info */}
-        <View style={styles.infoSection}>
-          <View style={styles.infoCard}>
-            <Calendar color={BLUE} size={22} />
-            <View style={styles.infoText}>
-              <Text style={styles.infoLabel}>Date</Text>
-              <Text style={styles.infoValue}>{formatDate(meetup.dateTime)}</Text>
-            </View>
-          </View>
-          <View style={styles.infoCard}>
-            <Clock color={BLUE} size={22} />
-            <View style={styles.infoText}>
-              <Text style={styles.infoLabel}>Time</Text>
-              <Text style={styles.infoValue}>{formatTime(meetup.dateTime)}</Text>
-            </View>
-          </View>
-          {meetup.location && (
-            <View style={styles.infoCard}>
-              <MapPin color={BLUE} size={22} />
-              <View style={styles.infoText}>
-                <Text style={styles.infoLabel}>Location</Text>
-                {meetup.location.address ? <Text style={styles.infoValue}>{meetup.location.address}</Text> : null}
-                <Text style={styles.infoValue}>{meetup.location.city}, {meetup.location.state}</Text>
+        {/* Actions */}
+        <View style={styles.actionContainer}>
+          {isAdmin && (
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={handleOpenEdit}
+            >
+              <Text style={styles.editButtonText}>✏️ Edit Group</Text>
+            </TouchableOpacity>
+          )}
+          {isCreator && (
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={handleDelete}
+            >
+              <Text style={styles.deleteButtonText}>🗑️ Delete Group</Text>
+            </TouchableOpacity>
+          )}
+          {group.isMember ? (
+            !isCreator && (
+              <TouchableOpacity
+                style={styles.leaveButton}
+                onPress={handleLeave}
+              >
+                <LogOut size={16} color="#E53E3E" />
+                <Text style={styles.leaveButtonText}>Leave Group</Text>
+              </TouchableOpacity>
+            )
+          ) : group.isInvited ? (
+            <View style={styles.rsvpContainer}>
+              <Text style={styles.rsvpLabel}>
+                You've been invited to join this group:
+              </Text>
+              <View style={styles.rsvpRow}>
+                <TouchableOpacity
+                  style={styles.rsvpAcceptBtn}
+                  onPress={() => handleRsvp("accept")}
+                >
+                  <Text style={styles.rsvpAcceptText}>✓ Accept</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.rsvpMaybeBtn}
+                  onPress={() => handleRsvp("maybe")}
+                >
+                  <Text style={styles.rsvpMaybeText}>~ Maybe</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.rsvpDeclineBtn}
+                  onPress={() => handleRsvp("decline")}
+                >
+                  <Text style={styles.rsvpDeclineText}>✕ Can't</Text>
+                </TouchableOpacity>
               </View>
             </View>
-          )}
-          <View style={styles.infoCard}>
-            <Users color={BLUE} size={22} />
-            <View style={styles.infoText}>
-              <Text style={styles.infoLabel}>Attendees</Text>
-              <Text style={styles.infoValue}>
-                {goingCount} going, {maybeCount} maybe
-                {meetup.maxAttendees ? ` · Max: ${meetup.maxAttendees}` : ""}
+          ) : group.isPending ? (
+            <View style={styles.pendingButton}>
+              <Text style={styles.pendingButtonText}>
+                ⏳ Join Request Pending
               </Text>
             </View>
-          </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.joinButton}
+              onPress={handleJoin}
+              disabled={joining}
+            >
+              <Text style={styles.joinButtonText}>
+                {joining
+                  ? "..."
+                  : group.isPrivate
+                    ? "🔒 Request to Join"
+                    : "Join Group"}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
-        {/* Description */}
-        {meetup.description ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>About This Meetup</Text>
-            <Text style={styles.description}>{meetup.description}</Text>
-          </View>
-        ) : null}
+        {/* Tabs */}
+        <View style={styles.tabs}>
+          {tabs.map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              style={[styles.tab, activeTab === tab && styles.tabActive]}
+              onPress={() => setActiveTab(tab)}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === tab && styles.tabTextActive,
+                ]}
+              >
+                {tab === "about"
+                  ? "About"
+                  : tab === "members"
+                    ? `Members (${group.members?.length || 0})`
+                    : "💬 Chat"}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-        {/* RSVP */}
-        {!isCreator && (
-          <View style={styles.rsvpSection}>
-            <Text style={styles.sectionTitle}>Will you attend?</Text>
-            <View style={styles.rsvpRow}>
-              {[
-                { status: "going",     label: "✓ Going",    active: "#48BB78" },
-                { status: "maybe",     label: "? Maybe",    active: "#ED8936" },
-                { status: "not-going", label: "✗ Can't Go", active: "#E53E3E" },
-              ].map(({ status, label, active }) => (
-                <TouchableOpacity
-                  key={status}
-                  style={[styles.rsvpBtn, userRSVP === status && { backgroundColor: active, borderColor: active }]}
-                  onPress={() => handleRSVP(status)}
-                  disabled={rsvpLoading}
-                >
-                  <Text style={[styles.rsvpBtnText, userRSVP === status && { color: "white" }]}>{label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+        {activeTab === "about" && (
+          <View style={styles.section}>
+            <Text style={styles.description}>{group.description}</Text>
           </View>
         )}
 
-        {/* Guest list */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Guest List</Text>
-          {goingCount > 0 && (
-            <View style={styles.guestGroup}>
-              <Text style={styles.guestGroupTitle}>Going ({goingCount})</Text>
-              {meetup.rsvps.filter(r => r.status === "going").map(rsvp => (
-                <View key={rsvp.user._id} style={styles.guestRow}>
-                  <Avatar.Image size={40} source={{ uri: rsvp.user.profilePhoto }} />
-                  <Text style={styles.guestName}>{rsvp.user.name}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-          {maybeCount > 0 && (
-            <View style={styles.guestGroup}>
-              <Text style={styles.guestGroupTitle}>Maybe ({maybeCount})</Text>
-              {meetup.rsvps.filter(r => r.status === "maybe").map(rsvp => (
-                <View key={rsvp.user._id} style={styles.guestRow}>
-                  <Avatar.Image size={40} source={{ uri: rsvp.user.profilePhoto }} />
-                  <Text style={styles.guestName}>{rsvp.user.name}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-        </View>
+        {activeTab === "members" && (
+          <View style={styles.section}>
+            {(group.isMember || !group.isPrivate) &&
+            group.members?.length > 0 ? (
+              group.members.map((member) => {
+                const id = member._id?.toString() || member.toString();
+                return (
+                  <MemberCard
+                    key={id}
+                    member={member}
+                    isCurrentUser={id === currentUserId}
+                    connectionStatus={connectionStatuses[id] || "none"}
+                    onPress={() => handleViewProfile(member)}
+                    onMessage={() => handleMessage(member)}
+                    onConnect={() => handleConnect(member)}
+                  />
+                );
+              })
+            ) : (
+              <View style={styles.privateMessage}>
+                <Lock size={24} color="#718096" />
+                <Text style={styles.privateMessageText}>
+                  Join this group to see members and connect.
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
 
-        <View style={{ height: 40 }} />
+        {activeTab !== "chat" && <View style={{ height: 40 }} />}
       </ScrollView>
 
+      {/* Chat */}
+      {activeTab === "chat" && (group.isMember || isAdmin) && (
+        <KeyboardAvoidingView
+          style={styles.chatContainer}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={90}
+        >
+          <View style={styles.tabs}>
+            {tabs.map((tab) => (
+              <TouchableOpacity
+                key={tab}
+                style={[styles.tab, activeTab === tab && styles.tabActive]}
+                onPress={() => setActiveTab(tab)}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    activeTab === tab && styles.tabTextActive,
+                  ]}
+                >
+                  {tab === "about"
+                    ? "About"
+                    : tab === "members"
+                      ? `Members (${group.members?.length || 0})`
+                      : "💬 Chat"}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {chatLoading ? (
+            <View style={styles.center}>
+              <ActivityIndicator color={BLUE} />
+            </View>
+          ) : (
+            <FlatList
+              ref={flatListRef}
+              data={chatMessages}
+              keyExtractor={(item) =>
+                item._id?.toString() || Math.random().toString()
+              }
+              contentContainerStyle={styles.chatList}
+              ListEmptyComponent={
+                <View style={styles.chatEmpty}>
+                  <Text style={styles.chatEmptyText}>
+                    No messages yet — say hi! 👋
+                  </Text>
+                </View>
+              }
+              renderItem={({ item }) => {
+                const isOwn = item.sender?._id?.toString() === currentUserId;
+                return (
+                  <View style={[styles.msgRow, isOwn && styles.msgRowOwn]}>
+                    {!isOwn && (
+                      <Image
+                        source={{
+                          uri:
+                            item.sender?.profilePhoto ||
+                            "https://via.placeholder.com/28",
+                        }}
+                        style={styles.msgAvatar}
+                      />
+                    )}
+                    <View
+                      style={[
+                        styles.msgBubble,
+                        isOwn ? styles.msgBubbleOwn : styles.msgBubbleOther,
+                      ]}
+                    >
+                      {!isOwn && (
+                        <Text style={styles.msgSender}>
+                          {item.sender?.name}
+                        </Text>
+                      )}
+                      <Text
+                        style={[styles.msgText, isOwn && { color: "white" }]}
+                      >
+                        {item.content}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.msgTime,
+                          isOwn && { color: "rgba(255,255,255,0.65)" },
+                        ]}
+                      >
+                        {new Date(item.createdAt).toLocaleTimeString("en-US", {
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              }}
+            />
+          )}
+          <View style={styles.chatInputRow}>
+            <TextInput
+              style={styles.chatInput}
+              value={chatInput}
+              onChangeText={setChatInput}
+              placeholder="Message the group..."
+              placeholderTextColor="#a0aec0"
+              multiline
+              maxLength={2000}
+            />
+            <TouchableOpacity
+              style={[
+                styles.chatSendBtn,
+                !chatInput.trim() && styles.chatSendBtnDisabled,
+              ]}
+              onPress={sendChatMessage}
+              disabled={!chatInput.trim()}
+            >
+              <Send size={18} color="white" />
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      )}
+
       {/* Edit Modal */}
-      <EditMeetupModal
+      <Modal
         visible={showEdit}
-        meetup={meetup}
-        onClose={() => setShowEdit(false)}
-        onSaved={(updated) => {
-          setMeetup(updated);
-          setShowEdit(false);
-        }}
-      />
-    </>
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowEdit(false)}
+      >
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 40 : 0}
+        >
+          <View style={styles.editModalHeader}>
+            <Text style={styles.editModalTitle}>Edit Group</Text>
+            <TouchableOpacity onPress={() => setShowEdit(false)}>
+              <Text style={styles.editModalClose}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            style={styles.editModalScroll}
+            contentContainerStyle={{ paddingBottom: 20 }}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.editField}>
+              <Text style={styles.editLabel}>Group Name</Text>
+              <TextInput
+                style={styles.editInput}
+                value={editForm.name}
+                onChangeText={(v) => setEditForm((f) => ({ ...f, name: v }))}
+                placeholder="Group name"
+                placeholderTextColor="#a0aec0"
+                maxLength={100}
+              />
+            </View>
+            <View style={styles.editField}>
+              <Text style={styles.editLabel}>Description</Text>
+              <TextInput
+                style={[
+                  styles.editInput,
+                  { minHeight: 100, textAlignVertical: "top" },
+                ]}
+                value={editForm.description}
+                onChangeText={(v) =>
+                  setEditForm((f) => ({ ...f, description: v }))
+                }
+                placeholder="What is this group about?"
+                placeholderTextColor="#a0aec0"
+                multiline
+                maxLength={500}
+              />
+            </View>
+            <View style={styles.editRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.editLabel}>City</Text>
+                <TextInput
+                  style={styles.editInput}
+                  value={editForm.city}
+                  onChangeText={(v) => setEditForm((f) => ({ ...f, city: v }))}
+                  placeholder="City"
+                  placeholderTextColor="#a0aec0"
+                />
+              </View>
+              <View style={{ width: 80, marginLeft: 10 }}>
+                <Text style={styles.editLabel}>State</Text>
+                <TextInput
+                  style={styles.editInput}
+                  value={editForm.state}
+                  onChangeText={(v) => setEditForm((f) => ({ ...f, state: v }))}
+                  placeholder="FL"
+                  placeholderTextColor="#a0aec0"
+                  maxLength={2}
+                  autoCapitalize="characters"
+                />
+              </View>
+            </View>
+            <View style={styles.editField}>
+              <TouchableOpacity
+                style={[
+                  styles.editToggle,
+                  editForm.isPrivate && styles.editToggleActive,
+                ]}
+                onPress={() =>
+                  setEditForm((f) => ({ ...f, isPrivate: !f.isPrivate }))
+                }
+              >
+                <Text
+                  style={[
+                    styles.editToggleText,
+                    editForm.isPrivate && { color: "white" },
+                  ]}
+                >
+                  {editForm.isPrivate ? "🔒 Private Group" : "🌐 Public Group"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.editField}>
+              <TouchableOpacity
+                style={[
+                  styles.editToggle,
+                  editForm.isNationwide && styles.editToggleActive,
+                ]}
+                onPress={() =>
+                  setEditForm((f) => ({ ...f, isNationwide: !f.isNationwide }))
+                }
+              >
+                <Text
+                  style={[
+                    styles.editToggleText,
+                    editForm.isNationwide && { color: "white" },
+                  ]}
+                >
+                  {editForm.isNationwide ? "🌍 Nationwide" : "📍 Local Group"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              style={[
+                styles.editSaveBtn,
+                { marginTop: 16, marginBottom: 8 },
+                editSaving && { opacity: 0.6 },
+              ]}
+              onPress={handleSaveEdit}
+              disabled={editSaving}
+            >
+              <Text style={styles.editSaveBtnText}>
+                {editSaving ? "Saving..." : "Save Changes"}
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  outerContainer: { flex: 1, backgroundColor: "#F7FAFC" },
   container: { flex: 1, backgroundColor: "#F7FAFC" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", padding: 20, backgroundColor: "white" },
-  headerContent: { flex: 1 },
-  title: { fontSize: 24, fontWeight: "800", color: "#1a202c", marginBottom: 10 },
-  creatorRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  hostedBy: { fontSize: 14, color: "#718096" },
-  creatorActions: { flexDirection: "row", gap: 4, marginLeft: 8 },
-  iconBtn: { padding: 8 },
-  infoSection: { padding: 20, backgroundColor: "white", gap: 16, marginTop: 1 },
-  infoCard: { flexDirection: "row", gap: 14, alignItems: "flex-start" },
-  infoText: { flex: 1 },
-  infoLabel: { fontSize: 11, color: "#a0aec0", textTransform: "uppercase", fontWeight: "700", letterSpacing: 0.5, marginBottom: 3 },
-  infoValue: { fontSize: 15, color: "#2d3748", fontWeight: "500" },
-  section: { padding: 20, backgroundColor: "white", marginTop: 8 },
-  sectionTitle: { fontSize: 17, fontWeight: "700", color: "#1a202c", marginBottom: 14 },
+  header: {
+    alignItems: "center",
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+  },
+  headerIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "#EBF4FF",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  headerIconText: { fontSize: 28 },
+  groupName: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#1a202c",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  headerMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 6,
+  },
+  metaBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#F7FAFC",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  metaBadgePublic: { borderColor: "#276749" },
+  metaBadgeText: { fontSize: 12, color: "#718096", fontWeight: "600" },
+  categoryText: { fontSize: 13, color: "#718096" },
+  locationText: { fontSize: 13, color: "#718096" },
+  stats: {
+    flexDirection: "row",
+    backgroundColor: "white",
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+  },
+  stat: { flex: 1, alignItems: "center" },
+  statDivider: { width: 1, backgroundColor: "#E2E8F0" },
+  statNumber: { fontSize: 20, fontWeight: "700", color: "#1a202c" },
+  statLabel: { fontSize: 12, color: "#718096", marginTop: 2 },
+  actionContainer: {
+    padding: 16,
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+    gap: 10,
+  },
+  joinButton: {
+    backgroundColor: BLUE,
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: "center",
+  },
+  joinButtonText: { color: "white", fontSize: 16, fontWeight: "700" },
+  leaveButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderWidth: 1.5,
+    borderColor: "#E53E3E",
+    borderRadius: 12,
+    paddingVertical: 11,
+  },
+  leaveButtonText: { color: "#E53E3E", fontSize: 15, fontWeight: "600" },
+  pendingButton: {
+    backgroundColor: "#F7FAFC",
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  pendingButtonText: { color: "#718096", fontSize: 15 },
+  tabs: {
+    flexDirection: "row",
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
+  },
+  tabActive: { borderBottomColor: BLUE },
+  tabText: { fontSize: 13, fontWeight: "600", color: "#718096" },
+  tabTextActive: { color: BLUE },
+  section: { padding: 16 },
   description: { fontSize: 15, color: "#4a5568", lineHeight: 22 },
-  rsvpSection: { padding: 20, backgroundColor: "white", marginTop: 8 },
+  memberCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "white",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  memberPhoto: { width: 44, height: 44, borderRadius: 22, marginRight: 12 },
+  memberInfo: { flex: 1 },
+  memberName: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1a202c",
+    marginBottom: 2,
+  },
+  memberMeta: { fontSize: 12, color: "#718096" },
+  btnMessage: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: BLUE,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  btnMessageText: { color: "white", fontSize: 12, fontWeight: "700" },
+  btnConnect: {
+    backgroundColor: "#EBF4FF",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderWidth: 1.5,
+    borderColor: BLUE,
+  },
+  btnConnectText: { color: BLUE, fontSize: 12, fontWeight: "700" },
+  btnPending: {
+    backgroundColor: "#F7FAFC",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: "#CBD5E0",
+  },
+  btnPendingText: { color: "#718096", fontSize: 12, fontWeight: "600" },
+  privateMessage: { alignItems: "center", paddingVertical: 40, gap: 12 },
+  privateMessageText: { fontSize: 14, color: "#718096", textAlign: "center" },
+  chatContainer: { flex: 1, backgroundColor: "#F7FAFC" },
+  chatList: { padding: 12, flexGrow: 1 },
+  chatEmpty: { alignItems: "center", paddingTop: 60 },
+  chatEmptyText: { color: "#a0aec0", fontSize: 14 },
+  msgRow: {
+    flexDirection: "row",
+    marginBottom: 10,
+    alignItems: "flex-end",
+    gap: 8,
+  },
+  msgRowOwn: { flexDirection: "row-reverse" },
+  msgAvatar: { width: 28, height: 28, borderRadius: 14, flexShrink: 0 },
+  msgBubble: { maxWidth: "75%", borderRadius: 16, padding: 10 },
+  msgBubbleOwn: { backgroundColor: BLUE, borderBottomRightRadius: 4 },
+  msgBubbleOther: {
+    backgroundColor: "white",
+    borderBottomLeftRadius: 4,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  msgSender: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#718096",
+    marginBottom: 3,
+  },
+  msgText: { fontSize: 14, color: "#2D3748", lineHeight: 19 },
+  msgTime: { fontSize: 10, color: "#a0aec0", marginTop: 3, textAlign: "right" },
+  chatInputRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    padding: 10,
+    backgroundColor: "white",
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
+    gap: 8,
+  },
+  chatInput: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    fontSize: 14,
+    color: "#2D3748",
+    maxHeight: 100,
+    backgroundColor: "#f8fafc",
+  },
+  chatSendBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: BLUE,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  chatSendBtnDisabled: { backgroundColor: "#cbd5e0" },
+  editButton: {
+    backgroundColor: "#EBF4FF",
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#2B6CB0",
+  },
+  editButtonText: { color: "#2B6CB0", fontSize: 14, fontWeight: "700" },
+  deleteButton: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#E53E3E",
+  },
+  deleteButtonText: { color: "#E53E3E", fontSize: 14, fontWeight: "700" },
+  rsvpContainer: {},
+  rsvpLabel: {
+    fontSize: 13,
+    color: "#4a5568",
+    marginBottom: 8,
+    textAlign: "center",
+  },
   rsvpRow: { flexDirection: "row", gap: 8 },
-  rsvpBtn: { flex: 1, paddingVertical: 11, borderRadius: 10, borderWidth: 1.5, borderColor: "#e2e8f0", alignItems: "center", backgroundColor: "white" },
-  rsvpBtnText: { fontSize: 13, fontWeight: "700", color: "#4a5568" },
-  guestGroup: { marginBottom: 20 },
-  guestGroupTitle: { fontSize: 14, fontWeight: "700", color: "#718096", marginBottom: 10 },
-  guestRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 6 },
-  guestName: { fontSize: 15, fontWeight: "600", color: "#2d3748" },
-});
-
-const editStyles = StyleSheet.create({
-  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 20, borderBottomWidth: 1, borderBottomColor: "#e2e8f0" },
-  modalTitle: { fontSize: 18, fontWeight: "800", color: "#1a202c" },
-  modalScroll: { flex: 1, padding: 20 },
-  field: { marginBottom: 18 },
-  row: { flexDirection: "row", marginBottom: 18 },
-  label: { fontSize: 11, fontWeight: "700", color: "#4a5568", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 7 },
-  hint: { fontSize: 11, color: "#a0aec0", marginTop: 4 },
-  input: { backgroundColor: "#f8fafc", borderWidth: 1.5, borderColor: "#e2e8f0", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: "#1a202c" },
-  inputMulti: { minHeight: 100, textAlignVertical: "top" },
-  modalFooter: { flexDirection: "row", gap: 12, padding: 16, borderTopWidth: 1, borderTopColor: "#e2e8f0" },
-  btnCancel: { flex: 1, paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, borderColor: "#e2e8f0", alignItems: "center" },
-  btnCancelText: { fontSize: 15, fontWeight: "600", color: "#718096" },
-  btnSave: { flex: 2, paddingVertical: 14, borderRadius: 12, backgroundColor: BLUE, alignItems: "center" },
-  btnSaveText: { fontSize: 15, fontWeight: "700", color: "white" },
+  rsvpAcceptBtn: {
+    flex: 1,
+    backgroundColor: "#2B6CB0",
+    borderRadius: 10,
+    paddingVertical: 11,
+    alignItems: "center",
+  },
+  rsvpAcceptText: { color: "white", fontSize: 14, fontWeight: "700" },
+  rsvpMaybeBtn: {
+    flex: 1,
+    backgroundColor: "white",
+    borderRadius: 10,
+    paddingVertical: 11,
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#f6ad55",
+  },
+  rsvpMaybeText: { color: "#d69e2e", fontSize: 14, fontWeight: "600" },
+  rsvpDeclineBtn: {
+    flex: 1,
+    backgroundColor: "white",
+    borderRadius: 10,
+    paddingVertical: 11,
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+  },
+  rsvpDeclineText: { color: "#718096", fontSize: 14, fontWeight: "600" },
+  editModalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e2e8f0",
+  },
+  editModalTitle: { fontSize: 18, fontWeight: "800", color: "#1a202c" },
+  editModalClose: { fontSize: 15, color: "#718096", fontWeight: "600" },
+  editModalScroll: { flex: 1, padding: 20 },
+  editField: { marginBottom: 18 },
+  editRow: { flexDirection: "row", marginBottom: 18 },
+  editLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#4a5568",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    marginBottom: 7,
+  },
+  editInput: {
+    backgroundColor: "#f8fafc",
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: "#1a202c",
+  },
+  editToggle: {
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: "center",
+    backgroundColor: "white",
+  },
+  editToggleActive: { backgroundColor: "#2B6CB0", borderColor: "#2B6CB0" },
+  editToggleText: { fontSize: 15, fontWeight: "600", color: "#4a5568" },
+  editSaveBtn: {
+    backgroundColor: "#2B6CB0",
+    borderRadius: 14,
+    paddingVertical: 15,
+    alignItems: "center",
+  },
+  editSaveBtnText: { color: "white", fontSize: 16, fontWeight: "700" },
 });

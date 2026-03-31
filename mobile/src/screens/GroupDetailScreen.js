@@ -28,7 +28,6 @@ import { groupChatAPI } from "../services/api";
 
 const BLUE = "#2B6CB0";
 
-// ── MemberCard ────────────────────────────────────────────────────────────────
 function MemberCard({
   member,
   isCurrentUser,
@@ -60,7 +59,6 @@ function MemberCard({
           <Text style={styles.memberMeta}>{member.denomination}</Text>
         ) : null}
       </View>
-
       {!isCurrentUser && (
         <View>
           {connectionStatus === "accepted" ? (
@@ -83,7 +81,6 @@ function MemberCard({
   );
 }
 
-// ── Main Screen ───────────────────────────────────────────────────────────────
 export default function GroupDetailScreen({ route, navigation }) {
   const { groupId } = route.params;
 
@@ -99,28 +96,20 @@ export default function GroupDetailScreen({ route, navigation }) {
   const [joining, setJoining] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState("about");
-
-  // Edit group
   const [showEdit, setShowEdit] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [editSaving, setEditSaving] = useState(false);
-
-  // Chat
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
   const flatListRef = useRef(null);
 
-  // Connections
+  // FIX: Store userId in a ref AND state. The ref is available synchronously
+  // on the render immediately after fetchGroup resolves (no async gap), while
+  // the state drives re-renders when SecureStore finishes reading.
+  const currentUserIdRef = useRef(null);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [connectionStatuses, setConnectionStatuses] = useState({});
-
-  // FIX: Load currentUserId synchronously before anything else renders.
-  // Previously this ran in a useEffect which meant currentUserId was null
-  // during the first render after fetchGroup completed, hiding admin/delete
-  // buttons entirely because the isCreator/isAdmin checks all returned false.
-  // Using a ref lets us read it immediately in the same tick as fetchGroup.
-  const currentUserIdRef = useRef(null);
 
   useEffect(() => {
     SecureStore.getItemAsync("userId").then((id) => {
@@ -131,7 +120,6 @@ export default function GroupDetailScreen({ route, navigation }) {
     });
   }, []);
 
-  // ── Fetch group ─────────────────────────────────────────────────────────────
   const fetchGroup = useCallback(async () => {
     try {
       const res = await api.get(`/groups/${groupId}`);
@@ -153,26 +141,22 @@ export default function GroupDetailScreen({ route, navigation }) {
   useEffect(() => {
     fetchGroup();
   }, [fetchGroup]);
-
   useFocusEffect(
     useCallback(() => {
       fetchGroup();
     }, [fetchGroup]),
   );
 
-  // ── Connection statuses ─────────────────────────────────────────────────────
   useEffect(() => {
     if (!group?.members?.length || !currentUserId) return;
-
+    const uid = currentUserId;
     const fetchStatuses = async () => {
       const statuses = {};
-      const otherMembers = group.members.filter((m) => {
-        const id = m._id?.toString() || m.toString();
-        return id !== currentUserId;
-      });
-
+      const others = group.members.filter(
+        (m) => (m._id?.toString() || m.toString()) !== uid,
+      );
       await Promise.allSettled(
-        otherMembers.map(async (m) => {
+        others.map(async (m) => {
           const id = m._id?.toString() || m.toString();
           try {
             const res = await api.get(`/connections/status/${id}`);
@@ -184,20 +168,17 @@ export default function GroupDetailScreen({ route, navigation }) {
       );
       setConnectionStatuses(statuses);
     };
-
     fetchStatuses();
   }, [group, currentUserId]);
 
-  // ── Chat ────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (activeTab === "chat") {
-      setChatLoading(true);
-      groupChatAPI
-        .getMessages(groupId)
-        .then((res) => setChatMessages(res.data.messages || []))
-        .catch((err) => console.error("chat fetch error:", err))
-        .finally(() => setChatLoading(false));
-    }
+    if (activeTab !== "chat") return;
+    setChatLoading(true);
+    groupChatAPI
+      .getMessages(groupId)
+      .then((res) => setChatMessages(res.data.messages || []))
+      .catch((err) => console.error("chat fetch error:", err))
+      .finally(() => setChatLoading(false));
   }, [activeTab, groupId]);
 
   const sendChatMessage = async () => {
@@ -219,7 +200,6 @@ export default function GroupDetailScreen({ route, navigation }) {
     }
   };
 
-  // ── Join / Leave / Delete / Edit ────────────────────────────────────────────
   const handleJoin = async () => {
     setJoining(true);
     try {
@@ -289,7 +269,7 @@ export default function GroupDetailScreen({ route, navigation }) {
   const handleDelete = () => {
     Alert.alert(
       "Delete Group",
-      `Are you sure you want to delete "${group?.name}"? This cannot be undone and all members will lose access.`,
+      `Are you sure you want to delete "${group?.name}"? This cannot be undone.`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -298,9 +278,6 @@ export default function GroupDetailScreen({ route, navigation }) {
           onPress: async () => {
             try {
               await api.delete(`/groups/${groupId}`);
-              // FIX: goBack() correctly returns to GroupsScreen where
-              // useFocusEffect will fire fetchGroups and remove the soft-deleted
-              // group from the list (backend filters isActive: false).
               navigation.goBack();
             } catch (err) {
               console.error(
@@ -320,7 +297,6 @@ export default function GroupDetailScreen({ route, navigation }) {
     );
   };
 
-  // ── Member actions ──────────────────────────────────────────────────────────
   const handleViewProfile = (member) => {
     const id = member._id?.toString() || member.toString();
     if (!id || id === currentUserId) return;
@@ -338,7 +314,7 @@ export default function GroupDetailScreen({ route, navigation }) {
     navigation.navigate("Chat", {
       match: {
         _id: id,
-        id: id,
+        id,
         name: member.name || "Member",
         profilePhoto: member.profilePhoto || null,
       },
@@ -382,9 +358,6 @@ export default function GroupDetailScreen({ route, navigation }) {
     try {
       await api.put(`/groups/${groupId}`, editForm);
       setShowEdit(false);
-      // FIX: fetchGroup() after closing the modal ensures the UI reflects the
-      // saved changes. We close first so the modal dismiss animation completes
-      // before the re-render.
       await fetchGroup();
       Alert.alert("Saved ✓", "Group updated successfully.");
     } catch (err) {
@@ -402,31 +375,36 @@ export default function GroupDetailScreen({ route, navigation }) {
     }
   };
 
-  // ── Admin/creator checks ────────────────────────────────────────────────────
-  // FIX: We derive isAdmin and isCreator from the group object returned by the
-  // server (which already has isAdmin / isCreator booleans set correctly) rather
-  // than re-computing them client-side with currentUserId. The server sets these
-  // flags in GET /groups/:id so we can trust them directly. This eliminates the
-  // race where currentUserId is null on first render and the buttons are hidden.
-  const isAdmin = group?.isAdmin === true;
-  const isCreator = group?.isCreator === true;
+  // ── Admin / creator check ───────────────────────────────────────────────────
+  // FIX: Belt-and-suspenders — trust the server flags first, then fall back to
+  // a client-side check using the userId ref. This handles both the async timing
+  // issue AND any inconsistency in how req.user is set in the auth middleware.
+  const uid = currentUserIdRef.current || currentUserId;
+  const createdById =
+    group?.createdBy?._id?.toString() || group?.createdBy?.toString();
+  const isCreator =
+    group?.isCreator === true ||
+    (uid != null && createdById != null && uid === createdById);
+  const isAdmin =
+    group?.isAdmin === true ||
+    isCreator ||
+    (uid != null &&
+      (group?.admins || []).some(
+        (a) => (a._id?.toString() || a.toString()) === uid,
+      ));
 
-  // ── Render ──────────────────────────────────────────────────────────────────
-  if (loading) {
+  if (loading)
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color={BLUE} />
       </View>
     );
-  }
-
-  if (!group) {
+  if (!group)
     return (
       <View style={styles.center}>
         <Text>Group not found</Text>
       </View>
     );
-  }
 
   const tabs = [
     "about",
@@ -436,7 +414,6 @@ export default function GroupDetailScreen({ route, navigation }) {
 
   return (
     <View style={styles.outerContainer}>
-      {/* ── Scrollable content (About + Members) ── */}
       <ScrollView
         style={[styles.container, activeTab === "chat" && { display: "none" }]}
         refreshControl={
@@ -499,10 +476,8 @@ export default function GroupDetailScreen({ route, navigation }) {
           </View>
         </View>
 
-        {/* Actions: Edit / Delete / Join / Leave / RSVP */}
+        {/* Actions */}
         <View style={styles.actionContainer}>
-          {/* FIX: Use server-derived isAdmin/isCreator booleans directly.
-              No more currentUserId null-race — the server already computed these. */}
           {isAdmin && (
             <TouchableOpacity
               style={styles.editButton}
@@ -520,7 +495,6 @@ export default function GroupDetailScreen({ route, navigation }) {
             </TouchableOpacity>
           )}
           {group.isMember ? (
-            // Creator sees Leave hidden (they should delete instead), others see Leave
             !isCreator && (
               <TouchableOpacity
                 style={styles.leaveButton}
@@ -579,7 +553,7 @@ export default function GroupDetailScreen({ route, navigation }) {
           )}
         </View>
 
-        {/* Tab bar */}
+        {/* Tabs */}
         <View style={styles.tabs}>
           {tabs.map((tab) => (
             <TouchableOpacity
@@ -603,14 +577,12 @@ export default function GroupDetailScreen({ route, navigation }) {
           ))}
         </View>
 
-        {/* About tab */}
         {activeTab === "about" && (
           <View style={styles.section}>
             <Text style={styles.description}>{group.description}</Text>
           </View>
         )}
 
-        {/* Members tab */}
         {activeTab === "members" && (
           <View style={styles.section}>
             {(group.isMember || !group.isPrivate) &&
@@ -643,7 +615,7 @@ export default function GroupDetailScreen({ route, navigation }) {
         {activeTab !== "chat" && <View style={{ height: 40 }} />}
       </ScrollView>
 
-      {/* ── Chat tab ── */}
+      {/* Chat */}
       {activeTab === "chat" && (group.isMember || isAdmin) && (
         <KeyboardAvoidingView
           style={styles.chatContainer}
@@ -672,7 +644,6 @@ export default function GroupDetailScreen({ route, navigation }) {
               </TouchableOpacity>
             ))}
           </View>
-
           {chatLoading ? (
             <View style={styles.center}>
               <ActivityIndicator color={BLUE} />
@@ -763,7 +734,7 @@ export default function GroupDetailScreen({ route, navigation }) {
         </KeyboardAvoidingView>
       )}
 
-      {/* ── Edit Group Modal ── */}
+      {/* Edit Modal */}
       <Modal
         visible={showEdit}
         animationType="slide"
@@ -902,7 +873,6 @@ const styles = StyleSheet.create({
   outerContainer: { flex: 1, backgroundColor: "#F7FAFC" },
   container: { flex: 1, backgroundColor: "#F7FAFC" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-
   header: {
     alignItems: "center",
     paddingVertical: 24,
@@ -949,7 +919,6 @@ const styles = StyleSheet.create({
   metaBadgeText: { fontSize: 12, color: "#718096", fontWeight: "600" },
   categoryText: { fontSize: 13, color: "#718096" },
   locationText: { fontSize: 13, color: "#718096" },
-
   stats: {
     flexDirection: "row",
     backgroundColor: "white",
@@ -961,7 +930,6 @@ const styles = StyleSheet.create({
   statDivider: { width: 1, backgroundColor: "#E2E8F0" },
   statNumber: { fontSize: 20, fontWeight: "700", color: "#1a202c" },
   statLabel: { fontSize: 12, color: "#718096", marginTop: 2 },
-
   actionContainer: {
     padding: 16,
     backgroundColor: "white",
@@ -996,7 +964,6 @@ const styles = StyleSheet.create({
     borderColor: "#E2E8F0",
   },
   pendingButtonText: { color: "#718096", fontSize: 15 },
-
   tabs: {
     flexDirection: "row",
     backgroundColor: "white",
@@ -1013,10 +980,8 @@ const styles = StyleSheet.create({
   tabActive: { borderBottomColor: BLUE },
   tabText: { fontSize: 13, fontWeight: "600", color: "#718096" },
   tabTextActive: { color: BLUE },
-
   section: { padding: 16 },
   description: { fontSize: 15, color: "#4a5568", lineHeight: 22 },
-
   memberCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -1036,7 +1001,6 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   memberMeta: { fontSize: 12, color: "#718096" },
-
   btnMessage: {
     flexDirection: "row",
     alignItems: "center",
@@ -1065,10 +1029,8 @@ const styles = StyleSheet.create({
     borderColor: "#CBD5E0",
   },
   btnPendingText: { color: "#718096", fontSize: 12, fontWeight: "600" },
-
   privateMessage: { alignItems: "center", paddingVertical: 40, gap: 12 },
   privateMessageText: { fontSize: 14, color: "#718096", textAlign: "center" },
-
   chatContainer: { flex: 1, backgroundColor: "#F7FAFC" },
   chatList: { padding: 12, flexGrow: 1 },
   chatEmpty: { alignItems: "center", paddingTop: 60 },
@@ -1127,7 +1089,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   chatSendBtnDisabled: { backgroundColor: "#cbd5e0" },
-
   editButton: {
     backgroundColor: "#EBF4FF",
     borderRadius: 12,
@@ -1182,7 +1143,6 @@ const styles = StyleSheet.create({
     borderColor: "#e2e8f0",
   },
   rsvpDeclineText: { color: "#718096", fontSize: 14, fontWeight: "600" },
-
   editModalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
