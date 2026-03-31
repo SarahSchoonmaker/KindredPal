@@ -247,10 +247,6 @@ export default function GroupsScreen({ navigation }) {
   const [showStateList, setShowStateList] = useState(false);
   const [showDistanceList, setShowDistanceList] = useState(false);
 
-  // FIX: Keep all filter/search state in a single ref so fetchGroups can be a
-  // stable function (created once) that always reads the latest values without
-  // being recreated on every keystroke. This eliminates the stale-closure
-  // problem with useFocusEffect and the broken search debounce.
   const filtersRef = useRef({
     search: "",
     category: "All",
@@ -260,11 +256,7 @@ export default function GroupsScreen({ navigation }) {
     religion: [],
     lifeStage: [],
   });
-
-  // Mirror filter state into React state only for UI rendering.
   const [filterUI, setFilterUI] = useState({ ...filtersRef.current });
-
-  // Pending filter modal values (applied on "Apply Filters")
   const [pendingFilters, setPendingFilters] = useState({
     city: "",
     state: "",
@@ -273,17 +265,12 @@ export default function GroupsScreen({ navigation }) {
     lifeStage: [],
   });
 
-  // Update a filter value in both the ref (for fetchGroups) and UI state (for rendering)
   const setFilter = useCallback((key, value) => {
     filtersRef.current[key] = value;
     setFilterUI((prev) => ({ ...prev, [key]: value }));
   }, []);
 
-  // ── Stable fetchGroups — created once, reads latest values from filtersRef ──
-  // FIX: No dependency array variables here. All runtime values come from
-  // filtersRef.current so this function never needs to be recreated.
-  // useFocusEffect with an empty dep array now always calls the same stable
-  // function, which always has the latest filter values.
+  // Stable fetchGroups — reads from ref, never recreated
   const fetchGroups = useCallback(async (showLoader = false) => {
     if (showLoader) setLoading(true);
     try {
@@ -312,29 +299,24 @@ export default function GroupsScreen({ navigation }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []); // ← empty deps: fetchGroups is stable forever
+  }, []);
 
-  // Initial load
   useEffect(() => {
     fetchGroups(true);
   }, [fetchGroups]);
 
-  // FIX: useFocusEffect with stable fetchGroups and empty dep array means this
-  // fires on every screen focus (returning from CreateGroup, GroupDetail, etc.)
-  // and always calls the up-to-date fetch. No stale closure possible.
+  // Fires on every screen focus — catches returns from Create/Delete/Edit
   useFocusEffect(
     useCallback(() => {
       fetchGroups();
     }, [fetchGroups]),
   );
 
-  // ── Search debounce ─────────────────────────────────────────────────────────
+  // Search debounce — stable because fetchGroups never changes
   const debounceRef = useRef(null);
   const handleSearchChange = (text) => {
     setFilter("search", text);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    // FIX: fetchGroups is stable so the debounced call always references the
-    // same function — no stale closure on the search handler.
     debounceRef.current = setTimeout(() => fetchGroups(), 500);
   };
 
@@ -342,26 +324,21 @@ export default function GroupsScreen({ navigation }) {
     setFilter("search", "");
     fetchGroups();
   };
-
   const handleCategorySelect = (cat) => {
     setFilter("category", cat);
     fetchGroups();
   };
-
   const handleClearLocation = () => {
     setFilter("city", "");
     setFilter("state", "");
     setFilter("distance", "");
     fetchGroups();
   };
-
   const handleApplyFilters = () => {
-    // Copy pending filter values into the live ref and UI
     Object.entries(pendingFilters).forEach(([k, v]) => setFilter(k, v));
     setShowFilters(false);
     fetchGroups();
   };
-
   const handleClearFilters = () => {
     const empty = {
       city: "",
@@ -373,7 +350,6 @@ export default function GroupsScreen({ navigation }) {
     setPendingFilters(empty);
     Object.entries(empty).forEach(([k, v]) => setFilter(k, v));
   };
-
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchGroups();
@@ -399,7 +375,7 @@ export default function GroupsScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Location search bar */}
+      {/* Location bar */}
       <View style={styles.locationBar}>
         <View style={styles.locationBarTop}>
           <Text style={styles.locationBarLabel}>📍 Search by location</Text>
@@ -456,7 +432,6 @@ export default function GroupsScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* State dropdown */}
         {showStateList && (
           <Modal
             transparent
@@ -509,7 +484,6 @@ export default function GroupsScreen({ navigation }) {
           </Modal>
         )}
 
-        {/* Distance dropdown */}
         {showDistanceList && (
           <Modal
             transparent
@@ -587,7 +561,6 @@ export default function GroupsScreen({ navigation }) {
         <TouchableOpacity
           style={[styles.filterBtn, hasActiveFilters && styles.filterBtnActive]}
           onPress={() => {
-            // Sync pending filters from current live filters when opening modal
             setPendingFilters({
               city: filterUI.city,
               state: filterUI.state,
@@ -633,7 +606,7 @@ export default function GroupsScreen({ navigation }) {
         ))}
       </View>
 
-      {/* Group invite banner */}
+      {/* Invite banner */}
       {invitedGroups.length > 0 && (
         <View style={styles.inviteBanner}>
           <View style={styles.inviteBannerHeader}>
@@ -726,7 +699,17 @@ export default function GroupsScreen({ navigation }) {
           <GroupCard
             group={item}
             onPress={(id) =>
-              navigation.navigate("GroupDetail", { groupId: id })
+              navigation.navigate("GroupDetail", {
+                groupId: id,
+                // FIX: Pass a callback so GroupDetailScreen can optimistically
+                // remove the deleted group without waiting for useFocusEffect.
+                onDelete: (deletedId) => {
+                  setGroups((prev) => prev.filter((g) => g._id !== deletedId));
+                  setMyGroups((prev) =>
+                    prev.filter((g) => g._id !== deletedId),
+                  );
+                },
+              })
             }
           />
         )}

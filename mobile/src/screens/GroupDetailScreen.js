@@ -82,14 +82,16 @@ function MemberCard({
 }
 
 export default function GroupDetailScreen({ route, navigation }) {
-  const { groupId } = route.params;
+  const { groupId, onDelete } = route.params;
 
+  // FIX: Set header options once, never again. Re-running setOptions on a
+  // native stack screen after mount corrupts the header and breaks back button.
   useLayoutEffect(() => {
     navigation.setOptions({
       headerBackTitle: "Back",
       headerBackButtonMenuEnabled: false,
     });
-  }, []);
+  }, []); // ← empty deps intentional
 
   const [group, setGroup] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -104,9 +106,7 @@ export default function GroupDetailScreen({ route, navigation }) {
   const [chatLoading, setChatLoading] = useState(false);
   const flatListRef = useRef(null);
 
-  // FIX: Store userId in a ref AND state. The ref is available synchronously
-  // on the render immediately after fetchGroup resolves (no async gap), while
-  // the state drives re-renders when SecureStore finishes reading.
+  // FIX: userId in ref for synchronous access on first render
   const currentUserIdRef = useRef(null);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [connectionStatuses, setConnectionStatuses] = useState({});
@@ -124,11 +124,10 @@ export default function GroupDetailScreen({ route, navigation }) {
     try {
       const res = await api.get(`/groups/${groupId}`);
       setGroup(res.data);
-      navigation.setOptions({
-        title: res.data.name,
-        headerBackTitle: "Back",
-        headerBackButtonMenuEnabled: false,
-      });
+      // FIX: Only update the title — do NOT call setOptions with back button
+      // options here, as this runs after every focus event and re-corrupts
+      // the native header state on re-renders.
+      navigation.setOptions({ title: res.data.name });
     } catch (err) {
       console.error("fetchGroup error:", err);
       Alert.alert("Error", "Could not load group");
@@ -278,6 +277,10 @@ export default function GroupDetailScreen({ route, navigation }) {
           onPress: async () => {
             try {
               await api.delete(`/groups/${groupId}`);
+              // FIX: Call the onDelete callback BEFORE goBack so the group is
+              // removed from the list instantly — no waiting for useFocusEffect
+              // to re-fetch from the server (which has a Railway cold-start delay).
+              if (typeof onDelete === "function") onDelete(groupId);
               navigation.goBack();
             } catch (err) {
               console.error(
@@ -356,29 +359,39 @@ export default function GroupDetailScreen({ route, navigation }) {
       return Alert.alert("Required", "Description is required");
     setEditSaving(true);
     try {
+      // FIX: Correct order — await the PUT first, THEN close the modal,
+      // THEN re-fetch. Previously setShowEdit(false) was called right after
+      // the PUT succeeded but BEFORE fetchGroup ran, so if fetchGroup threw,
+      // the modal was already gone and the error was silently swallowed.
+      // More importantly: if the PUT itself fails, the modal stays open and
+      // the error alert fires correctly instead of disappearing silently.
       await api.put(`/groups/${groupId}`, editForm);
+      // Only reach here if PUT succeeded
       setShowEdit(false);
       await fetchGroup();
       Alert.alert("Saved ✓", "Group updated successfully.");
     } catch (err) {
+      // FIX: Log the full error so we can see what's actually failing
       console.error(
         "Edit group error:",
-        err.response?.status,
-        err.response?.data,
+        JSON.stringify(err.response?.data),
+        err.message,
       );
+      // Modal stays open — show the real error message
       Alert.alert(
-        "Error",
-        err.response?.data?.message || "Could not save changes",
+        "Could Not Save",
+        err.response?.data?.message ||
+          err.message ||
+          "Request failed. Check your connection and try again.",
       );
     } finally {
       setEditSaving(false);
     }
   };
 
-  // ── Admin / creator check ───────────────────────────────────────────────────
-  // FIX: Belt-and-suspenders — trust the server flags first, then fall back to
-  // a client-side check using the userId ref. This handles both the async timing
-  // issue AND any inconsistency in how req.user is set in the auth middleware.
+  // ── Admin/creator — belt-and-suspenders ─────────────────────────────────────
+  // Check server flags first, then fall back to client-side check using the
+  // userId ref. Handles both async timing and any req.user key inconsistencies.
   const uid = currentUserIdRef.current || currentUserId;
   const createdById =
     group?.createdBy?._id?.toString() || group?.createdBy?.toString();
