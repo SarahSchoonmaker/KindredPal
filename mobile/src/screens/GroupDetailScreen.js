@@ -150,8 +150,8 @@ export default function GroupDetailScreen({ route, navigation }) {
   // On re-focus: silent refresh only if group already loaded
   useFocusEffect(
     useCallback(() => {
-      if (!loading) fetchGroup();
-    }, [fetchGroup, loading]),
+      fetchGroup();
+    }, [fetchGroup]),
   );
 
   // ── Fetch connection statuses after group + currentUserId are both ready ──
@@ -268,10 +268,7 @@ export default function GroupDetailScreen({ route, navigation }) {
         onPress: async () => {
           try {
             await api.post(`/groups/${groupId}/leave`);
-            navigation.navigate("MainTabs", {
-              screen: "Groups",
-              params: { refresh: Date.now() },
-            });
+            navigation.goBack();
           } catch (err) {
             Alert.alert(
               "Error",
@@ -295,11 +292,7 @@ export default function GroupDetailScreen({ route, navigation }) {
           onPress: async () => {
             try {
               await api.delete(`/groups/${groupId}`);
-              // Navigate immediately — don't wait for user to tap OK
-              navigation.navigate("MainTabs", {
-                screen: "Groups",
-                params: { refresh: Date.now() },
-              });
+              navigation.goBack();
             } catch (err) {
               console.error(
                 "Delete error:",
