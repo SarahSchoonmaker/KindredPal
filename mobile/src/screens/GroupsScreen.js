@@ -322,10 +322,26 @@ export default function GroupsScreen({ navigation, route }) {
   };
 
   // On re-focus: always refetch — handles returning from CreateGroup, Leave, Delete
+  // fetchGroupsRef always points to latest fetchGroups, avoiding stale closure
+  const fetchGroupsRef = React.useRef(fetchGroups);
+  useEffect(() => {
+    fetchGroupsRef.current = fetchGroups;
+  }, [fetchGroups]);
+
+  // On re-focus: always runs and always calls the latest fetchGroups
   useFocusEffect(
     useCallback(() => {
-      fetchGroups();
+      fetchGroupsRef.current();
     }, []),
+  );
+
+  // Switch to My Groups tab after returning from CreateGroup
+  useFocusEffect(
+    useCallback(() => {
+      if (route?.params?.switchToMy) {
+        setActiveTab("my");
+      }
+    }, [route?.params?.switchToMy]),
   );
 
   // Refresh when navigated back with refresh param (after create/delete/leave)
