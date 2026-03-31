@@ -63,6 +63,7 @@ router.get("/test/databases", async (req, res) => {
   }
 });
 
+// ===== DEBUG: See exactly what's stored for current user + state mismatches =====
 router.get("/debug/discover", auth, async (req, res) => {
   try {
     const currentUser = await User.findById(req.userId)
@@ -133,12 +134,18 @@ router.get("/discover", auth, async (req, res) => {
   try {
     console.log("\n===== DISCOVER CALLED =====");
     console.log("User ID:", req.userId);
+    console.log("Query params:", req.query);
 
     const currentUser = await User.findById(req.userId)
       .select(
         "_id email city state latitude longitude locationPreference filterPoliticalBeliefs filterReligions filterLifeStages matches likes passed blockedUsers",
       )
       .lean();
+
+    console.log(
+      "Current user found:",
+      currentUser ? currentUser.email : "NOT FOUND",
+    );
 
     if (!currentUser) {
       return res.status(404).json({ message: "User not found" });
@@ -148,6 +155,7 @@ router.get("/discover", auth, async (req, res) => {
       req.query.locationPreference ||
       currentUser.locationPreference ||
       "Same state";
+
     const filterPolitical = req.query.filterPoliticalBeliefs
       ? JSON.parse(req.query.filterPoliticalBeliefs)
       : currentUser.filterPoliticalBeliefs || [];
@@ -166,7 +174,10 @@ router.get("/discover", auth, async (req, res) => {
       ...(currentUser.blockedUsers || []),
     ];
 
-    let query = { _id: { $nin: excludedIds }, isDeleted: { $ne: true } };
+    let query = {
+      _id: { $nin: excludedIds },
+      isDeleted: { $ne: true },
+    };
 
     const needsDistanceCalc = locationPref.includes("miles");
 
@@ -189,12 +200,15 @@ router.get("/discover", auth, async (req, res) => {
       }
     }
 
-    if (filterPolitical && filterPolitical.length > 0)
+    if (filterPolitical && filterPolitical.length > 0) {
       query.politicalBeliefs = { $in: filterPolitical };
-    if (filterReligions && filterReligions.length > 0)
+    }
+    if (filterReligions && filterReligions.length > 0) {
       query.religion = { $in: filterReligions };
-    if (filterLifeStages && filterLifeStages.length > 0)
+    }
+    if (filterLifeStages && filterLifeStages.length > 0) {
       query.lifeStage = { $in: filterLifeStages };
+    }
 
     let users = await User.find(query)
       .select(
@@ -205,8 +219,9 @@ router.get("/discover", auth, async (req, res) => {
     if (needsDistanceCalc) {
       const miles = parseInt(locationPref.match(/\d+/)[0]);
       if (!currentUser.latitude || !currentUser.longitude) {
-        if (currentUser.state)
+        if (currentUser.state) {
           users = users.filter((u) => u.state === currentUser.state);
+        }
       } else {
         users = users.filter((user) => {
           if (!user.latitude || !user.longitude) return false;
@@ -329,7 +344,7 @@ router.post("/pass/:userId", auth, async (req, res) => {
   }
 });
 
-// ===== CLEAR PASSED =====
+// ===== CLEAR PASSED (for testing / admin reset) =====
 router.delete("/passed", auth, async (req, res) => {
   try {
     await User.findByIdAndUpdate(req.userId, { $set: { passed: [] } });
@@ -431,8 +446,9 @@ router.put("/profile", auth, async (req, res) => {
     allowedUpdates.forEach((field) => {
       if (updates[field] === undefined) return;
       let val = updates[field];
-      if (STRING_FIELDS.includes(field) && Array.isArray(val))
+      if (STRING_FIELDS.includes(field) && Array.isArray(val)) {
         val = val[0] ?? "";
+      }
       filteredUpdates[field] = val;
     });
 
@@ -544,11 +560,9 @@ router.post("/:userId/report", auth, async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     if (userId === req.userId)
       return res.status(400).json({ message: "You cannot report yourself" });
-    res
-      .status(200)
-      .json({
-        message: "Thank you for your report. Our team will review it shortly.",
-      });
+    res.status(200).json({
+      message: "Thank you for your report. Our team will review it shortly.",
+    });
   } catch (error) {
     logger.error("❌ Report user error:", error);
     res.status(500).json({ message: "Error reporting user" });
@@ -636,9 +650,7 @@ router.post("/push-token", auth, async (req, res) => {
 // ===== GET ALL BADGE COUNTS =====
 router.get("/counts", auth, async (req, res) => {
   try {
-    // Normalize userId — this route is accessed by mobile which may use
-    // either req.userId or req.user.id depending on middleware version
-    const userId = req.userId || req.user?.id;
+    const userId = req.user.id;
 
     const unread = await Message.countDocuments({
       recipientId: userId,
@@ -664,7 +676,7 @@ router.get("/counts", auth, async (req, res) => {
       .lean();
 
     const Connection = require("../models/Connection");
-    // FIX: Connection model uses field "to" for the recipient, not "recipient"
+    // FIX: Connection model uses field "to" for recipient, not "recipient"
     const requestCount = await Connection.countDocuments({
       to: userId,
       status: "pending",
