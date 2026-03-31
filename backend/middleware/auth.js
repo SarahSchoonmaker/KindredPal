@@ -29,15 +29,7 @@ const auth = async (req, res, next) => {
     }
 
     req.user = user;
-    req.userId = userId.toString();
-
-    // FIX: Explicitly set req.user.id as a plain string.
-    // groups.js and connections.js read req.user.id, while meetups.js and
-    // users.js read req.userId. The Mongoose document's virtual .id getter
-    // is not always reliable when accessed as req.user.id — setting it
-    // explicitly as a plain string guarantees all routes get a consistent
-    // non-undefined value regardless of which property they use.
-    req.user.id = userId.toString();
+    req.userId = userId;
 
     next();
   } catch (error) {
