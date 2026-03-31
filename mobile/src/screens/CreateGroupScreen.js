@@ -51,6 +51,7 @@ export default function CreateGroupScreen({ navigation }) {
   const [isNationwide, setIsNationwide] = useState(false);
   const [isPrivate, setIsPrivate] = useState(false);
   const [saving, setSaving] = useState(false);
+  const scrollRef = useRef(null);
 
   const handleCreate = async () => {
     if (!name.trim())
@@ -58,12 +59,11 @@ export default function CreateGroupScreen({ navigation }) {
     if (!description.trim())
       return Alert.alert("Required", "Please enter a description");
     if (!category) return Alert.alert("Required", "Please select a category");
-    if (!isNationwide && (!city.trim() || !state.trim())) {
+    if (!isNationwide && (!city.trim() || !state.trim()))
       return Alert.alert(
         "Required",
         "Please enter a city and state, or mark as Nationwide",
       );
-    }
 
     setSaving(true);
     try {
@@ -78,22 +78,33 @@ export default function CreateGroupScreen({ navigation }) {
       });
       const newGroupId = res.data._id;
 
-      // FIX: Use replace() instead of goBack() + navigate() which races and breaks
-      // on mobile. replace() atomically swaps CreateGroup → GroupDetail in the stack
-      // so the back button from GroupDetail correctly returns to the Groups tab,
-      // and useFocusEffect on GroupsScreen fires on that return to refresh the list.
       Alert.alert(
         "Group Created! 🎉",
         "Your group has been created successfully.",
         [
           {
             text: "View Group",
-            onPress: () =>
-              navigation.replace("GroupDetail", { groupId: newGroupId }),
+            onPress: () => {
+              // FIX: Use a two-step navigation:
+              // 1. goBack() returns to the Groups tab screen, which triggers
+              //    useFocusEffect → fetchGroups() so the new group appears
+              //    in both My Groups tab and Discover immediately.
+              // 2. Then navigate to GroupDetail so user can see their new group.
+              // We do step 2 in a setTimeout so goBack() finishes animating
+              // before we push GroupDetail — otherwise the stack gets confused.
+              navigation.goBack();
+              setTimeout(() => {
+                navigation.navigate("GroupDetail", { groupId: newGroupId });
+              }, 350);
+            },
           },
           {
             text: "Back to Groups",
-            onPress: () => navigation.goBack(),
+            onPress: () => {
+              // FIX: goBack() returns to GroupsScreen and triggers
+              // useFocusEffect which calls fetchGroups() — new group appears.
+              navigation.goBack();
+            },
           },
         ],
       );
@@ -106,8 +117,6 @@ export default function CreateGroupScreen({ navigation }) {
       setSaving(false);
     }
   };
-
-  const scrollRef = useRef(null);
 
   return (
     <KeyboardAvoidingView
@@ -314,7 +323,6 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     lineHeight: 20,
   },
-
   field: { marginBottom: 20 },
   label: { fontSize: 15, fontWeight: "600", color: "#4A5568", marginBottom: 8 },
   input: {
@@ -333,7 +341,6 @@ const styles = StyleSheet.create({
     textAlign: "right",
     marginTop: 4,
   },
-
   toggleRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -346,11 +353,9 @@ const styles = StyleSheet.create({
   },
   toggleLabel: { fontSize: 15, fontWeight: "600", color: "#2D3748" },
   toggleHint: { fontSize: 12, color: "#718096", marginTop: 2, maxWidth: 220 },
-
   locationRow: { flexDirection: "row", gap: 10, marginTop: 10 },
   cityInput: { flex: 2 },
   stateInput: { flex: 1 },
-
   createButton: {
     backgroundColor: "#2B6CB0",
     borderRadius: 10,
@@ -360,7 +365,6 @@ const styles = StyleSheet.create({
   },
   createButtonDisabled: { opacity: 0.6 },
   createButtonText: { color: "white", fontSize: 16, fontWeight: "700" },
-
   categoryDropdown: {
     flexDirection: "row",
     alignItems: "center",
@@ -372,21 +376,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 15,
   },
-  categoryDropdownText: {
-    fontSize: 15,
-    color: "#2D3748",
-    flex: 1,
-  },
-  categoryDropdownArrow: {
-    fontSize: 18,
-    color: "#718096",
-    marginLeft: 8,
-  },
-
-  pickerModal: {
-    flex: 1,
-    backgroundColor: "white",
-  },
+  categoryDropdownText: { fontSize: 15, color: "#2D3748", flex: 1 },
+  categoryDropdownArrow: { fontSize: 18, color: "#718096", marginLeft: 8 },
+  pickerModal: { flex: 1, backgroundColor: "white" },
   pickerHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -397,16 +389,8 @@ const styles = StyleSheet.create({
     borderBottomColor: "#E2E8F0",
     backgroundColor: "white",
   },
-  pickerTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#1a202c",
-  },
-  pickerCancel: {
-    fontSize: 16,
-    color: "#2B6CB0",
-    fontWeight: "600",
-  },
+  pickerTitle: { fontSize: 18, fontWeight: "800", color: "#1a202c" },
+  pickerCancel: { fontSize: 16, color: "#2B6CB0", fontWeight: "600" },
   pickerItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -415,18 +399,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     backgroundColor: "white",
   },
-  pickerItemActive: {
-    backgroundColor: "#EBF4FF",
-  },
-  pickerItemText: {
-    fontSize: 16,
-    color: "#2D3748",
-    flex: 1,
-  },
-  pickerItemTextActive: {
-    color: "#2B6CB0",
-    fontWeight: "700",
-  },
+  pickerItemActive: { backgroundColor: "#EBF4FF" },
+  pickerItemText: { fontSize: 16, color: "#2D3748", flex: 1 },
+  pickerItemTextActive: { color: "#2B6CB0", fontWeight: "700" },
   pickerCheck: {
     fontSize: 18,
     color: "#2B6CB0",

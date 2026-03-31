@@ -23,7 +23,7 @@ export default function MeetupsScreen({ navigation, route }) {
   const [groupInvites, setGroupInvites] = useState([]);
   const [myGroups, setMyGroups] = useState([]);
 
-  const fetchMeetups = useCallback(async () => {
+  const fetchAll = useCallback(async () => {
     try {
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error("Request timeout")), 10000),
@@ -31,6 +31,8 @@ export default function MeetupsScreen({ navigation, route }) {
       const [response, invitesRes, myGroupsRes] = await Promise.all([
         Promise.race([api.get("/meetups"), timeoutPromise]),
         api.get("/groups/my-invites").catch(() => ({ data: { groups: [] } })),
+        // FIX: Always re-fetch myGroups on every call so the widget updates
+        // when the user creates a group and navigates to the Meetups tab.
         api.get("/groups/my").catch(() => ({ data: { groups: [] } })),
       ]);
       const data = response.data || [];
@@ -38,7 +40,7 @@ export default function MeetupsScreen({ navigation, route }) {
       setGroupInvites(invitesRes.data.groups || []);
       setMyGroups(myGroupsRes.data.groups || []);
 
-      // ✅ Per-user scoped seen tracking — prevents cross-user bleed on shared devices
+      // Per-user scoped seen tracking
       const userId = await SecureStore.getItemAsync("userId");
       if (userId) {
         const seenKey = `seen_meetups_${userId}`;
@@ -55,48 +57,45 @@ export default function MeetupsScreen({ navigation, route }) {
 
   // Load on mount
   useEffect(() => {
-    fetchMeetups();
-  }, [fetchMeetups]);
+    fetchAll();
+  }, [fetchAll]);
 
-  // Refresh on re-focus (e.g. after delete) without wipe
+  // FIX: Re-fetch every time this tab gets focus so My Groups widget stays
+  // current after the user creates/joins/leaves a group in the Groups tab.
   useFocusEffect(
     useCallback(() => {
-      fetchMeetups();
-    }, [fetchMeetups]),
+      fetchAll();
+    }, [fetchAll]),
   );
 
-  // Refresh when navigating back with refresh param (after delete)
+  // Refresh when navigated back with refresh param
   useEffect(() => {
-    if (route?.params?.refresh) {
-      fetchMeetups();
-    }
+    if (route?.params?.refresh) fetchAll();
   }, [route?.params?.refresh]);
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
+  const formatDate = (dateString) =>
+    new Date(dateString).toLocaleDateString("en-US", {
       weekday: "short",
       month: "short",
       day: "numeric",
     });
-  };
 
-  const formatTime = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString("en-US", {
+  const formatTime = (dateString) =>
+    new Date(dateString).toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",
     });
-  };
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    fetchMeetups();
-  }, [fetchMeetups]);
+    fetchAll();
+  }, [fetchAll]);
 
   const renderMeetup = ({ item }) => {
     const goingCount =
       item.rsvps?.filter((r) => r.status === "going").length || 0;
+    // +1 for organizer who is always going
+    const totalGoing = goingCount + 1;
     return (
       <TouchableOpacity
         onPress={() =>
@@ -109,7 +108,7 @@ export default function MeetupsScreen({ navigation, route }) {
               <Text style={styles.title}>{item.title}</Text>
               <View style={styles.attendeeCount}>
                 <Users color="#2B6CB0" size={16} />
-                <Text style={styles.attendeeText}>{goingCount} going</Text>
+                <Text style={styles.attendeeText}>{totalGoing} going</Text>
               </View>
             </View>
             <View style={styles.details}>
@@ -197,6 +196,7 @@ export default function MeetupsScreen({ navigation, route }) {
                       setGroupInvites((prev) =>
                         prev.filter((x) => x._id !== g._id),
                       );
+                      fetchAll();
                     } catch (err) {
                       Alert.alert(
                         "Error",
@@ -243,14 +243,12 @@ export default function MeetupsScreen({ navigation, route }) {
         </View>
       )}
 
-      {/* My Groups section */}
+      {/* My Groups widget */}
       {myGroups.length > 0 && (
         <View style={styles.myGroupsSection}>
           <View style={styles.myGroupsHeader}>
             <Text style={styles.myGroupsTitle}>My Groups</Text>
-            <TouchableOpacity
-              onPress={() => navigation.navigate("Groups", { tab: "my" })}
-            >
+            <TouchableOpacity onPress={() => navigation.navigate("Groups")}>
               <Text style={styles.viewAllBtn}>View all →</Text>
             </TouchableOpacity>
           </View>
@@ -280,7 +278,7 @@ export default function MeetupsScreen({ navigation, route }) {
         </View>
       )}
 
-      {/* Meetups section */}
+      {/* Meetups list */}
       <View style={styles.meetupsSectionHeader}>
         <Text style={styles.meetupsSectionTitle}>Meetups</Text>
       </View>
@@ -304,6 +302,7 @@ export default function MeetupsScreen({ navigation, route }) {
           }
         />
       )}
+
       <FAB
         icon="plus"
         style={styles.fab}
@@ -313,7 +312,7 @@ export default function MeetupsScreen({ navigation, route }) {
       <CreateMeetupModal
         visible={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        onSuccess={fetchMeetups}
+        onSuccess={fetchAll}
       />
     </View>
   );
@@ -371,8 +370,6 @@ const styles = StyleSheet.create({
     bottom: 16,
     backgroundColor: "#2B6CB0",
   },
-
-  // My Groups section
   myGroupsSection: {
     backgroundColor: "white",
     borderRadius: 16,
@@ -411,8 +408,6 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   meetupsSectionTitle: { fontSize: 17, fontWeight: "700", color: "#1a202c" },
-
-  // Group invite banner
   inviteBanner: {
     backgroundColor: "#fffbeb",
     borderWidth: 1.5,
