@@ -35,7 +35,7 @@ const app = express();
 // Trust Railway proxy for rate limiting
 app.set("trust proxy", 1);
 
-// ===== CORS (must be before Helmet and all routes) =====
+// ===== CORS =====
 const allowedOrigins = [
   "https://kindredpal-production.up.railway.app",
   "https://kindredpal.com",
@@ -47,10 +47,8 @@ const allowedOrigins = [
   "http://localhost:19006",
 ];
 
-// Handle preflight explicitly before everything else
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-
   if (!origin || allowedOrigins.includes(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin || "*");
     res.setHeader(
@@ -63,19 +61,13 @@ app.use((req, res, next) => {
     );
     res.setHeader("Access-Control-Allow-Credentials", "true");
   }
-
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
-
+  if (req.method === "OPTIONS") return res.status(200).end();
   next();
 });
 
 const corsOptions = {
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
     logger.error("🚫 Blocked origin:", origin);
     callback(
       new Error(`CORS policy does not allow access from origin: ${origin}`),
@@ -117,11 +109,8 @@ app.use(
   }),
 );
 
-// Body parser with size limits
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
-
-// MongoDB injection protection
 app.use(mongoSanitize());
 
 // ===== RATE LIMITING =====
@@ -132,7 +121,6 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
-    // Skip rate limiting for authenticated group/connection polling routes
     const pollingPaths = [
       "/api/groups/my",
       "/api/groups/my-invites",
@@ -146,7 +134,7 @@ app.use("/api/", limiter);
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: process.env.NODE_ENV === "production" ? 10 : 100, // Relaxed in dev
+  max: process.env.NODE_ENV === "production" ? 10 : 100,
   message: "Too many login attempts, please try again later.",
   skipSuccessfulRequests: true,
 });
@@ -168,26 +156,52 @@ const io = new Server(server, {
   pingInterval: 25000,
 });
 
+// FIX: The original cache header applied to ALL GET requests including
+// /groups/my, /groups/my-invites, and /users/counts — causing mobile to
+// receive stale cached responses for up to 5 minutes after creating,
+// joining, or deleting a group. This is why newly created groups on mobile
+// never appeared in My Groups: the GET /groups/my response was cached from
+// before the group existed.
+//
+// Fix: only cache truly static/public endpoints. Never cache personal data
+// endpoints that are user-specific and must reflect writes immediately.
 app.use((req, res, next) => {
-  if (req.method === "GET" && !req.path.includes("/messages")) {
-    res.set("Cache-Control", "public, max-age=300");
+  if (req.method !== "GET") return next();
+
+  // Never cache these — they are user-specific and must be fresh after writes
+  const noCachePaths = [
+    "/api/groups/my",
+    "/api/groups/my-invites",
+    "/api/users/counts",
+    "/api/connections",
+    "/api/meetups",
+    "/api/messages",
+  ];
+
+  const isNoCache = noCachePaths.some((p) => req.path.startsWith(p));
+
+  if (isNoCache) {
+    // Tell all caches (browser, CDN, proxy) never to store this response
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+    res.set("Pragma", "no-cache");
+  } else if (!req.path.includes("/messages")) {
+    // Public group listings, discover, etc. — fine to cache briefly
+    res.set("Cache-Control", "public, max-age=60");
   }
+
   next();
 });
 
-// Socket.io connection handling
+// Socket.io
 const userSockets = new Map();
 
 io.on("connection", (socket) => {
   logger.info("🔌 Socket connected:", socket.id);
 
   socket.on("user-online", (userId) => {
-    if (!userId || typeof userId !== "string") {
-      logger.info("⚠️ Invalid userId in user-online event");
-      return;
-    }
+    if (!userId || typeof userId !== "string") return;
     userSockets.set(userId, socket.id);
-    socket.join(userId); // ✅ Join room named by userId so io.to(userId).emit() works
+    socket.join(userId);
     logger.info(`👤 User ${userId} is now online (socket: ${socket.id})`);
     socket.broadcast.emit("user-status-change", { userId, status: "online" });
   });
@@ -283,17 +297,15 @@ mongoose
     process.exit(1);
   });
 
-mongoose.connection.on("disconnected", () => {
-  logger.info("⚠️ MongoDB disconnected - attempting reconnect...");
-});
-
-mongoose.connection.on("error", (err) => {
-  logger.error("❌ MongoDB error:", err);
-});
-
-mongoose.connection.on("reconnected", () => {
-  logger.info("✅ MongoDB reconnected successfully");
-});
+mongoose.connection.on("disconnected", () =>
+  logger.info("⚠️ MongoDB disconnected - attempting reconnect..."),
+);
+mongoose.connection.on("error", (err) =>
+  logger.error("❌ MongoDB error:", err),
+);
+mongoose.connection.on("reconnected", () =>
+  logger.info("✅ MongoDB reconnected successfully"),
+);
 
 // ===== SERVER STARTUP =====
 const PORT = process.env.PORT || 5000;
