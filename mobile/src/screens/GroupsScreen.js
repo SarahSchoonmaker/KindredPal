@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import {
   View,
   ScrollView,
@@ -6,7 +6,6 @@ import {
   StyleSheet,
   RefreshControl,
   TextInput,
-  Image,
   FlatList,
   Modal,
   Alert,
@@ -237,42 +236,66 @@ function GroupCard({ group, onPress }) {
   );
 }
 
-export default function GroupsScreen({ navigation, route }) {
+export default function GroupsScreen({ navigation }) {
   const [groups, setGroups] = useState([]);
   const [myGroups, setMyGroups] = useState([]);
   const [invitedGroups, setInvitedGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
   const [activeTab, setActiveTab] = useState("discover");
   const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState({
+  const [showStateList, setShowStateList] = useState(false);
+  const [showDistanceList, setShowDistanceList] = useState(false);
+
+  // FIX: Keep all filter/search state in a single ref so fetchGroups can be a
+  // stable function (created once) that always reads the latest values without
+  // being recreated on every keystroke. This eliminates the stale-closure
+  // problem with useFocusEffect and the broken search debounce.
+  const filtersRef = useRef({
+    search: "",
+    category: "All",
     city: "",
     state: "",
     distance: "",
     religion: [],
     lifeStage: [],
   });
-  const [locationCity, setLocationCity] = useState("");
-  const [locationState, setLocationState] = useState("");
-  const [locationDistance, setLocationDistance] = useState("");
-  const [showStateList, setShowStateList] = useState(false);
-  const [showDistanceList, setShowDistanceList] = useState(false);
 
-  const fetchGroups = useCallback(async () => {
+  // Mirror filter state into React state only for UI rendering.
+  const [filterUI, setFilterUI] = useState({ ...filtersRef.current });
+
+  // Pending filter modal values (applied on "Apply Filters")
+  const [pendingFilters, setPendingFilters] = useState({
+    city: "",
+    state: "",
+    distance: "",
+    religion: [],
+    lifeStage: [],
+  });
+
+  // Update a filter value in both the ref (for fetchGroups) and UI state (for rendering)
+  const setFilter = useCallback((key, value) => {
+    filtersRef.current[key] = value;
+    setFilterUI((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
+  // ── Stable fetchGroups — created once, reads latest values from filtersRef ──
+  // FIX: No dependency array variables here. All runtime values come from
+  // filtersRef.current so this function never needs to be recreated.
+  // useFocusEffect with an empty dep array now always calls the same stable
+  // function, which always has the latest filter values.
+  const fetchGroups = useCallback(async (showLoader = false) => {
+    if (showLoader) setLoading(true);
     try {
+      const f = filtersRef.current;
       const params = {};
-      if (selectedCategory !== "All") params.category = selectedCategory;
-      if (search) params.search = search;
-      const activeCity = locationCity.trim() || filters.city;
-      const activeState = locationState.trim() || filters.state;
-      const activeDist = locationDistance || filters.distance;
-      if (activeCity) params.city = activeCity;
-      if (activeState) params.state = activeState;
-      if (activeDist) params.distance = activeDist;
-      if (filters.religion?.length) params.religion = filters.religion;
-      if (filters.lifeStage?.length) params.lifeStage = filters.lifeStage;
+      if (f.category !== "All") params.category = f.category;
+      if (f.search) params.search = f.search;
+      if (f.city) params.city = f.city;
+      if (f.state) params.state = f.state;
+      if (f.distance) params.distance = f.distance;
+      if (f.religion?.length) params.religion = f.religion;
+      if (f.lifeStage?.length) params.lifeStage = f.lifeStage;
 
       const [discoverRes, myRes, invitesRes] = await Promise.all([
         api.get("/groups", { params: { ...params, limit: 100 } }),
@@ -289,46 +312,79 @@ export default function GroupsScreen({ navigation, route }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [
-    selectedCategory,
-    search,
-    locationCity,
-    locationState,
-    locationDistance,
-    filters,
-  ]);
+  }, []); // ← empty deps: fetchGroups is stable forever
 
-  // Load on mount
+  // Initial load
   useEffect(() => {
-    fetchGroups();
+    fetchGroups(true);
   }, [fetchGroups]);
 
-  // Debounced search
-  const searchDebounceRef = React.useRef(null);
-  const handleSearchChange = (text) => {
-    setSearch(text);
-    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    searchDebounceRef.current = setTimeout(() => fetchGroups(), 500);
-  };
-
-  // KEY FIX: fetchGroupsRef always holds the latest fetchGroups
-  // so useFocusEffect never has a stale closure problem
-  const fetchGroupsRef = React.useRef(fetchGroups);
-  useEffect(() => {
-    fetchGroupsRef.current = fetchGroups;
-  }, [fetchGroups]);
-
-  // Runs on EVERY focus event — handles returning from Create/Delete/Leave/Edit
+  // FIX: useFocusEffect with stable fetchGroups and empty dep array means this
+  // fires on every screen focus (returning from CreateGroup, GroupDetail, etc.)
+  // and always calls the up-to-date fetch. No stale closure possible.
   useFocusEffect(
     useCallback(() => {
-      fetchGroupsRef.current();
-    }, []), // empty deps = runs every time screen gets focus
+      fetchGroups();
+    }, [fetchGroups]),
   );
+
+  // ── Search debounce ─────────────────────────────────────────────────────────
+  const debounceRef = useRef(null);
+  const handleSearchChange = (text) => {
+    setFilter("search", text);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    // FIX: fetchGroups is stable so the debounced call always references the
+    // same function — no stale closure on the search handler.
+    debounceRef.current = setTimeout(() => fetchGroups(), 500);
+  };
+
+  const handleClearSearch = () => {
+    setFilter("search", "");
+    fetchGroups();
+  };
+
+  const handleCategorySelect = (cat) => {
+    setFilter("category", cat);
+    fetchGroups();
+  };
+
+  const handleClearLocation = () => {
+    setFilter("city", "");
+    setFilter("state", "");
+    setFilter("distance", "");
+    fetchGroups();
+  };
+
+  const handleApplyFilters = () => {
+    // Copy pending filter values into the live ref and UI
+    Object.entries(pendingFilters).forEach(([k, v]) => setFilter(k, v));
+    setShowFilters(false);
+    fetchGroups();
+  };
+
+  const handleClearFilters = () => {
+    const empty = {
+      city: "",
+      state: "",
+      distance: "",
+      religion: [],
+      lifeStage: [],
+    };
+    setPendingFilters(empty);
+    Object.entries(empty).forEach(([k, v]) => setFilter(k, v));
+  };
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchGroups();
   }, [fetchGroups]);
+
+  const hasActiveFilters =
+    filterUI.city ||
+    filterUI.state ||
+    filterUI.distance ||
+    filterUI.religion?.length ||
+    filterUI.lifeStage?.length;
 
   const displayedGroups = activeTab === "my" ? myGroups : groups;
 
@@ -347,14 +403,8 @@ export default function GroupsScreen({ navigation, route }) {
       <View style={styles.locationBar}>
         <View style={styles.locationBarTop}>
           <Text style={styles.locationBarLabel}>📍 Search by location</Text>
-          {(locationCity || locationState || locationDistance) && (
-            <TouchableOpacity
-              onPress={() => {
-                setLocationCity("");
-                setLocationState("");
-                setLocationDistance("");
-              }}
-            >
+          {(filterUI.city || filterUI.state || filterUI.distance) && (
+            <TouchableOpacity onPress={handleClearLocation}>
               <Text style={styles.locationClearBtn}>Clear</Text>
             </TouchableOpacity>
           )}
@@ -364,10 +414,10 @@ export default function GroupsScreen({ navigation, route }) {
             style={styles.locationCityInput}
             placeholder="City"
             placeholderTextColor="#a0aec0"
-            value={locationCity}
-            onChangeText={setLocationCity}
+            value={filterUI.city}
+            onChangeText={(v) => setFilter("city", v)}
             returnKeyType="done"
-            onSubmitEditing={fetchGroups}
+            onSubmitEditing={() => fetchGroups()}
           />
           <TouchableOpacity
             style={styles.locationStateBtn}
@@ -379,10 +429,10 @@ export default function GroupsScreen({ navigation, route }) {
             <Text
               style={[
                 styles.locationBtnText,
-                !locationState && { color: "#a0aec0" },
+                !filterUI.state && { color: "#a0aec0" },
               ]}
             >
-              {locationState || "State"}
+              {filterUI.state || "State"}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -395,12 +445,12 @@ export default function GroupsScreen({ navigation, route }) {
             <Text
               style={[
                 styles.locationBtnText,
-                !locationDistance && { color: "#a0aec0" },
+                !filterUI.distance && { color: "#a0aec0" },
               ]}
             >
-              {locationDistance
-                ? DISTANCE_OPTS.find((d) => d.value === locationDistance)
-                    ?.label || locationDistance
+              {filterUI.distance
+                ? DISTANCE_OPTS.find((d) => d.value === filterUI.distance)
+                    ?.label
                 : "Distance"}
             </Text>
           </TouchableOpacity>
@@ -423,8 +473,9 @@ export default function GroupsScreen({ navigation, route }) {
                   <TouchableOpacity
                     style={styles.pickerItem}
                     onPress={() => {
-                      setLocationState("");
+                      setFilter("state", "");
                       setShowStateList(false);
+                      fetchGroups();
                     }}
                   >
                     <Text style={styles.pickerItemText}>Any state</Text>
@@ -434,17 +485,18 @@ export default function GroupsScreen({ navigation, route }) {
                       key={s}
                       style={[
                         styles.pickerItem,
-                        locationState === s && styles.pickerItemActive,
+                        filterUI.state === s && styles.pickerItemActive,
                       ]}
                       onPress={() => {
-                        setLocationState(s);
+                        setFilter("state", s);
                         setShowStateList(false);
+                        fetchGroups();
                       }}
                     >
                       <Text
                         style={[
                           styles.pickerItemText,
-                          locationState === s && styles.pickerItemTextActive,
+                          filterUI.state === s && styles.pickerItemTextActive,
                         ]}
                       >
                         {s}
@@ -474,8 +526,9 @@ export default function GroupsScreen({ navigation, route }) {
                   <TouchableOpacity
                     style={styles.pickerItem}
                     onPress={() => {
-                      setLocationDistance("");
+                      setFilter("distance", "");
                       setShowDistanceList(false);
+                      fetchGroups();
                     }}
                   >
                     <Text style={styles.pickerItemText}>Any distance</Text>
@@ -485,18 +538,19 @@ export default function GroupsScreen({ navigation, route }) {
                       key={opt.value}
                       style={[
                         styles.pickerItem,
-                        locationDistance === opt.value &&
+                        filterUI.distance === opt.value &&
                           styles.pickerItemActive,
                       ]}
                       onPress={() => {
-                        setLocationDistance(opt.value);
+                        setFilter("distance", opt.value);
                         setShowDistanceList(false);
+                        fetchGroups();
                       }}
                     >
                       <Text
                         style={[
                           styles.pickerItemText,
-                          locationDistance === opt.value &&
+                          filterUI.distance === opt.value &&
                             styles.pickerItemTextActive,
                         ]}
                       >
@@ -511,45 +565,42 @@ export default function GroupsScreen({ navigation, route }) {
         )}
       </View>
 
-      {/* Search */}
+      {/* Search row */}
       <View style={styles.searchRow}>
         <View style={styles.searchContainer}>
           <Search size={16} color="#a0aec0" />
           <TextInput
             style={styles.searchInput}
             placeholder="Search groups..."
-            value={search}
+            value={filterUI.search}
             onChangeText={handleSearchChange}
-            onSubmitEditing={fetchGroups}
+            onSubmitEditing={() => fetchGroups()}
             returnKeyType="search"
             placeholderTextColor="#a0aec0"
           />
-          {search.length > 0 && (
-            <TouchableOpacity
-              onPress={() => {
-                setSearch("");
-                fetchGroups();
-              }}
-            >
+          {filterUI.search.length > 0 && (
+            <TouchableOpacity onPress={handleClearSearch}>
               <X size={15} color="#a0aec0" />
             </TouchableOpacity>
           )}
         </View>
         <TouchableOpacity
-          style={[
-            styles.filterBtn,
-            Object.values(filters).flat().filter(Boolean).length > 0 &&
-              styles.filterBtnActive,
-          ]}
-          onPress={() => setShowFilters(true)}
+          style={[styles.filterBtn, hasActiveFilters && styles.filterBtnActive]}
+          onPress={() => {
+            // Sync pending filters from current live filters when opening modal
+            setPendingFilters({
+              city: filterUI.city,
+              state: filterUI.state,
+              distance: filterUI.distance,
+              religion: filterUI.religion || [],
+              lifeStage: filterUI.lifeStage || [],
+            });
+            setShowFilters(true);
+          }}
         >
           <SlidersHorizontal
             size={18}
-            color={
-              Object.values(filters).flat().filter(Boolean).length > 0
-                ? "white"
-                : "#4a5568"
-            }
+            color={hasActiveFilters ? "white" : "#4a5568"}
           />
         </TouchableOpacity>
         <TouchableOpacity
@@ -691,22 +742,22 @@ export default function GroupsScreen({ navigation, route }) {
                   key={cat}
                   style={[
                     styles.catTile,
-                    selectedCategory === cat && styles.catTileActive,
+                    filterUI.category === cat && styles.catTileActive,
                   ]}
-                  onPress={() => setSelectedCategory(cat)}
+                  onPress={() => handleCategorySelect(cat)}
                   activeOpacity={0.7}
                 >
                   <Text style={styles.catTileEmoji}>{CATEGORY_ICONS[cat]}</Text>
                   <Text
                     style={[
                       styles.catTileText,
-                      selectedCategory === cat && styles.catTileTextActive,
+                      filterUI.category === cat && styles.catTileTextActive,
                     ]}
                     numberOfLines={2}
                   >
                     {cat === "All" ? "All Groups" : cat}
                   </Text>
-                  {selectedCategory === cat && (
+                  {filterUI.category === cat && (
                     <View style={styles.catTileCheck}>
                       <Text
                         style={{
@@ -764,8 +815,10 @@ export default function GroupsScreen({ navigation, route }) {
                 <TextInput
                   style={[styles.filterInput, { flex: 1 }]}
                   placeholder="City"
-                  value={filters.city}
-                  onChangeText={(v) => setFilters((f) => ({ ...f, city: v }))}
+                  value={pendingFilters.city}
+                  onChangeText={(v) =>
+                    setPendingFilters((f) => ({ ...f, city: v }))
+                  }
                   placeholderTextColor="#a0aec0"
                 />
                 <ScrollView
@@ -778,10 +831,10 @@ export default function GroupsScreen({ navigation, route }) {
                       key={s}
                       style={[
                         styles.stateChip,
-                        filters.state === s && styles.stateChipActive,
+                        pendingFilters.state === s && styles.stateChipActive,
                       ]}
                       onPress={() =>
-                        setFilters((f) => ({
+                        setPendingFilters((f) => ({
                           ...f,
                           state: f.state === s ? "" : s,
                         }))
@@ -790,7 +843,8 @@ export default function GroupsScreen({ navigation, route }) {
                       <Text
                         style={[
                           styles.stateChipText,
-                          filters.state === s && styles.stateChipTextActive,
+                          pendingFilters.state === s &&
+                            styles.stateChipTextActive,
                         ]}
                       >
                         {s}
@@ -808,10 +862,11 @@ export default function GroupsScreen({ navigation, route }) {
                     key={opt.value}
                     style={[
                       styles.filterChip,
-                      filters.distance === opt.value && styles.filterChipActive,
+                      pendingFilters.distance === opt.value &&
+                        styles.filterChipActive,
                     ]}
                     onPress={() =>
-                      setFilters((f) => ({
+                      setPendingFilters((f) => ({
                         ...f,
                         distance: f.distance === opt.value ? "" : opt.value,
                       }))
@@ -820,7 +875,7 @@ export default function GroupsScreen({ navigation, route }) {
                     <Text
                       style={[
                         styles.filterChipText,
-                        filters.distance === opt.value &&
+                        pendingFilters.distance === opt.value &&
                           styles.filterChipTextActive,
                       ]}
                     >
@@ -838,12 +893,12 @@ export default function GroupsScreen({ navigation, route }) {
                     key={r}
                     style={[
                       styles.filterChip,
-                      (filters.religion || []).includes(r) &&
+                      (pendingFilters.religion || []).includes(r) &&
                         styles.filterChipActive,
                     ]}
                     onPress={() => {
-                      const cur = filters.religion || [];
-                      setFilters((f) => ({
+                      const cur = pendingFilters.religion || [];
+                      setPendingFilters((f) => ({
                         ...f,
                         religion: cur.includes(r)
                           ? cur.filter((v) => v !== r)
@@ -854,7 +909,7 @@ export default function GroupsScreen({ navigation, route }) {
                     <Text
                       style={[
                         styles.filterChipText,
-                        (filters.religion || []).includes(r) &&
+                        (pendingFilters.religion || []).includes(r) &&
                           styles.filterChipTextActive,
                       ]}
                     >
@@ -872,12 +927,12 @@ export default function GroupsScreen({ navigation, route }) {
                     key={l}
                     style={[
                       styles.filterChip,
-                      (filters.lifeStage || []).includes(l) &&
+                      (pendingFilters.lifeStage || []).includes(l) &&
                         styles.filterChipActive,
                     ]}
                     onPress={() => {
-                      const cur = filters.lifeStage || [];
-                      setFilters((f) => ({
+                      const cur = pendingFilters.lifeStage || [];
+                      setPendingFilters((f) => ({
                         ...f,
                         lifeStage: cur.includes(l)
                           ? cur.filter((v) => v !== l)
@@ -888,7 +943,7 @@ export default function GroupsScreen({ navigation, route }) {
                     <Text
                       style={[
                         styles.filterChipText,
-                        (filters.lifeStage || []).includes(l) &&
+                        (pendingFilters.lifeStage || []).includes(l) &&
                           styles.filterChipTextActive,
                       ]}
                     >
@@ -903,25 +958,13 @@ export default function GroupsScreen({ navigation, route }) {
           <View style={styles.modalFooter}>
             <TouchableOpacity
               style={styles.btnClearFilters}
-              onPress={() =>
-                setFilters({
-                  city: "",
-                  state: "",
-                  distance: "",
-                  religion: [],
-                  lifeStage: [],
-                })
-              }
+              onPress={handleClearFilters}
             >
               <Text style={styles.btnClearFiltersText}>Clear All</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.btnApplyFilters}
-              onPress={() => {
-                setShowFilters(false);
-                setLoading(true);
-                fetchGroups();
-              }}
+              onPress={handleApplyFilters}
             >
               <Text style={styles.btnApplyFiltersText}>Apply Filters</Text>
             </TouchableOpacity>

@@ -77,18 +77,19 @@ export default function CreateGroupScreen({ navigation }) {
         isPrivate,
       });
       const newGroupId = res.data._id;
+
+      // FIX: Use replace() instead of goBack() + navigate() which races and breaks
+      // on mobile. replace() atomically swaps CreateGroup → GroupDetail in the stack
+      // so the back button from GroupDetail correctly returns to the Groups tab,
+      // and useFocusEffect on GroupsScreen fires on that return to refresh the list.
       Alert.alert(
-        "Group Created!",
+        "Group Created! 🎉",
         "Your group has been created successfully.",
         [
           {
             text: "View Group",
-            onPress: () => {
-              // Pop back to the tab stack first, then navigate to GroupDetail
-              // useFocusEffect in GroupsScreen will auto-refresh on focus
-              navigation.goBack();
-              navigation.navigate("GroupDetail", { groupId: newGroupId });
-            },
+            onPress: () =>
+              navigation.replace("GroupDetail", { groupId: newGroupId }),
           },
           {
             text: "Back to Groups",
@@ -333,19 +334,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  categoryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  categoryChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: "white",
-    borderWidth: 1.5,
-    borderColor: "#E2E8F0",
-  },
-  categoryChipActive: { backgroundColor: "#EBF4FF", borderColor: "#2B6CB0" },
-  categoryChipText: { fontSize: 13, color: "#718096", fontWeight: "500" },
-  categoryChipTextActive: { color: "#2B6CB0", fontWeight: "700" },
-
   toggleRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -373,7 +361,6 @@ const styles = StyleSheet.create({
   createButtonDisabled: { opacity: 0.6 },
   createButtonText: { color: "white", fontSize: 16, fontWeight: "700" },
 
-  // ── Category dropdown button ──
   categoryDropdown: {
     flexDirection: "row",
     alignItems: "center",
@@ -396,7 +383,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 
-  // ── Category picker modal ──
   pickerModal: {
     flex: 1,
     backgroundColor: "white",

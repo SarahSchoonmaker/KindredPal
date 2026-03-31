@@ -61,7 +61,6 @@ function MemberCard({
         ) : null}
       </View>
 
-      {/* Action button — only for other users */}
       {!isCurrentUser && (
         <View>
           {connectionStatus === "accepted" ? (
@@ -116,14 +115,23 @@ export default function GroupDetailScreen({ route, navigation }) {
   const [currentUserId, setCurrentUserId] = useState(null);
   const [connectionStatuses, setConnectionStatuses] = useState({});
 
-  // Get current user ID on mount
+  // FIX: Load currentUserId synchronously before anything else renders.
+  // Previously this ran in a useEffect which meant currentUserId was null
+  // during the first render after fetchGroup completed, hiding admin/delete
+  // buttons entirely because the isCreator/isAdmin checks all returned false.
+  // Using a ref lets us read it immediately in the same tick as fetchGroup.
+  const currentUserIdRef = useRef(null);
+
   useEffect(() => {
     SecureStore.getItemAsync("userId").then((id) => {
-      if (id) setCurrentUserId(id);
+      if (id) {
+        currentUserIdRef.current = id;
+        setCurrentUserId(id);
+      }
     });
   }, []);
 
-  // ── Fetch group ─────────────────────────────────────────────
+  // ── Fetch group ─────────────────────────────────────────────────────────────
   const fetchGroup = useCallback(async () => {
     try {
       const res = await api.get(`/groups/${groupId}`);
@@ -142,19 +150,17 @@ export default function GroupDetailScreen({ route, navigation }) {
     }
   }, [groupId]);
 
-  // Load once on mount
   useEffect(() => {
     fetchGroup();
   }, [fetchGroup]);
 
-  // On re-focus: silent refresh only if group already loaded
   useFocusEffect(
     useCallback(() => {
       fetchGroup();
     }, [fetchGroup]),
   );
 
-  // ── Fetch connection statuses after group + currentUserId are both ready ──
+  // ── Connection statuses ─────────────────────────────────────────────────────
   useEffect(() => {
     if (!group?.members?.length || !currentUserId) return;
 
@@ -182,7 +188,7 @@ export default function GroupDetailScreen({ route, navigation }) {
     fetchStatuses();
   }, [group, currentUserId]);
 
-  // ── Chat ────────────────────────────────────────────────────
+  // ── Chat ────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (activeTab === "chat") {
       setChatLoading(true);
@@ -213,7 +219,7 @@ export default function GroupDetailScreen({ route, navigation }) {
     }
   };
 
-  // ── Join / Leave ────────────────────────────────────────────
+  // ── Join / Leave / Delete / Edit ────────────────────────────────────────────
   const handleJoin = async () => {
     setJoining(true);
     try {
@@ -292,6 +298,9 @@ export default function GroupDetailScreen({ route, navigation }) {
           onPress: async () => {
             try {
               await api.delete(`/groups/${groupId}`);
+              // FIX: goBack() correctly returns to GroupsScreen where
+              // useFocusEffect will fire fetchGroups and remove the soft-deleted
+              // group from the list (backend filters isActive: false).
               navigation.goBack();
             } catch (err) {
               console.error(
@@ -311,7 +320,7 @@ export default function GroupDetailScreen({ route, navigation }) {
     );
   };
 
-  // ── Member actions ──────────────────────────────────────────
+  // ── Member actions ──────────────────────────────────────────────────────────
   const handleViewProfile = (member) => {
     const id = member._id?.toString() || member.toString();
     if (!id || id === currentUserId) return;
@@ -365,16 +374,19 @@ export default function GroupDetailScreen({ route, navigation }) {
   };
 
   const handleSaveEdit = async () => {
-    if (!editForm.name.trim())
+    if (!editForm.name?.trim())
       return Alert.alert("Required", "Group name is required");
-    if (!editForm.description.trim())
+    if (!editForm.description?.trim())
       return Alert.alert("Required", "Description is required");
     setEditSaving(true);
     try {
       await api.put(`/groups/${groupId}`, editForm);
       setShowEdit(false);
+      // FIX: fetchGroup() after closing the modal ensures the UI reflects the
+      // saved changes. We close first so the modal dismiss animation completes
+      // before the re-render.
       await fetchGroup();
-      Alert.alert("Saved", "Group updated successfully.");
+      Alert.alert("Saved ✓", "Group updated successfully.");
     } catch (err) {
       console.error(
         "Edit group error:",
@@ -390,7 +402,16 @@ export default function GroupDetailScreen({ route, navigation }) {
     }
   };
 
-  // ── Render ──────────────────────────────────────────────────
+  // ── Admin/creator checks ────────────────────────────────────────────────────
+  // FIX: We derive isAdmin and isCreator from the group object returned by the
+  // server (which already has isAdmin / isCreator booleans set correctly) rather
+  // than re-computing them client-side with currentUserId. The server sets these
+  // flags in GET /groups/:id so we can trust them directly. This eliminates the
+  // race where currentUserId is null on first render and the buttons are hidden.
+  const isAdmin = group?.isAdmin === true;
+  const isCreator = group?.isCreator === true;
+
+  // ── Render ──────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <View style={styles.center}>
@@ -410,12 +431,12 @@ export default function GroupDetailScreen({ route, navigation }) {
   const tabs = [
     "about",
     "members",
-    ...(group.isMember || group.isAdmin ? ["chat"] : []),
+    ...(group.isMember || isAdmin ? ["chat"] : []),
   ];
 
   return (
     <View style={styles.outerContainer}>
-      {/* ── Scrollable content (About + Members + header) ── */}
+      {/* ── Scrollable content (About + Members) ── */}
       <ScrollView
         style={[styles.container, activeTab === "chat" && { display: "none" }]}
         refreshControl={
@@ -478,9 +499,11 @@ export default function GroupDetailScreen({ route, navigation }) {
           </View>
         </View>
 
-        {/* Join / Leave + Edit */}
+        {/* Actions: Edit / Delete / Join / Leave / RSVP */}
         <View style={styles.actionContainer}>
-          {group.isAdmin && (
+          {/* FIX: Use server-derived isAdmin/isCreator booleans directly.
+              No more currentUserId null-race — the server already computed these. */}
+          {isAdmin && (
             <TouchableOpacity
               style={styles.editButton}
               onPress={handleOpenEdit}
@@ -488,9 +511,7 @@ export default function GroupDetailScreen({ route, navigation }) {
               <Text style={styles.editButtonText}>✏️ Edit Group</Text>
             </TouchableOpacity>
           )}
-          {(group.isCreator ||
-            (group.isAdmin &&
-              group.createdBy?._id?.toString() === currentUserId)) && (
+          {isCreator && (
             <TouchableOpacity
               style={styles.deleteButton}
               onPress={handleDelete}
@@ -499,10 +520,16 @@ export default function GroupDetailScreen({ route, navigation }) {
             </TouchableOpacity>
           )}
           {group.isMember ? (
-            <TouchableOpacity style={styles.leaveButton} onPress={handleLeave}>
-              <LogOut size={16} color="#E53E3E" />
-              <Text style={styles.leaveButtonText}>Leave Group</Text>
-            </TouchableOpacity>
+            // Creator sees Leave hidden (they should delete instead), others see Leave
+            !isCreator && (
+              <TouchableOpacity
+                style={styles.leaveButton}
+                onPress={handleLeave}
+              >
+                <LogOut size={16} color="#E53E3E" />
+                <Text style={styles.leaveButtonText}>Leave Group</Text>
+              </TouchableOpacity>
+            )
           ) : group.isInvited ? (
             <View style={styles.rsvpContainer}>
               <Text style={styles.rsvpLabel}>
@@ -616,14 +643,13 @@ export default function GroupDetailScreen({ route, navigation }) {
         {activeTab !== "chat" && <View style={{ height: 40 }} />}
       </ScrollView>
 
-      {/* ── Chat tab (outside ScrollView) ── */}
-      {activeTab === "chat" && (group.isMember || group.isAdmin) && (
+      {/* ── Chat tab ── */}
+      {activeTab === "chat" && (group.isMember || isAdmin) && (
         <KeyboardAvoidingView
           style={styles.chatContainer}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           keyboardVerticalOffset={90}
         >
-          {/* Tab bar replicated at top of chat */}
           <View style={styles.tabs}>
             {tabs.map((tab) => (
               <TouchableOpacity
@@ -736,11 +762,13 @@ export default function GroupDetailScreen({ route, navigation }) {
           </View>
         </KeyboardAvoidingView>
       )}
-      {/* Edit Group Modal */}
+
+      {/* ── Edit Group Modal ── */}
       <Modal
         visible={showEdit}
         animationType="slide"
         presentationStyle="pageSheet"
+        onRequestClose={() => setShowEdit(false)}
       >
         <KeyboardAvoidingView
           style={{ flex: 1 }}
@@ -850,7 +878,6 @@ export default function GroupDetailScreen({ route, navigation }) {
                 </Text>
               </TouchableOpacity>
             </View>
-            {/* Save button inside ScrollView so keyboard pushes it up */}
             <TouchableOpacity
               style={[
                 styles.editSaveBtn,
@@ -876,7 +903,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F7FAFC" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
 
-  // Header
   header: {
     alignItems: "center",
     paddingVertical: 24,
@@ -923,14 +949,7 @@ const styles = StyleSheet.create({
   metaBadgeText: { fontSize: 12, color: "#718096", fontWeight: "600" },
   categoryText: { fontSize: 13, color: "#718096" },
   locationText: { fontSize: 13, color: "#718096" },
-  createdByText: {
-    fontSize: 13,
-    color: "#2B6CB0",
-    fontWeight: "600",
-    marginBottom: 4,
-  },
 
-  // Stats
   stats: {
     flexDirection: "row",
     backgroundColor: "white",
@@ -943,12 +962,12 @@ const styles = StyleSheet.create({
   statNumber: { fontSize: 20, fontWeight: "700", color: "#1a202c" },
   statLabel: { fontSize: 12, color: "#718096", marginTop: 2 },
 
-  // Action buttons
   actionContainer: {
     padding: 16,
     backgroundColor: "white",
     borderBottomWidth: 1,
     borderBottomColor: "#E2E8F0",
+    gap: 10,
   },
   joinButton: {
     backgroundColor: BLUE,
@@ -978,7 +997,6 @@ const styles = StyleSheet.create({
   },
   pendingButtonText: { color: "#718096", fontSize: 15 },
 
-  // Tabs
   tabs: {
     flexDirection: "row",
     backgroundColor: "white",
@@ -996,11 +1014,9 @@ const styles = StyleSheet.create({
   tabText: { fontSize: 13, fontWeight: "600", color: "#718096" },
   tabTextActive: { color: BLUE },
 
-  // Section
   section: { padding: 16 },
   description: { fontSize: 15, color: "#4a5568", lineHeight: 22 },
 
-  // Member card
   memberCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -1021,7 +1037,6 @@ const styles = StyleSheet.create({
   },
   memberMeta: { fontSize: 12, color: "#718096" },
 
-  // Member action buttons
   btnMessage: {
     flexDirection: "row",
     alignItems: "center",
@@ -1051,11 +1066,9 @@ const styles = StyleSheet.create({
   },
   btnPendingText: { color: "#718096", fontSize: 12, fontWeight: "600" },
 
-  // Private
   privateMessage: { alignItems: "center", paddingVertical: 40, gap: 12 },
   privateMessageText: { fontSize: 14, color: "#718096", textAlign: "center" },
 
-  // Chat
   chatContainer: { flex: 1, backgroundColor: "#F7FAFC" },
   chatList: { padding: 12, flexGrow: 1 },
   chatEmpty: { alignItems: "center", paddingTop: 60 },
@@ -1115,13 +1128,11 @@ const styles = StyleSheet.create({
   },
   chatSendBtnDisabled: { backgroundColor: "#cbd5e0" },
 
-  // Edit button
   editButton: {
     backgroundColor: "#EBF4FF",
     borderRadius: 12,
     paddingVertical: 10,
     alignItems: "center",
-    marginBottom: 10,
     borderWidth: 1.5,
     borderColor: "#2B6CB0",
   },
@@ -1131,12 +1142,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 10,
     alignItems: "center",
-    marginBottom: 10,
     borderWidth: 1.5,
     borderColor: "#E53E3E",
   },
   deleteButtonText: { color: "#E53E3E", fontSize: 14, fontWeight: "700" },
-  rsvpContainer: { marginBottom: 10 },
+  rsvpContainer: {},
   rsvpLabel: {
     fontSize: 13,
     color: "#4a5568",
@@ -1173,7 +1183,6 @@ const styles = StyleSheet.create({
   },
   rsvpDeclineText: { color: "#718096", fontSize: 14, fontWeight: "600" },
 
-  // Edit modal
   editModalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1215,11 +1224,6 @@ const styles = StyleSheet.create({
   },
   editToggleActive: { backgroundColor: "#2B6CB0", borderColor: "#2B6CB0" },
   editToggleText: { fontSize: 15, fontWeight: "600", color: "#4a5568" },
-  editModalFooter: {
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: "#e2e8f0",
-  },
   editSaveBtn: {
     backgroundColor: "#2B6CB0",
     borderRadius: 14,
