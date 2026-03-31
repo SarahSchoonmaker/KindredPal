@@ -76,7 +76,6 @@ const US_STATES_F = [
   "WY",
   "DC",
 ];
-
 const DISTANCE_OPTS = [
   { label: "Same city", value: "city" },
   { label: "25 miles", value: "25" },
@@ -85,7 +84,6 @@ const DISTANCE_OPTS = [
   { label: "Statewide", value: "state" },
   { label: "Anywhere", value: "anywhere" },
 ];
-
 const RELIGION_OPTS = [
   "None",
   "Spiritual but not religious",
@@ -100,7 +98,6 @@ const RELIGION_OPTS = [
   "Mormon / LDS",
   "Other",
 ];
-
 const LIFE_STAGE_OPTS = [
   "Single",
   "In a relationship",
@@ -114,7 +111,6 @@ const LIFE_STAGE_OPTS = [
   "New Career",
   "New to Town",
 ];
-
 const CATEGORIES = [
   "All",
   "Caregiver Support",
@@ -141,7 +137,6 @@ const CATEGORIES = [
   "Sports & Fitness",
   "Local Activity Groups",
 ];
-
 const CATEGORY_ICONS = {
   All: "✨",
   "Caregiver Support": "🤲",
@@ -270,7 +265,7 @@ export default function GroupsScreen({ navigation }) {
     setFilterUI((prev) => ({ ...prev, [key]: value }));
   }, []);
 
-  // Stable fetchGroups — reads from ref, never recreated
+  // Stable fetchGroups — reads from ref, never recreated, no stale closures
   const fetchGroups = useCallback(async (showLoader = false) => {
     if (showLoader) setLoading(true);
     try {
@@ -305,14 +300,34 @@ export default function GroupsScreen({ navigation }) {
     fetchGroups(true);
   }, [fetchGroups]);
 
-  // Fires on every screen focus — catches returns from Create/Delete/Edit
+  // Fires on every screen focus — catches returns from Create/Edit
   useFocusEffect(
     useCallback(() => {
       fetchGroups();
     }, [fetchGroups]),
   );
 
-  // Search debounce — stable because fetchGroups never changes
+  // FIX: Listen for a custom 'groupDeleted' event dispatched by GroupDetailScreen.
+  // We can't pass functions through route.params (they get serialized to undefined),
+  // so we use navigation's built-in event emitter instead. GroupDetailScreen fires
+  // navigation.navigate('Groups', { deletedGroupId }) and we catch it here to
+  // instantly remove the group from the list without waiting for a server round-trip.
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", () => {
+      // Check if we were navigated back with a deletedGroupId param
+      const deletedId = navigation
+        .getState()
+        ?.routes?.find((r) => r.name === "Groups")?.params?.deletedGroupId;
+      if (deletedId) {
+        setGroups((prev) => prev.filter((g) => g._id !== deletedId));
+        setMyGroups((prev) => prev.filter((g) => g._id !== deletedId));
+        // Clear the param so it doesn't re-fire
+        navigation.setParams({ deletedGroupId: undefined });
+      }
+    });
+    return unsubscribe;
+  }, [navigation]);
+
   const debounceRef = useRef(null);
   const handleSearchChange = (text) => {
     setFilter("search", text);
@@ -699,17 +714,7 @@ export default function GroupsScreen({ navigation }) {
           <GroupCard
             group={item}
             onPress={(id) =>
-              navigation.navigate("GroupDetail", {
-                groupId: id,
-                // FIX: Pass a callback so GroupDetailScreen can optimistically
-                // remove the deleted group without waiting for useFocusEffect.
-                onDelete: (deletedId) => {
-                  setGroups((prev) => prev.filter((g) => g._id !== deletedId));
-                  setMyGroups((prev) =>
-                    prev.filter((g) => g._id !== deletedId),
-                  );
-                },
-              })
+              navigation.navigate("GroupDetail", { groupId: id })
             }
           />
         )}

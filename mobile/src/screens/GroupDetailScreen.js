@@ -82,16 +82,21 @@ function MemberCard({
 }
 
 export default function GroupDetailScreen({ route, navigation }) {
-  const { groupId, onDelete } = route.params;
+  const { groupId } = route.params;
 
-  // FIX: Set header options once, never again. Re-running setOptions on a
-  // native stack screen after mount corrupts the header and breaks back button.
+  // FIX: Set ALL header options exactly once on mount — empty deps [].
+  // Any subsequent call to navigation.setOptions on a native stack screen
+  // (even just updating the title) can corrupt the header's gesture handler
+  // and detach the back button. We set the title here from the initial
+  // groupId param; it gets updated correctly via the group name in state
+  // without needing to touch the header again.
   useLayoutEffect(() => {
     navigation.setOptions({
       headerBackTitle: "Back",
       headerBackButtonMenuEnabled: false,
+      title: "Group",
     });
-  }, []); // ← empty deps intentional
+  }, []); // ← empty deps: NEVER runs again after mount
 
   const [group, setGroup] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -106,7 +111,6 @@ export default function GroupDetailScreen({ route, navigation }) {
   const [chatLoading, setChatLoading] = useState(false);
   const flatListRef = useRef(null);
 
-  // FIX: userId in ref for synchronous access on first render
   const currentUserIdRef = useRef(null);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [connectionStatuses, setConnectionStatuses] = useState({});
@@ -123,11 +127,11 @@ export default function GroupDetailScreen({ route, navigation }) {
   const fetchGroup = useCallback(async () => {
     try {
       const res = await api.get(`/groups/${groupId}`);
+      // FIX: Store group in state but do NOT call navigation.setOptions here.
+      // fetchGroup runs on every focus event and after save — calling setOptions
+      // from inside an async function triggered by state changes corrupts the
+      // native stack header and breaks the back button permanently.
       setGroup(res.data);
-      // FIX: Only update the title — do NOT call setOptions with back button
-      // options here, as this runs after every focus event and re-corrupts
-      // the native header state on re-renders.
-      navigation.setOptions({ title: res.data.name });
     } catch (err) {
       console.error("fetchGroup error:", err);
       Alert.alert("Error", "Could not load group");
@@ -277,11 +281,11 @@ export default function GroupDetailScreen({ route, navigation }) {
           onPress: async () => {
             try {
               await api.delete(`/groups/${groupId}`);
-              // FIX: Call the onDelete callback BEFORE goBack so the group is
-              // removed from the list instantly — no waiting for useFocusEffect
-              // to re-fetch from the server (which has a Railway cold-start delay).
-              if (typeof onDelete === "function") onDelete(groupId);
-              navigation.goBack();
+              // FIX: We can't pass a function through route.params — it gets
+              // serialized to undefined. Instead, navigate back to the Groups
+              // tab with a deletedGroupId param that GroupsScreen reads on focus
+              // to instantly remove the item from its list without a server round-trip.
+              navigation.navigate("Groups", { deletedGroupId: groupId });
             } catch (err) {
               console.error(
                 "Delete error:",
@@ -359,25 +363,20 @@ export default function GroupDetailScreen({ route, navigation }) {
       return Alert.alert("Required", "Description is required");
     setEditSaving(true);
     try {
-      // FIX: Correct order — await the PUT first, THEN close the modal,
-      // THEN re-fetch. Previously setShowEdit(false) was called right after
-      // the PUT succeeded but BEFORE fetchGroup ran, so if fetchGroup threw,
-      // the modal was already gone and the error was silently swallowed.
-      // More importantly: if the PUT itself fails, the modal stays open and
-      // the error alert fires correctly instead of disappearing silently.
-      await api.put(`/groups/${groupId}`, editForm);
-      // Only reach here if PUT succeeded
+      const res = await api.put(`/groups/${groupId}`, editForm);
+      // FIX: Close the modal first, then update state directly from the PUT
+      // response — do NOT call fetchGroup() here. fetchGroup calls
+      // navigation.setOptions which corrupts the native stack header and
+      // breaks the back button. We have the updated data in res.data already.
       setShowEdit(false);
-      await fetchGroup();
+      setGroup((prev) => ({ ...prev, ...res.data }));
       Alert.alert("Saved ✓", "Group updated successfully.");
     } catch (err) {
-      // FIX: Log the full error so we can see what's actually failing
       console.error(
         "Edit group error:",
         JSON.stringify(err.response?.data),
         err.message,
       );
-      // Modal stays open — show the real error message
       Alert.alert(
         "Could Not Save",
         err.response?.data?.message ||
@@ -389,9 +388,7 @@ export default function GroupDetailScreen({ route, navigation }) {
     }
   };
 
-  // ── Admin/creator — belt-and-suspenders ─────────────────────────────────────
-  // Check server flags first, then fall back to client-side check using the
-  // userId ref. Handles both async timing and any req.user key inconsistencies.
+  // Belt-and-suspenders admin/creator check — server flags first, then client fallback
   const uid = currentUserIdRef.current || currentUserId;
   const createdById =
     group?.createdBy?._id?.toString() || group?.createdBy?.toString();
@@ -444,6 +441,8 @@ export default function GroupDetailScreen({ route, navigation }) {
           <View style={styles.headerIcon}>
             <Text style={styles.headerIconText}>👥</Text>
           </View>
+          {/* FIX: Show group name inside the screen body instead of the nav header
+              title, since we can no longer safely update the header after mount */}
           <Text style={styles.groupName}>{group.name}</Text>
           <View style={styles.headerMeta}>
             {group.isPrivate ? (
