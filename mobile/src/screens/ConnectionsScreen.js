@@ -13,36 +13,7 @@ import { MessageCircle, UserCheck, UserX, Users } from "lucide-react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import api from "../services/api";
 
-function forceHttps(url) {
-  if (typeof url !== "string" || url.length < 10) return null;
-  return url.replace(/^http:\/\//, "https://");
-}
-
-function initialsUrl(name) {
-  const n = encodeURIComponent((name || "?").trim().slice(0, 20));
-  return `https://ui-avatars.com/api/?name=${n}&background=BEE3F8&color=2B6CB0&size=104&bold=true`;
-}
-
-// Simple avatar — no internal state, just renders whatever uri is passed.
-// Parent is responsible for providing the correct uri.
-function Avatar({ uri, name, size = 52 }) {
-  const safeUri = forceHttps(uri) || initialsUrl(name);
-  return (
-    <Image
-      source={{ uri: safeUri }}
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        backgroundColor: "#EBF4FF",
-      }}
-      onError={(e) =>
-        console.log("Image load error:", e.nativeEvent?.error, "uri:", safeUri)
-      }
-    />
-  );
-}
-
+// Matches exactly how MemberProfileScreen renders photos — plain Image, no wrappers
 function RequestCard({ request, onAccept, onDecline, onViewProfile }) {
   const { from } = request;
   if (!from) return null;
@@ -57,7 +28,14 @@ function RequestCard({ request, onAccept, onDecline, onViewProfile }) {
         style={styles.personRow}
         onPress={() => onViewProfile(from)}
       >
-        <Avatar uri={from.profilePhoto} name={from.name} size={52} />
+        <Image
+          source={
+            from.profilePhoto
+              ? { uri: from.profilePhoto }
+              : require("../../assets/icon.png")
+          }
+          style={styles.photo}
+        />
         <View style={styles.personInfo}>
           <Text style={[styles.personName, { color: "#2B6CB0" }]}>
             {from.name}
@@ -95,30 +73,25 @@ function RequestCard({ request, onAccept, onDecline, onViewProfile }) {
   );
 }
 
-// This component fetches the fresh photo itself and renders once it has it
+// Fetches full profile just like MemberProfileScreen does, then renders
+// photo exactly the same way MemberProfileScreen does — which is known to work
 function ConnectionCard({ connection, onMessage, onViewProfile }) {
   const { user } = connection;
-  // Start with whatever photo came from the connection list
-  const [photo, setPhoto] = useState(user?.profilePhoto || null);
-  const [fetched, setFetched] = useState(false);
+  const [profile, setProfile] = useState(null);
 
   useEffect(() => {
     const userId = (user?._id || user?.id || "").toString();
-    if (!userId || fetched) return;
-
+    if (!userId) return;
     api
       .get(`/users/profile/${userId}`)
-      .then((res) => {
-        const p = res.data?.profilePhoto;
-        setFetched(true);
-        if (typeof p === "string" && p.startsWith("http")) {
-          setPhoto(p);
-        }
-      })
-      .catch(() => setFetched(true));
+      .then((res) => setProfile(res.data))
+      .catch(() => {});
   }, []);
 
   if (!user) return null;
+
+  // Use fresh profile data if available, fall back to connection user data
+  const displayData = profile || user;
 
   return (
     <View style={styles.connectionCard}>
@@ -127,23 +100,25 @@ function ConnectionCard({ connection, onMessage, onViewProfile }) {
         style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
         activeOpacity={0.7}
       >
-        {/* Key forces re-mount when photo changes, ensuring Image re-renders */}
-        <Avatar
-          key={photo || "placeholder"}
-          uri={photo}
-          name={user.name}
-          size={52}
+        {/* Exactly matches MemberProfileScreen image rendering */}
+        <Image
+          source={
+            displayData.profilePhoto
+              ? { uri: displayData.profilePhoto }
+              : require("../../assets/icon.png")
+          }
+          style={[styles.photo, { marginRight: 12 }]}
         />
-        <View style={[styles.personInfo, { marginLeft: 12 }]}>
+        <View style={styles.personInfo}>
           <Text style={[styles.personName, { color: "#2B6CB0" }]}>
-            {user.name}
+            {displayData.name}
           </Text>
           <Text style={styles.personLocation}>
-            {[user.city, user.state].filter(Boolean).join(", ")}
+            {[displayData.city, displayData.state].filter(Boolean).join(", ")}
           </Text>
-          {user.bio ? (
+          {displayData.bio ? (
             <Text style={styles.personBio} numberOfLines={1}>
-              {user.bio}
+              {displayData.bio}
             </Text>
           ) : null}
         </View>
@@ -430,6 +405,12 @@ const styles = StyleSheet.create({
   },
   newBadgeText: { fontSize: 11, fontWeight: "700", color: "#2B6CB0" },
   personRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
+  photo: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#E2E8F0",
+  },
   personInfo: { flex: 1, marginLeft: 12 },
   personName: { fontSize: 16, fontWeight: "700", color: "#2D3748" },
   personLocation: { fontSize: 13, color: "#718096", marginTop: 1 },
