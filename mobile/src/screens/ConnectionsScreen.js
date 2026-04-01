@@ -13,43 +13,32 @@ import { MessageCircle, UserCheck, UserX, Users } from "lucide-react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import api from "../services/api";
 
-// Force HTTPS — iOS ATS blocks http:// image URLs silently,
-// showing nothing or the fallback instead of the actual photo.
 function forceHttps(url) {
-  if (typeof url !== "string" || !url.startsWith("http")) return null;
+  if (typeof url !== "string" || url.length < 10) return null;
   return url.replace(/^http:\/\//, "https://");
 }
 
-function initialsAvatar(name) {
-  const n = encodeURIComponent((name || "U").trim().slice(0, 20));
+function initialsUrl(name) {
+  const n = encodeURIComponent((name || "?").trim().slice(0, 20));
   return `https://ui-avatars.com/api/?name=${n}&background=BEE3F8&color=2B6CB0&size=104&bold=true`;
 }
 
+// Simple avatar — no internal state, just renders whatever uri is passed.
+// Parent is responsible for providing the correct uri.
 function Avatar({ uri, name, size = 52 }) {
-  const [src, setSrc] = useState(() => {
-    const safe = forceHttps(uri);
-    return safe || initialsAvatar(name);
-  });
-
-  // Update if uri prop changes (e.g. after fresh fetch)
-  useEffect(() => {
-    const safe = forceHttps(uri);
-    setSrc(safe || initialsAvatar(name));
-  }, [uri, name]);
-
+  const safeUri = forceHttps(uri) || initialsUrl(name);
   return (
     <Image
-      source={{ uri: src }}
+      source={{ uri: safeUri }}
       style={{
         width: size,
         height: size,
         borderRadius: size / 2,
         backgroundColor: "#EBF4FF",
       }}
-      onError={() => {
-        // If the real photo fails, fall back to initials
-        setSrc(initialsAvatar(name));
-      }}
+      onError={(e) =>
+        console.log("Image load error:", e.nativeEvent?.error, "uri:", safeUri)
+      }
     />
   );
 }
@@ -106,25 +95,28 @@ function RequestCard({ request, onAccept, onDecline, onViewProfile }) {
   );
 }
 
+// This component fetches the fresh photo itself and renders once it has it
 function ConnectionCard({ connection, onMessage, onViewProfile }) {
   const { user } = connection;
-  const [photoUri, setPhotoUri] = useState(user?.profilePhoto || null);
+  // Start with whatever photo came from the connection list
+  const [photo, setPhoto] = useState(user?.profilePhoto || null);
+  const [fetched, setFetched] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
-    const userId = (user._id || user.id || "").toString();
-    if (!userId) return;
-    // Fetch fresh profile photo — same endpoint that profile page uses
+    const userId = (user?._id || user?.id || "").toString();
+    if (!userId || fetched) return;
+
     api
       .get(`/users/profile/${userId}`)
       .then((res) => {
-        const photo = res.data?.profilePhoto;
-        if (typeof photo === "string" && photo.startsWith("http")) {
-          setPhotoUri(photo);
+        const p = res.data?.profilePhoto;
+        setFetched(true);
+        if (typeof p === "string" && p.startsWith("http")) {
+          setPhoto(p);
         }
       })
-      .catch(() => {});
-  }, [user?._id]);
+      .catch(() => setFetched(true));
+  }, []);
 
   if (!user) return null;
 
@@ -135,7 +127,13 @@ function ConnectionCard({ connection, onMessage, onViewProfile }) {
         style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
         activeOpacity={0.7}
       >
-        <Avatar uri={photoUri} name={user.name} size={52} />
+        {/* Key forces re-mount when photo changes, ensuring Image re-renders */}
+        <Avatar
+          key={photo || "placeholder"}
+          uri={photo}
+          name={user.name}
+          size={52}
+        />
         <View style={[styles.personInfo, { marginLeft: 12 }]}>
           <Text style={[styles.personName, { color: "#2B6CB0" }]}>
             {user.name}
