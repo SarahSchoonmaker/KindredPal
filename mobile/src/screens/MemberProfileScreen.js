@@ -1,6 +1,4 @@
 // mobile/src/screens/MemberProfileScreen.js
-// View a group member's profile + send connection request
-// Reached from GroupDetailScreen member list
 import React, { useState, useEffect, useLayoutEffect } from "react";
 import {
   View,
@@ -57,7 +55,7 @@ function TagPill({ label, color = "#EBF4FF", textColor = "#2B6CB0" }) {
 }
 
 export default function MemberProfileScreen({ route, navigation }) {
-  const { userId, sharedGroups = [] } = route.params;
+  const { userId, sharedGroups = [] } = route.params || {};
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -67,7 +65,7 @@ export default function MemberProfileScreen({ route, navigation }) {
   }, []);
 
   const [profile, setProfile] = useState(null);
-  const [connectionStatus, setConnectionStatus] = useState("none"); // none | pending | accepted
+  const [connectionStatus, setConnectionStatus] = useState("none");
   const [connectionId, setConnectionId] = useState(null);
   const [isSender, setIsSender] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -76,18 +74,24 @@ export default function MemberProfileScreen({ route, navigation }) {
   const [requestMessage, setRequestMessage] = useState("");
 
   useEffect(() => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
     const fetchData = async () => {
       try {
         const [profileRes, statusRes] = await Promise.all([
           api.get(`/users/profile/${userId}`),
-          api.get(`/connections/status/${userId}`),
+          api
+            .get(`/connections/status/${userId}`)
+            .catch(() => ({ data: { status: "none" } })),
         ]);
         setProfile(profileRes.data);
         setConnectionStatus(statusRes.data.status || "none");
         setConnectionId(statusRes.data.connectionId);
         setIsSender(statusRes.data.isSender);
         navigation.setOptions({
-          title: profileRes.data.name,
+          title: profileRes.data.name || "Profile",
           headerBackTitle: "Back",
           headerBackButtonMenuEnabled: false,
         });
@@ -141,10 +145,48 @@ export default function MemberProfileScreen({ route, navigation }) {
   if (!profile) {
     return (
       <View style={styles.center}>
-        <Text>Profile not found</Text>
+        <Text style={{ color: "#718096", fontSize: 16 }}>
+          Profile not found
+        </Text>
+        <TouchableOpacity
+          style={styles.goBackBtn}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.goBackBtnText}>Go Back</Text>
+        </TouchableOpacity>
       </View>
     );
   }
+
+  // FIX: politicalBeliefs and religion are STRINGS in the User model, not arrays.
+  // The original code called .filter() and .map() on them treating them as arrays,
+  // which crashes silently on React Native (no error shown, app just closes).
+  // Normalize all fields safely before rendering.
+  const lifeStage = Array.isArray(profile.lifeStage) ? profile.lifeStage : [];
+  const causes = Array.isArray(profile.causes) ? profile.causes : [];
+  const coreValues = Array.isArray(profile.coreValues)
+    ? profile.coreValues
+    : [];
+  const familySituation = Array.isArray(profile.familySituation)
+    ? profile.familySituation
+    : [];
+
+  // These are strings, not arrays
+  const religion = typeof profile.religion === "string" ? profile.religion : "";
+  const politicalBeliefs =
+    typeof profile.politicalBeliefs === "string"
+      ? profile.politicalBeliefs
+      : "";
+
+  const showReligion =
+    religion &&
+    religion !== "Prefer not to say" &&
+    religion !== "None" &&
+    religion !== "";
+  const showPolitics =
+    politicalBeliefs &&
+    politicalBeliefs !== "Prefer not to say" &&
+    politicalBeliefs !== "";
 
   const renderConnectionButton = () => {
     if (connectionStatus === "accepted") {
@@ -173,7 +215,7 @@ export default function MemberProfileScreen({ route, navigation }) {
               try {
                 await api.post(`/connections/accept/${connectionId}`);
                 setConnectionStatus("accepted");
-              } catch (e) {
+              } catch {
                 Alert.alert("Error", "Could not accept");
               }
             }}
@@ -184,7 +226,6 @@ export default function MemberProfileScreen({ route, navigation }) {
         </View>
       );
     }
-    // status === "none"
     return (
       <TouchableOpacity
         style={[styles.connectBtn, sending && styles.btnDisabled]}
@@ -204,14 +245,27 @@ export default function MemberProfileScreen({ route, navigation }) {
       <ScrollView style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <Image source={{ uri: profile.profilePhoto }} style={styles.photo} />
-          <Text style={styles.name}>{profile.name}</Text>
-          <Text style={styles.location}>
-            📍 {profile.city}, {profile.state}
-          </Text>
-          {profile.age && (
-            <Text style={styles.age}>{profile.age} years old</Text>
+          {profile.profilePhoto ? (
+            <Image
+              source={{ uri: profile.profilePhoto }}
+              style={styles.photo}
+            />
+          ) : (
+            <View style={[styles.photo, styles.photoPlaceholder]}>
+              <Text style={styles.photoInitial}>
+                {profile.name?.charAt(0)?.toUpperCase() || "?"}
+              </Text>
+            </View>
           )}
+          <Text style={styles.name}>{profile.name}</Text>
+          {profile.city || profile.state ? (
+            <Text style={styles.location}>
+              📍 {[profile.city, profile.state].filter(Boolean).join(", ")}
+            </Text>
+          ) : null}
+          {profile.age ? (
+            <Text style={styles.age}>{profile.age} years old</Text>
+          ) : null}
         </View>
 
         {/* Connection action */}
@@ -236,21 +290,21 @@ export default function MemberProfileScreen({ route, navigation }) {
         )}
 
         {/* Bio */}
-        {profile.bio && (
+        {profile.bio ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>About</Text>
             <Text style={styles.bio}>{profile.bio}</Text>
           </View>
-        )}
+        ) : null}
 
         {/* Life Stage */}
-        {profile.lifeStage?.length > 0 && (
+        {lifeStage.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Life Stage</Text>
             <View style={styles.pills}>
-              {profile.lifeStage.map((s) => (
+              {lifeStage.map((s, i) => (
                 <TagPill
-                  key={s}
+                  key={i}
                   label={s}
                   color="#F0FFF4"
                   textColor="#276749"
@@ -260,39 +314,65 @@ export default function MemberProfileScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* Values */}
-        {(profile.religion || profile.politicalBeliefs?.length > 0) && (
+        {/* Family */}
+        {familySituation.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Family</Text>
+            <View style={styles.pills}>
+              {familySituation.map((f, i) => (
+                <TagPill
+                  key={i}
+                  label={f}
+                  color="#FFF5F5"
+                  textColor="#742A2A"
+                />
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Core Values */}
+        {coreValues.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Core Values</Text>
+            <View style={styles.pills}>
+              {coreValues.map((v, i) => (
+                <TagPill key={i} label={v} />
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Values — religion and politics as strings */}
+        {(showReligion || showPolitics) && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Values</Text>
             <View style={styles.pills}>
-              {profile.religion && profile.religion !== "Prefer not to say" && (
+              {showReligion && (
                 <TagPill
-                  label={`⛪ ${profile.religion}`}
+                  label={`⛪ ${religion}`}
                   color="#FFFAF0"
                   textColor="#744210"
                 />
               )}
-              {profile.politicalBeliefs
-                ?.filter((b) => b !== "Prefer not to say")
-                .map((b) => (
-                  <TagPill
-                    key={b}
-                    label={`🏛 ${b}`}
-                    color="#FAF5FF"
-                    textColor="#553C9A"
-                  />
-                ))}
+              {showPolitics && (
+                <TagPill
+                  label={`🏛 ${politicalBeliefs}`}
+                  color="#FAF5FF"
+                  textColor="#553C9A"
+                />
+              )}
             </View>
           </View>
         )}
 
         {/* Interests */}
-        {profile.causes?.length > 0 && (
+        {causes.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Interests</Text>
             <View style={styles.pills}>
-              {profile.causes.map((c) => (
-                <TagPill key={c} label={c} />
+              {causes.map((c, i) => (
+                <TagPill key={i} label={c} />
               ))}
             </View>
           </View>
@@ -301,7 +381,7 @@ export default function MemberProfileScreen({ route, navigation }) {
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      {/* Optional message modal */}
+      {/* Connection request message modal */}
       <Modal
         visible={showMessageModal}
         transparent
@@ -312,7 +392,7 @@ export default function MemberProfileScreen({ route, navigation }) {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Connect with {profile.name}</Text>
             <Text style={styles.modalSubtitle}>
-              Add an optional message to introduce yourself (optional)
+              Add an optional message to introduce yourself
             </Text>
             <TextInput
               style={styles.modalInput}
@@ -348,8 +428,15 @@ export default function MemberProfileScreen({ route, navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F7FAFC" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-
+  center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 16 },
+  goBackBtn: {
+    backgroundColor: "#2B6CB0",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  goBackBtnText: { color: "white", fontWeight: "700", fontSize: 15 },
   header: {
     backgroundColor: "#2B6CB0",
     alignItems: "center",
@@ -365,10 +452,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#E2E8F0",
     marginBottom: 12,
   },
+  photoPlaceholder: {
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.2)",
+  },
+  photoInitial: { fontSize: 40, fontWeight: "700", color: "white" },
   name: { fontSize: 24, fontWeight: "700", color: "white", marginBottom: 4 },
   location: { fontSize: 14, color: "rgba(255,255,255,0.85)", marginBottom: 2 },
   age: { fontSize: 13, color: "rgba(255,255,255,0.7)" },
-
   actionContainer: { margin: 16 },
   connectBtn: {
     backgroundColor: "#2B6CB0",
@@ -422,7 +514,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   acceptBtnText: { color: "white", fontWeight: "700" },
-
   section: {
     backgroundColor: "white",
     marginHorizontal: 16,
@@ -445,7 +536,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   bio: { fontSize: 15, color: "#4A5568", lineHeight: 22 },
-
   sharedGroup: {
     flexDirection: "row",
     alignItems: "center",
@@ -456,16 +546,9 @@ const styles = StyleSheet.create({
   },
   sharedGroupIcon: { fontSize: 18 },
   sharedGroupName: { fontSize: 14, color: "#4A5568", fontWeight: "500" },
-
   pills: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  pill: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 20,
-  },
+  pill: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20 },
   pillText: { fontSize: 13, fontWeight: "500" },
-
-  // Modal
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",

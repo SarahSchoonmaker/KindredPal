@@ -172,8 +172,7 @@ export default function ConnectionsScreen({ navigation }) {
   const handleMessage = (user) => {
     const userId = (user._id || user.id)?.toString();
     if (!userId) return;
-    // FIX: use getParent() to reach the root stack navigator from inside
-    // the tab navigator — Chat is a root stack screen, not a tab screen
+    // getParent() reaches the root stack navigator from inside the tab navigator
     navigation.getParent()?.navigate("Chat", {
       match: {
         _id: userId,
@@ -184,17 +183,18 @@ export default function ConnectionsScreen({ navigation }) {
     });
   };
 
-  // FIX: ConnectionsScreen lives inside MainTabs (bottom tab navigator).
-  // Calling navigation.navigate("UserProfile") from inside a tab navigator
-  // makes React Navigation search only within the tab navigator's screens —
-  // it never finds "UserProfile" (which is in the root stack) and crashes.
-  //
-  // Solution: navigation.getParent() returns the parent root stack navigator,
-  // which DOES have "UserProfile" registered. Navigate on that instead.
+  // FIX: MemberProfile and Chat live in the ROOT stack navigator, not the tab
+  // navigator. From inside a tab screen, navigation.navigate() only searches
+  // within the tab navigator and crashes when it can't find the screen.
+  // navigation.getParent() returns the root stack navigator which owns these
+  // screens — matching how web navigates to /members/:id for connections.
   const handleViewProfile = (user) => {
     const userId = (user._id || user.id)?.toString();
     if (!userId) return;
-    navigation.getParent()?.navigate("UserProfile", { userId });
+    navigation.getParent()?.navigate("MemberProfile", {
+      userId,
+      sharedGroups: [],
+    });
   };
 
   const handleRemove = (connectionId, name) => {
@@ -227,7 +227,6 @@ export default function ConnectionsScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Tabs */}
       <View style={styles.tabs}>
         <TouchableOpacity
           style={[styles.tab, activeTab === "connections" && styles.tabActive]}
@@ -258,7 +257,6 @@ export default function ConnectionsScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Requests Tab */}
       {activeTab === "requests" && (
         <FlatList
           data={requests}
@@ -294,7 +292,6 @@ export default function ConnectionsScreen({ navigation }) {
         />
       )}
 
-      {/* Connections Tab */}
       {activeTab === "connections" && (
         <FlatList
           data={connections}
