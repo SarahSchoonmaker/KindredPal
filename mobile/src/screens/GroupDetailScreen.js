@@ -44,7 +44,9 @@ function MemberCard({
     >
       <Image
         source={{
-          uri: member.profilePhoto || "https://via.placeholder.com/44",
+          uri:
+            member.profilePhoto ||
+            "https://ui-avatars.com/api/?background=CBD5E0&color=718096&size=44",
         }}
         style={styles.memberPhoto}
       />
@@ -54,9 +56,6 @@ function MemberCard({
           <Text style={styles.memberMeta}>
             {[member.city, member.state].filter(Boolean).join(", ")}
           </Text>
-        ) : null}
-        {member.denomination ? (
-          <Text style={styles.memberMeta}>{member.denomination}</Text>
         ) : null}
       </View>
       {!isCurrentUser && (
@@ -84,9 +83,6 @@ function MemberCard({
 export default function GroupDetailScreen({ route, navigation }) {
   const { groupId } = route.params;
 
-  // Set header options once on mount only — never again.
-  // Calling setOptions after mount on a native stack corrupts the header
-  // and breaks the back button.
   useLayoutEffect(() => {
     navigation.setOptions({
       headerBackTitle: "Back",
@@ -107,7 +103,6 @@ export default function GroupDetailScreen({ route, navigation }) {
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
   const flatListRef = useRef(null);
-
   const currentUserIdRef = useRef(null);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [connectionStatuses, setConnectionStatuses] = useState({});
@@ -126,7 +121,6 @@ export default function GroupDetailScreen({ route, navigation }) {
       const res = await api.get(`/groups/${groupId}`);
       setGroup(res.data);
     } catch (err) {
-      console.error("fetchGroup error:", err);
       Alert.alert("Error", "Could not load group");
     } finally {
       setLoading(false);
@@ -204,7 +198,7 @@ export default function GroupDetailScreen({ route, navigation }) {
       Alert.alert(
         group?.isPrivate ? "Request Sent" : "Welcome!",
         group?.isPrivate
-          ? "Your join request has been sent to the group admin."
+          ? "Your join request has been sent."
           : `You've joined ${group?.name}!`,
       );
     } catch (err) {
@@ -225,18 +219,13 @@ export default function GroupDetailScreen({ route, navigation }) {
         Alert.alert("Joined!", `You have joined ${group?.name}!`);
       } else if (response === "maybe") {
         await fetchGroup();
-        Alert.alert(
-          "Noted",
-          "Marked as maybe. The group admin will see your response.",
-        );
       } else {
         navigation.goBack();
       }
     } catch (err) {
       Alert.alert(
         "Error",
-        err.response?.data?.message ||
-          "Could not update response. Please try again.",
+        err.response?.data?.message || "Could not update response.",
       );
     }
   };
@@ -265,7 +254,7 @@ export default function GroupDetailScreen({ route, navigation }) {
   const handleDelete = () => {
     Alert.alert(
       "Delete Group",
-      `Are you sure you want to delete "${group?.name}"? This cannot be undone.`,
+      `Delete "${group?.name}"? This cannot be undone.`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -274,22 +263,19 @@ export default function GroupDetailScreen({ route, navigation }) {
           onPress: async () => {
             try {
               await api.delete(`/groups/${groupId}`);
-              // FIX: Pass deletedGroupId + timestamp so GroupsScreen removes
-              // it from both Discover and My Groups lists immediately
-              navigation.navigate("Groups", {
-                deletedGroupId: groupId,
-                timestamp: Date.now(),
+              // FIX: Navigate to MainTabs > Groups with deletedGroupId param
+              // so GroupsScreen patches both Discover and My Groups lists
+              navigation.navigate("MainTabs", {
+                screen: "Groups",
+                params: {
+                  deletedGroupId: groupId,
+                  timestamp: Date.now(),
+                },
               });
             } catch (err) {
-              console.error(
-                "Delete error:",
-                err.response?.status,
-                err.response?.data,
-              );
               Alert.alert(
                 "Could Not Delete",
-                err.response?.data?.message ||
-                  `Error ${err.response?.status || "unknown"}. Please try again.`,
+                err.response?.data?.message || "Please try again.",
               );
             }
           },
@@ -359,35 +345,33 @@ export default function GroupDetailScreen({ route, navigation }) {
     try {
       const res = await api.put(`/groups/${groupId}`, editForm);
       setShowEdit(false);
-      // Update local group state from PUT response — no need to refetch
+      // Update local state immediately from response
       setGroup((prev) => ({ ...prev, ...res.data }));
       Alert.alert("Saved ✓", "Group updated successfully.");
 
-      // FIX: Pass updatedGroup back to GroupsScreen via navigation params
-      // so it can patch the group card in BOTH Discover and My Groups lists
-      // without waiting for the next useFocusEffect fetch.
-      navigation.navigate("Groups", {
-        updatedGroup: { ...res.data, _id: groupId },
-        timestamp: Date.now(),
+      // FIX: Use navigation.navigate("MainTabs", { screen: "Groups", params: {...} })
+      // instead of navigation.navigate("Groups", {...}) directly.
+      // From a root stack screen (GroupDetailScreen), navigating to "Groups" finds
+      // the tab but doesn't reliably pass params INTO the tab's screen component.
+      // The nested params pattern guarantees GroupsScreen receives updatedGroup
+      // and patches both Discover and My Groups lists immediately.
+      navigation.navigate("MainTabs", {
+        screen: "Groups",
+        params: {
+          updatedGroup: { ...res.data, _id: groupId },
+          timestamp: Date.now(),
+        },
       });
     } catch (err) {
-      console.error(
-        "Edit group error:",
-        JSON.stringify(err.response?.data),
-        err.message,
-      );
       Alert.alert(
         "Could Not Save",
-        err.response?.data?.message ||
-          err.message ||
-          "Request failed. Check your connection and try again.",
+        err.response?.data?.message || "Request failed. Please try again.",
       );
     } finally {
       setEditSaving(false);
     }
   };
 
-  // Belt-and-suspenders admin/creator check
   const uid = currentUserIdRef.current || currentUserId;
   const createdById =
     group?.createdBy?._id?.toString() || group?.createdBy?.toString();
@@ -614,7 +598,7 @@ export default function GroupDetailScreen({ route, navigation }) {
               <View style={styles.privateMessage}>
                 <Lock size={24} color="#718096" />
                 <Text style={styles.privateMessageText}>
-                  Join this group to see members and connect.
+                  Join this group to see members.
                 </Text>
               </View>
             )}
@@ -681,7 +665,7 @@ export default function GroupDetailScreen({ route, navigation }) {
                         source={{
                           uri:
                             item.sender?.profilePhoto ||
-                            "https://via.placeholder.com/28",
+                            "https://ui-avatars.com/api/?background=CBD5E0&color=718096&size=28",
                         }}
                         style={styles.msgAvatar}
                       />
@@ -861,7 +845,7 @@ export default function GroupDetailScreen({ route, navigation }) {
             <TouchableOpacity
               style={[
                 styles.editSaveBtn,
-                { marginTop: 16, marginBottom: 8 },
+                { marginTop: 16 },
                 editSaving && { opacity: 0.6 },
               ]}
               onPress={handleSaveEdit}
@@ -973,6 +957,60 @@ const styles = StyleSheet.create({
     borderColor: "#E2E8F0",
   },
   pendingButtonText: { color: "#718096", fontSize: 15 },
+  editButton: {
+    backgroundColor: "#EBF4FF",
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: BLUE,
+  },
+  editButtonText: { color: BLUE, fontSize: 14, fontWeight: "700" },
+  deleteButton: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#E53E3E",
+  },
+  deleteButtonText: { color: "#E53E3E", fontSize: 14, fontWeight: "700" },
+  rsvpContainer: {},
+  rsvpLabel: {
+    fontSize: 13,
+    color: "#4a5568",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  rsvpRow: { flexDirection: "row", gap: 8 },
+  rsvpAcceptBtn: {
+    flex: 1,
+    backgroundColor: BLUE,
+    borderRadius: 10,
+    paddingVertical: 11,
+    alignItems: "center",
+  },
+  rsvpAcceptText: { color: "white", fontSize: 14, fontWeight: "700" },
+  rsvpMaybeBtn: {
+    flex: 1,
+    backgroundColor: "white",
+    borderRadius: 10,
+    paddingVertical: 11,
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#f6ad55",
+  },
+  rsvpMaybeText: { color: "#d69e2e", fontSize: 14, fontWeight: "600" },
+  rsvpDeclineBtn: {
+    flex: 1,
+    backgroundColor: "white",
+    borderRadius: 10,
+    paddingVertical: 11,
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+  },
+  rsvpDeclineText: { color: "#718096", fontSize: 14, fontWeight: "600" },
   tabs: {
     flexDirection: "row",
     backgroundColor: "white",
@@ -1098,60 +1136,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   chatSendBtnDisabled: { backgroundColor: "#cbd5e0" },
-  editButton: {
-    backgroundColor: "#EBF4FF",
-    borderRadius: 12,
-    paddingVertical: 10,
-    alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: "#2B6CB0",
-  },
-  editButtonText: { color: "#2B6CB0", fontSize: 14, fontWeight: "700" },
-  deleteButton: {
-    backgroundColor: "white",
-    borderRadius: 12,
-    paddingVertical: 10,
-    alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: "#E53E3E",
-  },
-  deleteButtonText: { color: "#E53E3E", fontSize: 14, fontWeight: "700" },
-  rsvpContainer: {},
-  rsvpLabel: {
-    fontSize: 13,
-    color: "#4a5568",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  rsvpRow: { flexDirection: "row", gap: 8 },
-  rsvpAcceptBtn: {
-    flex: 1,
-    backgroundColor: "#2B6CB0",
-    borderRadius: 10,
-    paddingVertical: 11,
-    alignItems: "center",
-  },
-  rsvpAcceptText: { color: "white", fontSize: 14, fontWeight: "700" },
-  rsvpMaybeBtn: {
-    flex: 1,
-    backgroundColor: "white",
-    borderRadius: 10,
-    paddingVertical: 11,
-    alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: "#f6ad55",
-  },
-  rsvpMaybeText: { color: "#d69e2e", fontSize: 14, fontWeight: "600" },
-  rsvpDeclineBtn: {
-    flex: 1,
-    backgroundColor: "white",
-    borderRadius: 10,
-    paddingVertical: 11,
-    alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: "#e2e8f0",
-  },
-  rsvpDeclineText: { color: "#718096", fontSize: 14, fontWeight: "600" },
   editModalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1191,10 +1175,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "white",
   },
-  editToggleActive: { backgroundColor: "#2B6CB0", borderColor: "#2B6CB0" },
+  editToggleActive: { backgroundColor: BLUE, borderColor: BLUE },
   editToggleText: { fontSize: 15, fontWeight: "600", color: "#4a5568" },
   editSaveBtn: {
-    backgroundColor: "#2B6CB0",
+    backgroundColor: BLUE,
     borderRadius: 14,
     paddingVertical: 15,
     alignItems: "center",
