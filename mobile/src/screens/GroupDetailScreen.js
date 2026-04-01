@@ -84,19 +84,16 @@ function MemberCard({
 export default function GroupDetailScreen({ route, navigation }) {
   const { groupId } = route.params;
 
-  // FIX: Set ALL header options exactly once on mount — empty deps [].
-  // Any subsequent call to navigation.setOptions on a native stack screen
-  // (even just updating the title) can corrupt the header's gesture handler
-  // and detach the back button. We set the title here from the initial
-  // groupId param; it gets updated correctly via the group name in state
-  // without needing to touch the header again.
+  // Set header options once on mount only — never again.
+  // Calling setOptions after mount on a native stack corrupts the header
+  // and breaks the back button.
   useLayoutEffect(() => {
     navigation.setOptions({
       headerBackTitle: "Back",
       headerBackButtonMenuEnabled: false,
       title: "Group",
     });
-  }, []); // ← empty deps: NEVER runs again after mount
+  }, []);
 
   const [group, setGroup] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -127,10 +124,6 @@ export default function GroupDetailScreen({ route, navigation }) {
   const fetchGroup = useCallback(async () => {
     try {
       const res = await api.get(`/groups/${groupId}`);
-      // FIX: Store group in state but do NOT call navigation.setOptions here.
-      // fetchGroup runs on every focus event and after save — calling setOptions
-      // from inside an async function triggered by state changes corrupts the
-      // native stack header and breaks the back button permanently.
       setGroup(res.data);
     } catch (err) {
       console.error("fetchGroup error:", err);
@@ -281,11 +274,12 @@ export default function GroupDetailScreen({ route, navigation }) {
           onPress: async () => {
             try {
               await api.delete(`/groups/${groupId}`);
-              // FIX: We can't pass a function through route.params — it gets
-              // serialized to undefined. Instead, navigate back to the Groups
-              // tab with a deletedGroupId param that GroupsScreen reads on focus
-              // to instantly remove the item from its list without a server round-trip.
-              navigation.navigate("Groups", { deletedGroupId: groupId });
+              // FIX: Pass deletedGroupId + timestamp so GroupsScreen removes
+              // it from both Discover and My Groups lists immediately
+              navigation.navigate("Groups", {
+                deletedGroupId: groupId,
+                timestamp: Date.now(),
+              });
             } catch (err) {
               console.error(
                 "Delete error:",
@@ -364,13 +358,18 @@ export default function GroupDetailScreen({ route, navigation }) {
     setEditSaving(true);
     try {
       const res = await api.put(`/groups/${groupId}`, editForm);
-      // FIX: Close the modal first, then update state directly from the PUT
-      // response — do NOT call fetchGroup() here. fetchGroup calls
-      // navigation.setOptions which corrupts the native stack header and
-      // breaks the back button. We have the updated data in res.data already.
       setShowEdit(false);
+      // Update local group state from PUT response — no need to refetch
       setGroup((prev) => ({ ...prev, ...res.data }));
       Alert.alert("Saved ✓", "Group updated successfully.");
+
+      // FIX: Pass updatedGroup back to GroupsScreen via navigation params
+      // so it can patch the group card in BOTH Discover and My Groups lists
+      // without waiting for the next useFocusEffect fetch.
+      navigation.navigate("Groups", {
+        updatedGroup: { ...res.data, _id: groupId },
+        timestamp: Date.now(),
+      });
     } catch (err) {
       console.error(
         "Edit group error:",
@@ -388,7 +387,7 @@ export default function GroupDetailScreen({ route, navigation }) {
     }
   };
 
-  // Belt-and-suspenders admin/creator check — server flags first, then client fallback
+  // Belt-and-suspenders admin/creator check
   const uid = currentUserIdRef.current || currentUserId;
   const createdById =
     group?.createdBy?._id?.toString() || group?.createdBy?.toString();
@@ -441,8 +440,6 @@ export default function GroupDetailScreen({ route, navigation }) {
           <View style={styles.headerIcon}>
             <Text style={styles.headerIconText}>👥</Text>
           </View>
-          {/* FIX: Show group name inside the screen body instead of the nav header
-              title, since we can no longer safely update the header after mount */}
           <Text style={styles.groupName}>{group.name}</Text>
           <View style={styles.headerMeta}>
             {group.isPrivate ? (

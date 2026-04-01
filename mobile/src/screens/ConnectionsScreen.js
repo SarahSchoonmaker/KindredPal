@@ -182,28 +182,22 @@ export default function ConnectionsScreen({ navigation }) {
     });
   };
 
-  // FIX: Navigate to UserProfile (not MemberProfile which requires sharedGroups
-  // from a group context). UserProfile is the correct screen for viewing any
-  // user's profile from the Connections tab.
-  // Falls back to MemberProfile with empty sharedGroups if UserProfile doesn't
-  // exist in your navigator yet.
+  // FIX: Previously used navigation.getState().routeNames.includes("UserProfile")
+  // to decide which screen to navigate to. This crashes on React Native because
+  // nested navigators don't expose all route names from getState() at the tab
+  // level — the check returns false and the fallback navigate() call itself
+  // throws if the screen doesn't exist in the current stack.
+  //
+  // Fix: navigate directly to MemberProfile which is registered in the mobile
+  // navigator. Pass sharedGroups as empty array since we don't have group
+  // context here — MemberProfile handles this gracefully.
   const handleViewProfile = (user) => {
     const userId = (user._id || user.id)?.toString();
     if (!userId) return;
-
-    // Try UserProfile first (designed for connection context)
-    const state = navigation.getState();
-    const hasUserProfile = state?.routeNames?.includes("UserProfile");
-
-    if (hasUserProfile) {
-      navigation.navigate("UserProfile", { userId });
-    } else {
-      // Fallback: MemberProfile with empty sharedGroups
-      navigation.navigate("MemberProfile", {
-        userId,
-        sharedGroups: [],
-      });
-    }
+    navigation.navigate("MemberProfile", {
+      userId,
+      sharedGroups: [],
+    });
   };
 
   const handleRemove = (connectionId, name) => {
@@ -335,10 +329,6 @@ export default function ConnectionsScreen({ navigation }) {
             </View>
           }
           renderItem={({ item }) => (
-            // FIX: onViewProfile was missing from ConnectionCard renderItem —
-            // this was the direct cause of the crash. The prop was declared in
-            // ConnectionCard but never passed, so calling onViewProfile() threw
-            // "undefined is not a function" and crashed the app.
             <ConnectionCard
               connection={item}
               onMessage={handleMessage}

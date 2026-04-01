@@ -84,33 +84,6 @@ const DISTANCE_OPTS = [
   { label: "Statewide", value: "state" },
   { label: "Anywhere", value: "anywhere" },
 ];
-const RELIGION_OPTS = [
-  "None",
-  "Spiritual but not religious",
-  "Christian (Catholic)",
-  "Christian (Protestant)",
-  "Christian (Evangelical)",
-  "Christian (Orthodox)",
-  "Jewish",
-  "Muslim",
-  "Hindu",
-  "Buddhist",
-  "Mormon / LDS",
-  "Other",
-];
-const LIFE_STAGE_OPTS = [
-  "Single",
-  "In a relationship",
-  "Married",
-  "Divorced",
-  "Widowed",
-  "Empty nester",
-  "Retired",
-  "Caregiver",
-  "Aging Alone",
-  "New Career",
-  "New to Town",
-];
 const CATEGORIES = [
   "All",
   "Caregiver Support",
@@ -232,16 +205,17 @@ function GroupCard({ group, onPress }) {
 }
 
 export default function GroupsScreen({ navigation, route }) {
-  const [groups, setGroups] = useState([]);
-  const [myGroups, setMyGroups] = useState([]);
+  const [groups, setGroups] = useState([]); // Discover list
+  const [myGroups, setMyGroups] = useState([]); // My Groups list
   const [invitedGroups, setInvitedGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState("my"); // FIX: default to "my" so new groups are visible immediately
+  const [activeTab, setActiveTab] = useState("my");
   const [showFilters, setShowFilters] = useState(false);
   const [showStateList, setShowStateList] = useState(false);
   const [showDistanceList, setShowDistanceList] = useState(false);
 
+  // All filter state lives in a ref so fetchGroups can have stable [] deps
   const filtersRef = useRef({
     search: "",
     category: "All",
@@ -259,7 +233,8 @@ export default function GroupsScreen({ navigation, route }) {
     religion: [],
     lifeStage: [],
   });
-  // Track last processed param timestamp to avoid re-processing
+
+  // Tracks last processed param timestamp to avoid double-firing
   const lastParamTimestamp = useRef(0);
 
   const setFilter = useCallback((key, value) => {
@@ -267,6 +242,7 @@ export default function GroupsScreen({ navigation, route }) {
     setFilterUI((prev) => ({ ...prev, [key]: value }));
   }, []);
 
+  // Stable fetch — never recreated, always reads latest filters from ref
   const fetchGroups = useCallback(async (showLoader = false) => {
     if (showLoader) setLoading(true);
     try {
@@ -290,21 +266,32 @@ export default function GroupsScreen({ navigation, route }) {
       setMyGroups(myRes.data.groups || []);
       setInvitedGroups(invitesRes.data.groups || []);
     } catch (err) {
-      console.error("Error fetching groups:", err);
+      console.error("fetchGroups error:", err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
+  // Load on mount
   useEffect(() => {
     fetchGroups(true);
   }, [fetchGroups]);
 
-  // FIX: Handle newGroup and deletedGroupId params from CreateGroupScreen
-  // and GroupDetailScreen. We do this optimistically — update the list
-  // immediately from the param data, then also trigger a server fetch
-  // with a delay to ensure eventual consistency.
+  // Refresh on every tab focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchGroups();
+    }, [fetchGroups]),
+  );
+
+  // ─── PARAM HANDLER ───────────────────────────────────────────────────────────
+  // Watches route.params for newGroup / updatedGroup / deletedGroupId signals
+  // from CreateGroupScreen and GroupDetailScreen.
+  //
+  // KEY FIX: Each action patches BOTH `groups` (Discover) AND `myGroups`
+  // immediately so the card updates in both tabs without waiting for the next
+  // server fetch. A delayed fetchGroups() then syncs with the server.
   useEffect(() => {
     const params = route?.params;
     if (!params) return;
@@ -313,43 +300,69 @@ export default function GroupsScreen({ navigation, route }) {
     if (timestamp <= lastParamTimestamp.current) return;
     lastParamTimestamp.current = timestamp;
 
+    // ── New group created ──────────────────────────────────────────────────
     if (params.newGroup) {
-      // Optimistically add the new group to both lists immediately
-      const newGroup = { ...params.newGroup, isMember: true };
+      const newGroup = { ...params.newGroup, isMember: true, isCreator: true };
+
+      // Add to My Groups immediately
       setMyGroups((prev) => {
         const exists = prev.some((g) => g._id === newGroup._id);
         return exists ? prev : [newGroup, ...prev];
       });
+
+      // Also add to Discover list so it shows there too
       setGroups((prev) => {
         const exists = prev.some((g) => g._id === newGroup._id);
         return exists ? prev : [newGroup, ...prev];
       });
-      // Switch to My Groups tab so user sees their new group
+
+      // Switch to My Groups tab so user sees their new group right away
       setActiveTab("my");
-      // Also do a delayed server fetch to confirm
+
+      // Delayed server fetch for eventual consistency
       setTimeout(() => fetchGroups(), 1500);
-      // Clear the param
       navigation.setParams({ newGroup: undefined, timestamp: undefined });
     }
 
-    if (params.deletedGroupId) {
-      const deletedId = params.deletedGroupId;
-      // Optimistically remove from both lists immediately
-      setMyGroups((prev) => prev.filter((g) => g._id !== deletedId));
-      setGroups((prev) => prev.filter((g) => g._id !== deletedId));
+    // ── Existing group edited ──────────────────────────────────────────────
+    if (params.updatedGroup) {
+      const updated = params.updatedGroup;
+      const groupId = updated._id?.toString();
+
+      // Patch in My Groups list
+      setMyGroups((prev) =>
+        prev.map((g) =>
+          g._id?.toString() === groupId ? { ...g, ...updated } : g,
+        ),
+      );
+
+      // FIX: Also patch in Discover (groups) list — this is the missing piece
+      // that caused edits to show in My Groups tab but not in Discover tab.
+      setGroups((prev) =>
+        prev.map((g) =>
+          g._id?.toString() === groupId ? { ...g, ...updated } : g,
+        ),
+      );
+
       // Delayed server fetch to confirm
+      setTimeout(() => fetchGroups(), 1500);
+      navigation.setParams({ updatedGroup: undefined, timestamp: undefined });
+    }
+
+    // ── Group deleted ──────────────────────────────────────────────────────
+    if (params.deletedGroupId) {
+      const deletedId = params.deletedGroupId?.toString();
+
+      // Remove from both lists immediately
+      setMyGroups((prev) =>
+        prev.filter((g) => g._id?.toString() !== deletedId),
+      );
+      setGroups((prev) => prev.filter((g) => g._id?.toString() !== deletedId));
+
       setTimeout(() => fetchGroups(), 1000);
-      // Clear the param
       navigation.setParams({ deletedGroupId: undefined, timestamp: undefined });
     }
   }, [route?.params, fetchGroups, navigation]);
-
-  // useFocusEffect — standard refresh on tab focus
-  useFocusEffect(
-    useCallback(() => {
-      fetchGroups();
-    }, [fetchGroups]),
-  );
 
   const debounceRef = useRef(null);
   const handleSearchChange = (text) => {
@@ -388,6 +401,7 @@ export default function GroupsScreen({ navigation, route }) {
     setPendingFilters(empty);
     Object.entries(empty).forEach(([k, v]) => setFilter(k, v));
   };
+
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchGroups();
@@ -821,51 +835,6 @@ export default function GroupsScreen({ navigation, route }) {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>📍 Location</Text>
-              <View style={styles.locationRow}>
-                <TextInput
-                  style={[styles.filterInput, { flex: 1 }]}
-                  placeholder="City"
-                  value={pendingFilters.city}
-                  onChangeText={(v) =>
-                    setPendingFilters((f) => ({ ...f, city: v }))
-                  }
-                  placeholderTextColor="#a0aec0"
-                />
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.stateScroll}
-                >
-                  {US_STATES_F.map((s) => (
-                    <TouchableOpacity
-                      key={s}
-                      style={[
-                        styles.stateChip,
-                        pendingFilters.state === s && styles.stateChipActive,
-                      ]}
-                      onPress={() =>
-                        setPendingFilters((f) => ({
-                          ...f,
-                          state: f.state === s ? "" : s,
-                        }))
-                      }
-                    >
-                      <Text
-                        style={[
-                          styles.stateChipText,
-                          pendingFilters.state === s &&
-                            styles.stateChipTextActive,
-                        ]}
-                      >
-                        {s}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            </View>
-            <View style={styles.filterSection}>
               <Text style={styles.filterSectionTitle}>📏 Distance / Range</Text>
               <View style={styles.chipRow}>
                 {DISTANCE_OPTS.map((opt) => (
@@ -891,74 +860,6 @@ export default function GroupsScreen({ navigation, route }) {
                       ]}
                     >
                       {opt.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-            <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>🙏 Faith / Religion</Text>
-              <View style={styles.chipRow}>
-                {RELIGION_OPTS.map((r) => (
-                  <TouchableOpacity
-                    key={r}
-                    style={[
-                      styles.filterChip,
-                      (pendingFilters.religion || []).includes(r) &&
-                        styles.filterChipActive,
-                    ]}
-                    onPress={() => {
-                      const cur = pendingFilters.religion || [];
-                      setPendingFilters((f) => ({
-                        ...f,
-                        religion: cur.includes(r)
-                          ? cur.filter((v) => v !== r)
-                          : [...cur, r],
-                      }));
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.filterChipText,
-                        (pendingFilters.religion || []).includes(r) &&
-                          styles.filterChipTextActive,
-                      ]}
-                    >
-                      {r}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-            <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>🌱 Life Stage</Text>
-              <View style={styles.chipRow}>
-                {LIFE_STAGE_OPTS.map((l) => (
-                  <TouchableOpacity
-                    key={l}
-                    style={[
-                      styles.filterChip,
-                      (pendingFilters.lifeStage || []).includes(l) &&
-                        styles.filterChipActive,
-                    ]}
-                    onPress={() => {
-                      const cur = pendingFilters.lifeStage || [];
-                      setPendingFilters((f) => ({
-                        ...f,
-                        lifeStage: cur.includes(l)
-                          ? cur.filter((v) => v !== l)
-                          : [...cur, l],
-                      }));
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.filterChipText,
-                        (pendingFilters.lifeStage || []).includes(l) &&
-                          styles.filterChipTextActive,
-                      ]}
-                    >
-                      {l}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -990,168 +891,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F7FAFC" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   loadingText: { marginTop: 12, fontSize: 15, color: "#718096" },
-  searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 8,
-    backgroundColor: "white",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
-  },
-  searchContainer: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F7FAFC",
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    height: 40,
-  },
-  searchInput: { flex: 1, fontSize: 14, color: "#2D3748" },
-  createBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: "#2B6CB0",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  tabs: {
-    flexDirection: "row",
-    backgroundColor: "white",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: "center",
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
-  },
-  tabActive: { borderBottomColor: "#2B6CB0" },
-  tabText: { fontSize: 13, fontWeight: "600", color: "#718096" },
-  tabTextActive: { color: "#2B6CB0" },
-  categoryGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    padding: 10,
-    gap: 10,
-    backgroundColor: "#F7FAFC",
-  },
-  catTile: {
-    width: "30%",
-    flexGrow: 1,
-    minWidth: 100,
-    backgroundColor: "white",
-    borderRadius: 14,
-    padding: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1.5,
-    borderColor: "#E2E8F0",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
-    position: "relative",
-    minHeight: 90,
-  },
-  catTileActive: { backgroundColor: "#EBF4FF", borderColor: "#2B6CB0" },
-  catTileEmoji: { fontSize: 28, marginBottom: 6 },
-  catTileText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#4A5568",
-    textAlign: "center",
-    lineHeight: 14,
-  },
-  catTileTextActive: { color: "#2B6CB0" },
-  catTileCheck: {
-    position: "absolute",
-    top: 6,
-    right: 6,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: "#2B6CB0",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  catSpacer: { width: "30%", flexGrow: 1, minWidth: 100 },
-  listContent: { padding: 12 },
-  card: {
-    backgroundColor: "white",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 8,
-  },
-  cardIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: "#EBF4FF",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 10,
-    flexShrink: 0,
-  },
-  cardIconText: { fontSize: 20 },
-  cardInfo: { flex: 1 },
-  cardTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    marginBottom: 2,
-  },
-  cardName: { fontSize: 15, fontWeight: "700", color: "#2D3748", flex: 1 },
-  cardCategory: {
-    fontSize: 11,
-    color: "#2B6CB0",
-    fontWeight: "600",
-    marginBottom: 1,
-  },
-  cardLocation: { fontSize: 11, color: "#718096" },
-  cardDescription: {
-    fontSize: 13,
-    color: "#4A5568",
-    lineHeight: 18,
-    marginBottom: 10,
-  },
-  cardFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  memberCount: { flexDirection: "row", alignItems: "center", gap: 4 },
-  memberCountText: { fontSize: 12, color: "#718096" },
-  badge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12 },
-  badgeJoined: { backgroundColor: "#C6F6D5" },
-  badgePending: { backgroundColor: "#FEFCBF" },
-  badgeJoin: {
-    backgroundColor: "#EBF4FF",
-    borderWidth: 1,
-    borderColor: "#2B6CB0",
-  },
-  badgeText: { fontSize: 11, fontWeight: "700" },
   locationBar: {
     backgroundColor: "#EBF4FF",
     borderBottomWidth: 1,
@@ -1217,11 +956,6 @@ const styles = StyleSheet.create({
     width: 260,
     maxHeight: 340,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 10,
   },
   pickerItem: {
     paddingVertical: 13,
@@ -1232,6 +966,169 @@ const styles = StyleSheet.create({
   pickerItemActive: { backgroundColor: "#EBF4FF" },
   pickerItemText: { fontSize: 15, color: "#2d3748" },
   pickerItemTextActive: { color: "#2B6CB0", fontWeight: "700" },
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+  },
+  searchContainer: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F7FAFC",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    height: 40,
+  },
+  searchInput: { flex: 1, fontSize: 14, color: "#2D3748" },
+  filterBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: "#f7fafc",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  filterBtnActive: { backgroundColor: "#2B6CB0", borderColor: "#2B6CB0" },
+  createBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: "#2B6CB0",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  tabs: {
+    flexDirection: "row",
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
+  },
+  tabActive: { borderBottomColor: "#2B6CB0" },
+  tabText: { fontSize: 13, fontWeight: "600", color: "#718096" },
+  tabTextActive: { color: "#2B6CB0" },
+  categoryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    padding: 10,
+    gap: 10,
+    backgroundColor: "#F7FAFC",
+  },
+  catTile: {
+    width: "30%",
+    flexGrow: 1,
+    minWidth: 100,
+    backgroundColor: "white",
+    borderRadius: 14,
+    padding: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    position: "relative",
+    minHeight: 90,
+  },
+  catTileActive: { backgroundColor: "#EBF4FF", borderColor: "#2B6CB0" },
+  catTileEmoji: { fontSize: 28, marginBottom: 6 },
+  catTileText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#4A5568",
+    textAlign: "center",
+    lineHeight: 14,
+  },
+  catTileTextActive: { color: "#2B6CB0" },
+  catTileCheck: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#2B6CB0",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  catSpacer: { width: "30%", flexGrow: 1, minWidth: 100 },
+  listContent: { padding: 12 },
+  card: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 8,
+  },
+  cardIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: "#EBF4FF",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 10,
+    flexShrink: 0,
+  },
+  cardIconText: { fontSize: 20 },
+  cardInfo: { flex: 1 },
+  cardTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginBottom: 2,
+  },
+  cardName: { fontSize: 15, fontWeight: "700", color: "#2D3748", flex: 1 },
+  cardCategory: {
+    fontSize: 11,
+    color: "#2B6CB0",
+    fontWeight: "600",
+    marginBottom: 1,
+  },
+  cardLocation: { fontSize: 11, color: "#718096" },
+  cardDescription: {
+    fontSize: 13,
+    color: "#4A5568",
+    lineHeight: 18,
+    marginBottom: 10,
+  },
+  cardFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  memberCount: { flexDirection: "row", alignItems: "center", gap: 4 },
+  memberCountText: { fontSize: 12, color: "#718096" },
+  badge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12 },
+  badgeJoined: { backgroundColor: "#C6F6D5" },
+  badgePending: { backgroundColor: "#FEFCBF" },
+  badgeJoin: {
+    backgroundColor: "#EBF4FF",
+    borderWidth: 1,
+    borderColor: "#2B6CB0",
+  },
+  badgeText: { fontSize: 11, fontWeight: "700" },
   inviteBanner: {
     backgroundColor: "#fffbeb",
     borderWidth: 1.5,
@@ -1316,17 +1213,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: 32,
   },
-  filterBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: "#f7fafc",
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  filterBtnActive: { backgroundColor: "#2B6CB0", borderColor: "#2B6CB0" },
   modalContainer: { flex: 1, backgroundColor: "white" },
   modalHeader: {
     flexDirection: "row",
@@ -1345,31 +1231,6 @@ const styles = StyleSheet.create({
     color: "#2d3748",
     marginBottom: 12,
   },
-  locationRow: { gap: 10 },
-  filterInput: {
-    borderWidth: 1.5,
-    borderColor: "#e2e8f0",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: "#2d3748",
-    backgroundColor: "#f8fafc",
-    marginBottom: 8,
-  },
-  stateScroll: { flexGrow: 0 },
-  stateChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: "#f7fafc",
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    marginRight: 6,
-  },
-  stateChipActive: { backgroundColor: "#2B6CB0", borderColor: "#2B6CB0" },
-  stateChipText: { fontSize: 12, fontWeight: "600", color: "#718096" },
-  stateChipTextActive: { color: "white" },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   filterChip: {
     paddingHorizontal: 12,
