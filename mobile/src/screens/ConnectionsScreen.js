@@ -13,48 +13,20 @@ import { MessageCircle, UserCheck, UserX, Users } from "lucide-react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import api from "../services/api";
 
-// Safe image component — never passes undefined/null URI to native Image
-// which causes a native crash on iOS (not catchable by ErrorBoundary)
-function SafeAvatar({ uri, size = 52, style }) {
-  const validUri =
-    typeof uri === "string" && uri.startsWith("http") ? uri : null;
-  if (validUri) {
-    return (
-      <Image
-        source={{ uri: validUri }}
-        style={[
-          {
-            width: size,
-            height: size,
-            borderRadius: size / 2,
-            backgroundColor: "#E2E8F0",
-          },
-          style,
-        ]}
-      />
-    );
+// iOS native crash prevention: empty string "" URI crashes iOS Image natively.
+// Must check for non-empty string explicitly, not just truthiness.
+const PLACEHOLDER =
+  "https://ui-avatars.com/api/?background=CBD5E0&color=718096&size=52";
+
+function safeUri(uri) {
+  if (
+    typeof uri === "string" &&
+    uri.trim().length > 4 &&
+    uri.startsWith("http")
+  ) {
+    return uri;
   }
-  return (
-    <View
-      style={[
-        {
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: "#CBD5E0",
-          justifyContent: "center",
-          alignItems: "center",
-        },
-        style,
-      ]}
-    >
-      <Text
-        style={{ color: "#718096", fontSize: size * 0.4, fontWeight: "700" }}
-      >
-        ?
-      </Text>
-    </View>
-  );
+  return PLACEHOLDER;
 }
 
 function RequestCard({ request, onAccept, onDecline, onViewProfile }) {
@@ -71,10 +43,14 @@ function RequestCard({ request, onAccept, onDecline, onViewProfile }) {
         style={styles.personRow}
         onPress={() => onViewProfile(from)}
       >
-        <SafeAvatar uri={from.profilePhoto} size={52} />
+        <Image
+          source={{ uri: safeUri(from.profilePhoto) }}
+          style={styles.photo}
+          defaultSource={require("../../assets/icon.png")}
+        />
         <View style={styles.personInfo}>
           <Text style={[styles.personName, { color: "#2B6CB0" }]}>
-            {from.name}
+            {from.name || ""}
           </Text>
           <Text style={styles.personLocation}>
             {[from.city, from.state].filter(Boolean).join(", ")}
@@ -117,15 +93,16 @@ function ConnectionCard({ connection, onMessage, onViewProfile }) {
       <TouchableOpacity
         onPress={() => onViewProfile(user)}
         style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
+        activeOpacity={0.7}
       >
-        <SafeAvatar
-          uri={user.profilePhoto}
-          size={52}
-          style={{ marginRight: 12 }}
+        <Image
+          source={{ uri: safeUri(user.profilePhoto) }}
+          style={[styles.photo, { marginRight: 12 }]}
+          defaultSource={require("../../assets/icon.png")}
         />
         <View style={styles.personInfo}>
           <Text style={[styles.personName, { color: "#2B6CB0" }]}>
-            {user.name}
+            {user.name || ""}
           </Text>
           <Text style={styles.personLocation}>
             {[user.city, user.state].filter(Boolean).join(", ")}
@@ -160,15 +137,8 @@ export default function ConnectionsScreen({ navigation }) {
         api.get("/connections"),
         api.get("/connections/requests"),
       ]);
-      const conns = connRes.data.connections || [];
-      const reqs = reqRes.data.requests || [];
-      console.log("✅ Connections loaded:", conns.length);
-      console.log("✅ Requests loaded:", reqs.length);
-      if (conns.length > 0) {
-        console.log("First connection user:", JSON.stringify(conns[0]?.user));
-      }
-      setConnections(conns);
-      setRequests(reqs);
+      setConnections(connRes.data.connections || []);
+      setRequests(reqRes.data.requests || []);
     } catch (err) {
       console.error("ConnectionsScreen fetch error:", err);
     } finally {
@@ -214,41 +184,36 @@ export default function ConnectionsScreen({ navigation }) {
     ]);
   };
 
-  const handleMessage = (user) => {
-    const userId = (user._id || user.id)?.toString();
-    console.log("💬 handleMessage userId:", userId);
-    if (!userId) return;
-    navigation.getParent()?.navigate("Chat", {
-      match: {
-        _id: userId,
-        id: userId,
-        name: user.name || "User",
-        profilePhoto: user.profilePhoto || null,
-      },
-    });
-  };
+  const handleMessage = useCallback(
+    (user) => {
+      const userId = (user._id || user.id || "").toString();
+      if (!userId) return;
+      navigation.navigate("Chat", {
+        match: {
+          _id: userId,
+          id: userId,
+          name: user.name || "User",
+          profilePhoto: safeUri(user.profilePhoto),
+        },
+      });
+    },
+    [navigation],
+  );
 
-  const handleViewProfile = (user) => {
-    try {
-      const userId = (user._id || user.id)?.toString();
-      console.log("👤 handleViewProfile called, userId:", userId);
-      console.log("👤 user data:", JSON.stringify(user));
-      if (!userId) {
-        console.error("👤 no userId found in user object");
-        return;
-      }
-      const parent = navigation.getParent();
-      console.log("👤 parent navigator:", parent ? "found" : "null");
-      parent?.navigate("MemberProfile", {
-        userId,
+  // Using navigation.navigate directly (not getParent) because in React Navigation 6,
+  // navigate() automatically searches parent navigators when the screen isn't found
+  // in the current navigator — no need for getParent().
+  const handleViewProfile = useCallback(
+    (user) => {
+      const userId = (user._id || user.id || "").toString();
+      if (!userId) return;
+      navigation.navigate("MemberProfile", {
+        userId: userId,
         sharedGroups: [],
       });
-      console.log("👤 navigate called");
-    } catch (err) {
-      console.error("👤 handleViewProfile error:", err);
-      Alert.alert("Error", "Could not open profile: " + err.message);
-    }
-  };
+    },
+    [navigation],
+  );
 
   const handleRemove = (connectionId, name) => {
     Alert.alert("Remove Connection", `Remove ${name} from your connections?`, [
@@ -434,6 +399,12 @@ const styles = StyleSheet.create({
   },
   newBadgeText: { fontSize: 11, fontWeight: "700", color: "#2B6CB0" },
   personRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
+  photo: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#E2E8F0",
+  },
   personInfo: { flex: 1, marginLeft: 12 },
   personName: { fontSize: 16, fontWeight: "700", color: "#2D3748" },
   personLocation: { fontSize: 13, color: "#718096", marginTop: 1 },
