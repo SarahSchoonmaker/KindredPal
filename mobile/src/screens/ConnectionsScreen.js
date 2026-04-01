@@ -13,6 +13,50 @@ import { MessageCircle, UserCheck, UserX, Users } from "lucide-react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import api from "../services/api";
 
+// Safe image component — never passes undefined/null URI to native Image
+// which causes a native crash on iOS (not catchable by ErrorBoundary)
+function SafeAvatar({ uri, size = 52, style }) {
+  const validUri =
+    typeof uri === "string" && uri.startsWith("http") ? uri : null;
+  if (validUri) {
+    return (
+      <Image
+        source={{ uri: validUri }}
+        style={[
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            backgroundColor: "#E2E8F0",
+          },
+          style,
+        ]}
+      />
+    );
+  }
+  return (
+    <View
+      style={[
+        {
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: "#CBD5E0",
+          justifyContent: "center",
+          alignItems: "center",
+        },
+        style,
+      ]}
+    >
+      <Text
+        style={{ color: "#718096", fontSize: size * 0.4, fontWeight: "700" }}
+      >
+        ?
+      </Text>
+    </View>
+  );
+}
+
 function RequestCard({ request, onAccept, onDecline, onViewProfile }) {
   const { from } = request;
   if (!from) return null;
@@ -27,12 +71,7 @@ function RequestCard({ request, onAccept, onDecline, onViewProfile }) {
         style={styles.personRow}
         onPress={() => onViewProfile(from)}
       >
-        <Image
-          source={{
-            uri: from.profilePhoto || "https://via.placeholder.com/52",
-          }}
-          style={styles.photo}
-        />
+        <SafeAvatar uri={from.profilePhoto} size={52} />
         <View style={styles.personInfo}>
           <Text style={[styles.personName, { color: "#2B6CB0" }]}>
             {from.name}
@@ -40,7 +79,7 @@ function RequestCard({ request, onAccept, onDecline, onViewProfile }) {
           <Text style={styles.personLocation}>
             {[from.city, from.state].filter(Boolean).join(", ")}
           </Text>
-          {from.lifeStage?.length > 0 && (
+          {Array.isArray(from.lifeStage) && from.lifeStage.length > 0 && (
             <Text style={styles.personMeta} numberOfLines={1}>
               {from.lifeStage.slice(0, 2).join(" · ")}
             </Text>
@@ -79,11 +118,10 @@ function ConnectionCard({ connection, onMessage, onViewProfile }) {
         onPress={() => onViewProfile(user)}
         style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
       >
-        <Image
-          source={{
-            uri: user.profilePhoto || "https://via.placeholder.com/52",
-          }}
-          style={[styles.photo, { marginRight: 12 }]}
+        <SafeAvatar
+          uri={user.profilePhoto}
+          size={52}
+          style={{ marginRight: 12 }}
         />
         <View style={styles.personInfo}>
           <Text style={[styles.personName, { color: "#2B6CB0" }]}>
@@ -122,8 +160,15 @@ export default function ConnectionsScreen({ navigation }) {
         api.get("/connections"),
         api.get("/connections/requests"),
       ]);
-      setConnections(connRes.data.connections || []);
-      setRequests(reqRes.data.requests || []);
+      const conns = connRes.data.connections || [];
+      const reqs = reqRes.data.requests || [];
+      console.log("✅ Connections loaded:", conns.length);
+      console.log("✅ Requests loaded:", reqs.length);
+      if (conns.length > 0) {
+        console.log("First connection user:", JSON.stringify(conns[0]?.user));
+      }
+      setConnections(conns);
+      setRequests(reqs);
     } catch (err) {
       console.error("ConnectionsScreen fetch error:", err);
     } finally {
@@ -171,8 +216,8 @@ export default function ConnectionsScreen({ navigation }) {
 
   const handleMessage = (user) => {
     const userId = (user._id || user.id)?.toString();
+    console.log("💬 handleMessage userId:", userId);
     if (!userId) return;
-    // getParent() reaches the root stack navigator from inside the tab navigator
     navigation.getParent()?.navigate("Chat", {
       match: {
         _id: userId,
@@ -183,18 +228,26 @@ export default function ConnectionsScreen({ navigation }) {
     });
   };
 
-  // FIX: MemberProfile and Chat live in the ROOT stack navigator, not the tab
-  // navigator. From inside a tab screen, navigation.navigate() only searches
-  // within the tab navigator and crashes when it can't find the screen.
-  // navigation.getParent() returns the root stack navigator which owns these
-  // screens — matching how web navigates to /members/:id for connections.
   const handleViewProfile = (user) => {
-    const userId = (user._id || user.id)?.toString();
-    if (!userId) return;
-    navigation.getParent()?.navigate("MemberProfile", {
-      userId,
-      sharedGroups: [],
-    });
+    try {
+      const userId = (user._id || user.id)?.toString();
+      console.log("👤 handleViewProfile called, userId:", userId);
+      console.log("👤 user data:", JSON.stringify(user));
+      if (!userId) {
+        console.error("👤 no userId found in user object");
+        return;
+      }
+      const parent = navigation.getParent();
+      console.log("👤 parent navigator:", parent ? "found" : "null");
+      parent?.navigate("MemberProfile", {
+        userId,
+        sharedGroups: [],
+      });
+      console.log("👤 navigate called");
+    } catch (err) {
+      console.error("👤 handleViewProfile error:", err);
+      Alert.alert("Error", "Could not open profile: " + err.message);
+    }
   };
 
   const handleRemove = (connectionId, name) => {
@@ -381,12 +434,6 @@ const styles = StyleSheet.create({
   },
   newBadgeText: { fontSize: 11, fontWeight: "700", color: "#2B6CB0" },
   personRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
-  photo: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "#E2E8F0",
-  },
   personInfo: { flex: 1, marginLeft: 12 },
   personName: { fontSize: 16, fontWeight: "700", color: "#2D3748" },
   personLocation: { fontSize: 13, color: "#718096", marginTop: 1 },
