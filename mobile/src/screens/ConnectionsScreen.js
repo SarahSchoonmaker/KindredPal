@@ -13,22 +13,40 @@ import { MessageCircle, UserCheck, UserX, Users } from "lucide-react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import api from "../services/api";
 
-// Generates a ui-avatars URL using the person's actual name
-// so fallback shows "JD" for John Doe, etc.
-function avatarUri(profilePhoto, name) {
-  // If profilePhoto is a valid http URL, use it directly
-  if (typeof profilePhoto === "string" && profilePhoto.startsWith("http")) {
+// Returns a guaranteed-valid image URI.
+// Uses ui-avatars with the person's name as fallback.
+function getPhotoUri(profilePhoto, name) {
+  if (
+    typeof profilePhoto === "string" &&
+    profilePhoto.length > 10 &&
+    profilePhoto.startsWith("http")
+  ) {
     return profilePhoto;
   }
-  // Fall back to ui-avatars with their actual name
-  const safeName = encodeURIComponent((name || "User").trim());
-  return `https://ui-avatars.com/api/?name=${safeName}&background=BEE3F8&color=2B6CB0&size=104&bold=true&rounded=true`;
+  const n = encodeURIComponent((name || "U").trim().slice(0, 20));
+  return `https://ui-avatars.com/api/?name=${n}&background=BEE3F8&color=2B6CB0&size=104&bold=true`;
+}
+
+function Avatar({ uri, name, size = 52 }) {
+  const [failed, setFailed] = useState(false);
+  const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent((name || "U").trim().slice(0, 20))}&background=BEE3F8&color=2B6CB0&size=104&bold=true`;
+  return (
+    <Image
+      source={{ uri: failed ? fallback : getPhotoUri(uri, name) }}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: "#EBF4FF",
+      }}
+      onError={() => setFailed(true)}
+    />
+  );
 }
 
 function RequestCard({ request, onAccept, onDecline, onViewProfile }) {
   const { from } = request;
   if (!from) return null;
-  const uri = avatarUri(from.profilePhoto, from.name);
   return (
     <View style={styles.requestCard}>
       <View style={styles.requestHeader}>
@@ -40,7 +58,7 @@ function RequestCard({ request, onAccept, onDecline, onViewProfile }) {
         style={styles.personRow}
         onPress={() => onViewProfile(from)}
       >
-        <Image source={{ uri }} style={styles.photo} />
+        <Avatar uri={from.profilePhoto} name={from.name} size={52} />
         <View style={styles.personInfo}>
           <Text style={[styles.personName, { color: "#2B6CB0" }]}>
             {from.name}
@@ -78,10 +96,29 @@ function RequestCard({ request, onAccept, onDecline, onViewProfile }) {
   );
 }
 
+// ConnectionCard fetches fresh profile data so the photo is always current
 function ConnectionCard({ connection, onMessage, onViewProfile }) {
   const { user } = connection;
+  const [freshPhoto, setFreshPhoto] = useState(user?.profilePhoto || null);
+
+  // Fetch fresh profile to get the latest profilePhoto
+  useEffect(() => {
+    if (!user?._id) return;
+    const userId = user._id?.toString() || user.id?.toString();
+    if (!userId) return;
+    api
+      .get(`/users/profile/${userId}`)
+      .then((res) => {
+        const photo = res.data?.profilePhoto;
+        if (typeof photo === "string" && photo.startsWith("http")) {
+          setFreshPhoto(photo);
+        }
+      })
+      .catch(() => {}); // silently fail — keeps existing photo
+  }, [user?._id]);
+
   if (!user) return null;
-  const uri = avatarUri(user.profilePhoto, user.name);
+
   return (
     <View style={styles.connectionCard}>
       <TouchableOpacity
@@ -89,8 +126,8 @@ function ConnectionCard({ connection, onMessage, onViewProfile }) {
         style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
         activeOpacity={0.7}
       >
-        <Image source={{ uri }} style={[styles.photo, { marginRight: 12 }]} />
-        <View style={styles.personInfo}>
+        <Avatar uri={freshPhoto} name={user.name} size={52} />
+        <View style={[styles.personInfo, { marginLeft: 12 }]}>
           <Text style={[styles.personName, { color: "#2B6CB0" }]}>
             {user.name}
           </Text>
@@ -281,8 +318,8 @@ export default function ConnectionsScreen({ navigation }) {
               <Text style={styles.emptyIcon}>📬</Text>
               <Text style={styles.emptyTitle}>No Pending Requests</Text>
               <Text style={styles.emptyText}>
-                When someone from your groups sends you a connection request, it
-                will appear here.
+                When someone sends you a connection request, it will appear
+                here.
               </Text>
             </View>
           }
@@ -386,12 +423,6 @@ const styles = StyleSheet.create({
   },
   newBadgeText: { fontSize: 11, fontWeight: "700", color: "#2B6CB0" },
   personRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
-  photo: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "#EBF4FF",
-  },
   personInfo: { flex: 1, marginLeft: 12 },
   personName: { fontSize: 16, fontWeight: "700", color: "#2D3748" },
   personLocation: { fontSize: 13, color: "#718096", marginTop: 1 },
