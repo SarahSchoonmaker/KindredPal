@@ -13,33 +13,43 @@ import { MessageCircle, UserCheck, UserX, Users } from "lucide-react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import api from "../services/api";
 
-// Returns a guaranteed-valid image URI.
-// Uses ui-avatars with the person's name as fallback.
-function getPhotoUri(profilePhoto, name) {
-  if (
-    typeof profilePhoto === "string" &&
-    profilePhoto.length > 10 &&
-    profilePhoto.startsWith("http")
-  ) {
-    return profilePhoto;
-  }
+// Force HTTPS — iOS ATS blocks http:// image URLs silently,
+// showing nothing or the fallback instead of the actual photo.
+function forceHttps(url) {
+  if (typeof url !== "string" || !url.startsWith("http")) return null;
+  return url.replace(/^http:\/\//, "https://");
+}
+
+function initialsAvatar(name) {
   const n = encodeURIComponent((name || "U").trim().slice(0, 20));
   return `https://ui-avatars.com/api/?name=${n}&background=BEE3F8&color=2B6CB0&size=104&bold=true`;
 }
 
 function Avatar({ uri, name, size = 52 }) {
-  const [failed, setFailed] = useState(false);
-  const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent((name || "U").trim().slice(0, 20))}&background=BEE3F8&color=2B6CB0&size=104&bold=true`;
+  const [src, setSrc] = useState(() => {
+    const safe = forceHttps(uri);
+    return safe || initialsAvatar(name);
+  });
+
+  // Update if uri prop changes (e.g. after fresh fetch)
+  useEffect(() => {
+    const safe = forceHttps(uri);
+    setSrc(safe || initialsAvatar(name));
+  }, [uri, name]);
+
   return (
     <Image
-      source={{ uri: failed ? fallback : getPhotoUri(uri, name) }}
+      source={{ uri: src }}
       style={{
         width: size,
         height: size,
         borderRadius: size / 2,
         backgroundColor: "#EBF4FF",
       }}
-      onError={() => setFailed(true)}
+      onError={() => {
+        // If the real photo fails, fall back to initials
+        setSrc(initialsAvatar(name));
+      }}
     />
   );
 }
@@ -96,25 +106,24 @@ function RequestCard({ request, onAccept, onDecline, onViewProfile }) {
   );
 }
 
-// ConnectionCard fetches fresh profile data so the photo is always current
 function ConnectionCard({ connection, onMessage, onViewProfile }) {
   const { user } = connection;
-  const [freshPhoto, setFreshPhoto] = useState(user?.profilePhoto || null);
+  const [photoUri, setPhotoUri] = useState(user?.profilePhoto || null);
 
-  // Fetch fresh profile to get the latest profilePhoto
   useEffect(() => {
-    if (!user?._id) return;
-    const userId = user._id?.toString() || user.id?.toString();
+    if (!user) return;
+    const userId = (user._id || user.id || "").toString();
     if (!userId) return;
+    // Fetch fresh profile photo — same endpoint that profile page uses
     api
       .get(`/users/profile/${userId}`)
       .then((res) => {
         const photo = res.data?.profilePhoto;
         if (typeof photo === "string" && photo.startsWith("http")) {
-          setFreshPhoto(photo);
+          setPhotoUri(photo);
         }
       })
-      .catch(() => {}); // silently fail — keeps existing photo
+      .catch(() => {});
   }, [user?._id]);
 
   if (!user) return null;
@@ -126,7 +135,7 @@ function ConnectionCard({ connection, onMessage, onViewProfile }) {
         style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
         activeOpacity={0.7}
       >
-        <Avatar uri={freshPhoto} name={user.name} size={52} />
+        <Avatar uri={photoUri} name={user.name} size={52} />
         <View style={[styles.personInfo, { marginLeft: 12 }]}>
           <Text style={[styles.personName, { color: "#2B6CB0" }]}>
             {user.name}
