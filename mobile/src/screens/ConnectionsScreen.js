@@ -70,7 +70,7 @@ function RequestCard({ request, onAccept, onDecline, onViewProfile }) {
   );
 }
 
-function ConnectionCard({ connection, onMessage, onRemove, onViewProfile }) {
+function ConnectionCard({ connection, onMessage, onViewProfile }) {
   const { user } = connection;
   if (!user) return null;
   return (
@@ -170,34 +170,31 @@ export default function ConnectionsScreen({ navigation }) {
   };
 
   const handleMessage = (user) => {
-    const userId = user._id || user.id;
+    const userId = (user._id || user.id)?.toString();
     if (!userId) return;
-    navigation.navigate("Chat", {
+    // FIX: use getParent() to reach the root stack navigator from inside
+    // the tab navigator — Chat is a root stack screen, not a tab screen
+    navigation.getParent()?.navigate("Chat", {
       match: {
-        _id: userId.toString(),
-        id: userId.toString(),
+        _id: userId,
+        id: userId,
         name: user.name || "User",
         profilePhoto: user.profilePhoto || null,
       },
     });
   };
 
-  // FIX: Previously used navigation.getState().routeNames.includes("UserProfile")
-  // to decide which screen to navigate to. This crashes on React Native because
-  // nested navigators don't expose all route names from getState() at the tab
-  // level — the check returns false and the fallback navigate() call itself
-  // throws if the screen doesn't exist in the current stack.
+  // FIX: ConnectionsScreen lives inside MainTabs (bottom tab navigator).
+  // Calling navigation.navigate("UserProfile") from inside a tab navigator
+  // makes React Navigation search only within the tab navigator's screens —
+  // it never finds "UserProfile" (which is in the root stack) and crashes.
   //
-  // Fix: navigate directly to MemberProfile which is registered in the mobile
-  // navigator. Pass sharedGroups as empty array since we don't have group
-  // context here — MemberProfile handles this gracefully.
+  // Solution: navigation.getParent() returns the parent root stack navigator,
+  // which DOES have "UserProfile" registered. Navigate on that instead.
   const handleViewProfile = (user) => {
     const userId = (user._id || user.id)?.toString();
     if (!userId) return;
-    navigation.navigate("MemberProfile", {
-      userId,
-      sharedGroups: [],
-    });
+    navigation.getParent()?.navigate("UserProfile", { userId });
   };
 
   const handleRemove = (connectionId, name) => {
@@ -332,7 +329,6 @@ export default function ConnectionsScreen({ navigation }) {
             <ConnectionCard
               connection={item}
               onMessage={handleMessage}
-              onRemove={handleRemove}
               onViewProfile={handleViewProfile}
             />
           )}
