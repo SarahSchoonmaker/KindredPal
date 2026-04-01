@@ -13,25 +13,22 @@ import { MessageCircle, UserCheck, UserX, Users } from "lucide-react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import api from "../services/api";
 
-// iOS native crash prevention: empty string "" URI crashes iOS Image natively.
-// Must check for non-empty string explicitly, not just truthiness.
-const PLACEHOLDER =
-  "https://ui-avatars.com/api/?background=CBD5E0&color=718096&size=52";
-
-function safeUri(uri) {
-  if (
-    typeof uri === "string" &&
-    uri.trim().length > 4 &&
-    uri.startsWith("http")
-  ) {
-    return uri;
+// Generates a ui-avatars URL using the person's actual name
+// so fallback shows "JD" for John Doe, etc.
+function avatarUri(profilePhoto, name) {
+  // If profilePhoto is a valid http URL, use it directly
+  if (typeof profilePhoto === "string" && profilePhoto.startsWith("http")) {
+    return profilePhoto;
   }
-  return PLACEHOLDER;
+  // Fall back to ui-avatars with their actual name
+  const safeName = encodeURIComponent((name || "User").trim());
+  return `https://ui-avatars.com/api/?name=${safeName}&background=BEE3F8&color=2B6CB0&size=104&bold=true&rounded=true`;
 }
 
 function RequestCard({ request, onAccept, onDecline, onViewProfile }) {
   const { from } = request;
   if (!from) return null;
+  const uri = avatarUri(from.profilePhoto, from.name);
   return (
     <View style={styles.requestCard}>
       <View style={styles.requestHeader}>
@@ -43,14 +40,10 @@ function RequestCard({ request, onAccept, onDecline, onViewProfile }) {
         style={styles.personRow}
         onPress={() => onViewProfile(from)}
       >
-        <Image
-          source={{ uri: safeUri(from.profilePhoto) }}
-          style={styles.photo}
-          defaultSource={require("../../assets/icon.png")}
-        />
+        <Image source={{ uri }} style={styles.photo} />
         <View style={styles.personInfo}>
           <Text style={[styles.personName, { color: "#2B6CB0" }]}>
-            {from.name || ""}
+            {from.name}
           </Text>
           <Text style={styles.personLocation}>
             {[from.city, from.state].filter(Boolean).join(", ")}
@@ -88,6 +81,7 @@ function RequestCard({ request, onAccept, onDecline, onViewProfile }) {
 function ConnectionCard({ connection, onMessage, onViewProfile }) {
   const { user } = connection;
   if (!user) return null;
+  const uri = avatarUri(user.profilePhoto, user.name);
   return (
     <View style={styles.connectionCard}>
       <TouchableOpacity
@@ -95,14 +89,10 @@ function ConnectionCard({ connection, onMessage, onViewProfile }) {
         style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
         activeOpacity={0.7}
       >
-        <Image
-          source={{ uri: safeUri(user.profilePhoto) }}
-          style={[styles.photo, { marginRight: 12 }]}
-          defaultSource={require("../../assets/icon.png")}
-        />
+        <Image source={{ uri }} style={[styles.photo, { marginRight: 12 }]} />
         <View style={styles.personInfo}>
           <Text style={[styles.personName, { color: "#2B6CB0" }]}>
-            {user.name || ""}
+            {user.name}
           </Text>
           <Text style={styles.personLocation}>
             {[user.city, user.state].filter(Boolean).join(", ")}
@@ -193,22 +183,19 @@ export default function ConnectionsScreen({ navigation }) {
           _id: userId,
           id: userId,
           name: user.name || "User",
-          profilePhoto: safeUri(user.profilePhoto),
+          profilePhoto: user.profilePhoto || null,
         },
       });
     },
     [navigation],
   );
 
-  // Using navigation.navigate directly (not getParent) because in React Navigation 6,
-  // navigate() automatically searches parent navigators when the screen isn't found
-  // in the current navigator — no need for getParent().
   const handleViewProfile = useCallback(
     (user) => {
       const userId = (user._id || user.id || "").toString();
       if (!userId) return;
       navigation.navigate("MemberProfile", {
-        userId: userId,
+        userId,
         sharedGroups: [],
       });
     },
@@ -403,7 +390,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: "#E2E8F0",
+    backgroundColor: "#EBF4FF",
   },
   personInfo: { flex: 1, marginLeft: 12 },
   personName: { fontSize: 16, fontWeight: "700", color: "#2D3748" },
