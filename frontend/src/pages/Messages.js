@@ -6,6 +6,21 @@ import { messageAPI } from "../services/api";
 import "./Messages.css";
 import UserActionsMenu from "../components/UserActionsMenu";
 
+// Format timestamp the same way mobile does
+function formatTime(date) {
+  if (!date) return "";
+  const now = new Date();
+  const d = new Date(date);
+  const mins = Math.floor((now - d) / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
 const Messages = () => {
   const { userId } = useParams();
   const navigate = useNavigate();
@@ -19,31 +34,14 @@ const Messages = () => {
 
   const loadConversations = useCallback(async () => {
     try {
-      console.log("📬 Loading conversations...");
       const convResponse = await messageAPI.getConversations();
-
-      console.log("📥 Raw response:", convResponse.data);
-
       if (!convResponse.data || !Array.isArray(convResponse.data)) {
-        console.error("❌ Invalid conversations response");
         setConversations([]);
         return;
       }
-
-      // Log each conversation to debug
-      convResponse.data.forEach((conv, index) => {
-        console.log(`Conv ${index}:`, {
-          _id: conv._id,
-          name: conv.name,
-          hasAllFields: !!(conv._id && conv.name && conv.profilePhoto),
-        });
-      });
-
       setConversations(convResponse.data);
-      console.log(`✅ Loaded ${convResponse.data.length} conversations`);
     } catch (error) {
-      console.error("❌ Error loading conversations:", error);
-      console.error("   Error details:", error.response?.data);
+      console.error("Error loading conversations:", error);
       setConversations([]);
     } finally {
       setLoading(false);
@@ -54,38 +52,30 @@ const Messages = () => {
     async (otherUserId) => {
       try {
         if (!otherUserId) return;
-
         const userMatch = conversations.find(
           (conv) => conv._id === otherUserId,
         );
         if (!userMatch) return;
-
         setSelectedUser(userMatch);
-
         const response = await messageAPI.getMessages(otherUserId);
         setMessages(response.data || []);
-
-        // ✅ Clear badge for this specific conversation in sidebar
         setConversations((prev) =>
           prev.map((conv) =>
             conv._id === otherUserId ? { ...conv, unreadCount: 0 } : conv,
           ),
         );
       } catch (error) {
-        console.error("❌ Error loading conversation:", error);
+        console.error("Error loading conversation:", error);
       }
     },
     [conversations],
   );
+
   useEffect(() => {
-    console.log("🔄 Messages component mounted");
     loadConversations();
   }, [loadConversations]);
 
   useEffect(() => {
-    console.log("🔄 userId changed:", userId);
-    console.log("   Conversations loaded:", conversations.length);
-
     if (userId && conversations.length > 0) {
       loadConversation(userId);
     }
@@ -94,12 +84,10 @@ const Messages = () => {
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedUser) return;
-
     setSending(true);
     try {
       await messageAPI.sendMessage(selectedUser._id, newMessage);
       setNewMessage("");
-
       const response = await messageAPI.getMessages(selectedUser._id);
       setMessages(response.data || []);
     } catch (error) {
@@ -110,30 +98,16 @@ const Messages = () => {
   };
 
   const handleSelectConversation = (conversation) => {
-    console.log(
-      "👆 Selected conversation:",
-      conversation.name,
-      conversation._id,
-    );
-
-    if (!conversation._id) {
-      console.error("❌ Conversation missing _id:", conversation);
-      return;
-    }
-
+    if (!conversation._id) return;
     navigate(`/messages/${conversation._id}`);
   };
 
   const viewProfile = (conversation) => {
-    if (!conversation._id) {
-      console.error("❌ Cannot view profile - missing _id");
-      return;
-    }
-    navigate(`/profile/${conversation._id}`);
+    if (!conversation._id) return;
+    navigate(`/members/${conversation._id}`);
   };
 
   const handleUserActionComplete = () => {
-    console.log("🔄 User action complete - reloading");
     setSelectedUser(null);
     navigate("/messages");
     loadConversations();
@@ -163,26 +137,18 @@ const Messages = () => {
             <div className="empty-conversations">
               <UserIcon size={48} />
               <h3>No Connections Yet</h3>
-              <p>Start liking profiles to find your connections!</p>
+              <p>Connect with members through groups to start messaging!</p>
               <button
                 className="btn-primary"
-                onClick={() => navigate("/discover")}
+                onClick={() => navigate("/groups")}
               >
-                Discover People
+                Browse Groups
               </button>
             </div>
           ) : (
             <div className="conversations-list">
               {conversations.map((conversation) => {
-                // Safety check
-                if (!conversation._id) {
-                  console.error(
-                    "⚠️ Skipping conversation without _id:",
-                    conversation,
-                  );
-                  return null;
-                }
-
+                if (!conversation._id) return null;
                 return (
                   <div
                     key={conversation._id}
@@ -201,16 +167,35 @@ const Messages = () => {
                         </span>
                       )}
                     </div>
+
+                    {/* FIX: Show name on top row with timestamp, last message below */}
                     <div className="conversation-info">
-                      <h4>{conversation.name}</h4>
-                      <p>
-                        {conversation.city}, {conversation.state}
+                      <div className="conversation-name-row">
+                        <h4
+                          className={
+                            conversation.unreadCount > 0 ? "unread-name" : ""
+                          }
+                        >
+                          {conversation.name}
+                        </h4>
+                        {conversation.lastMessage?.createdAt && (
+                          <span className="conversation-time">
+                            {formatTime(conversation.lastMessage.createdAt)}
+                          </span>
+                        )}
+                      </div>
+                      <p className="conversation-location">
+                        {[conversation.city, conversation.state]
+                          .filter(Boolean)
+                          .join(", ")}
                       </p>
                       {conversation.lastMessage && (
-                        <p className="last-message-preview">
-                          {conversation.lastMessage.content.substring(0, 40)}
-                          {conversation.lastMessage.content.length > 40
-                            ? "..."
+                        <p
+                          className={`last-message-preview ${conversation.unreadCount > 0 ? "unread-preview" : ""}`}
+                        >
+                          {conversation.lastMessage.content?.substring(0, 45)}
+                          {conversation.lastMessage.content?.length > 45
+                            ? "…"
                             : ""}
                         </p>
                       )}
@@ -244,7 +229,9 @@ const Messages = () => {
                 <div className="chat-user-info">
                   <h3>{selectedUser.name}</h3>
                   <p>
-                    {selectedUser.city}, {selectedUser.state}
+                    {[selectedUser.city, selectedUser.state]
+                      .filter(Boolean)
+                      .join(", ")}
                   </p>
                 </div>
                 <div className="chat-header-actions">
@@ -266,7 +253,7 @@ const Messages = () => {
                 {messages.length === 0 ? (
                   <div className="no-messages">
                     <h3>Say Hello! 👋</h3>
-                    <p>Your connected with {selectedUser.name}!</p>
+                    <p>You're connected with {selectedUser.name}!</p>
                     <p>Start a conversation below</p>
                   </div>
                 ) : (
@@ -275,6 +262,12 @@ const Messages = () => {
                       key={message._id}
                       className={`message ${message.senderId === (user?.id || user?._id) ? "sent" : "received"}`}
                     >
+                      {/* FIX: Show sender name above received messages */}
+                      {message.senderId !== (user?.id || user?._id) && (
+                        <span className="message-sender-name">
+                          {selectedUser.name}
+                        </span>
+                      )}
                       <div className="message-bubble">
                         <p>{message.content}</p>
                         <span className="message-time">
