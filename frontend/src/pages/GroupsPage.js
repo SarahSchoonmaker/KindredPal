@@ -196,7 +196,7 @@ function GroupCard({ group, onClick, currentUser }) {
           <span className="badge badge-pending">Pending</span>
         ) : (
           <span className="badge badge-join">
-            {group.isPrivate ? "Request to Join" : "Join"}
+            {group.isPrivate ? "Request to Join" : "RSVP"}
           </span>
         )}
       </div>
