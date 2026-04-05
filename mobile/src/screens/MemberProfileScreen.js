@@ -9,6 +9,8 @@ import {
   Alert,
   TextInput,
   Modal,
+  ActionSheetIOS,
+  Platform,
 } from "react-native";
 import { Text, ActivityIndicator } from "react-native-paper";
 import {
@@ -17,6 +19,7 @@ import {
   UserCheck,
   Clock,
   Users,
+  MoreVertical,
 } from "lucide-react-native";
 import api from "../services/api";
 
@@ -46,6 +49,14 @@ const CATEGORY_ICONS = {
   "Local Activity Groups": "🎯",
 };
 
+const REPORT_REASONS = [
+  "Inappropriate content",
+  "Harassment or bullying",
+  "Spam or fake account",
+  "Hate speech",
+  "Other",
+];
+
 function TagPill({ label, color = "#EBF4FF", textColor = "#2B6CB0" }) {
   return (
     <View style={[styles.pill, { backgroundColor: color }]}>
@@ -57,13 +68,6 @@ function TagPill({ label, color = "#EBF4FF", textColor = "#2B6CB0" }) {
 export default function MemberProfileScreen({ route, navigation }) {
   const { userId, sharedGroups = [] } = route.params || {};
 
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerBackTitle: "Back",
-      headerBackButtonMenuEnabled: false,
-    });
-  }, []);
-
   const [profile, setProfile] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState("none");
   const [connectionId, setConnectionId] = useState(null);
@@ -72,6 +76,26 @@ export default function MemberProfileScreen({ route, navigation }) {
   const [sending, setSending] = useState(false);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [requestMessage, setRequestMessage] = useState("");
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerBackTitle: "Back",
+      headerBackButtonMenuEnabled: false,
+      // ... menu in header for report/block
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={handleMoreMenu}
+          style={{ marginRight: 12, padding: 4 }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <MoreVertical size={22} color="white" />
+        </TouchableOpacity>
+      ),
+    });
+  }, [profile]);
 
   useEffect(() => {
     if (!userId) {
@@ -103,6 +127,79 @@ export default function MemberProfileScreen({ route, navigation }) {
     };
     fetchData();
   }, [userId]);
+
+  const handleMoreMenu = () => {
+    if (!profile) return;
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ["Cancel", "Report User", "Block User"],
+          destructiveButtonIndex: 2,
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) setShowReportModal(true);
+          if (buttonIndex === 2) handleBlock();
+        },
+      );
+    } else {
+      Alert.alert(profile.name, "What would you like to do?", [
+        { text: "Report User", onPress: () => setShowReportModal(true) },
+        { text: "Block User", style: "destructive", onPress: handleBlock },
+        { text: "Cancel", style: "cancel" },
+      ]);
+    }
+  };
+
+  const handleBlock = () => {
+    Alert.alert(
+      "Block User",
+      `Block ${profile?.name}? They won't be able to see your profile or message you.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Block",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await api.post(`/users/${userId}/block`);
+              Alert.alert("Blocked", `${profile?.name} has been blocked.`);
+              navigation.goBack();
+            } catch (err) {
+              Alert.alert(
+                "Error",
+                err.response?.data?.message || "Could not block user",
+              );
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleReport = async () => {
+    if (!reportReason) {
+      Alert.alert("Select a reason", "Please select a reason for reporting.");
+      return;
+    }
+    setReportSubmitting(true);
+    try {
+      await api.post(`/users/${userId}/report`, { reason: reportReason });
+      setShowReportModal(false);
+      setReportReason("");
+      Alert.alert(
+        "Report Submitted",
+        "Thank you. Our team will review this report and take appropriate action.",
+      );
+    } catch (err) {
+      Alert.alert(
+        "Error",
+        err.response?.data?.message || "Could not submit report",
+      );
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
 
   const handleSendRequest = async () => {
     setSending(true);
@@ -158,10 +255,6 @@ export default function MemberProfileScreen({ route, navigation }) {
     );
   }
 
-  // FIX: politicalBeliefs and religion are STRINGS in the User model, not arrays.
-  // The original code called .filter() and .map() on them treating them as arrays,
-  // which crashes silently on React Native (no error shown, app just closes).
-  // Normalize all fields safely before rendering.
   const lifeStage = Array.isArray(profile.lifeStage) ? profile.lifeStage : [];
   const causes = Array.isArray(profile.causes) ? profile.causes : [];
   const coreValues = Array.isArray(profile.coreValues)
@@ -170,14 +263,11 @@ export default function MemberProfileScreen({ route, navigation }) {
   const familySituation = Array.isArray(profile.familySituation)
     ? profile.familySituation
     : [];
-
-  // These are strings, not arrays
   const religion = typeof profile.religion === "string" ? profile.religion : "";
   const politicalBeliefs =
     typeof profile.politicalBeliefs === "string"
       ? profile.politicalBeliefs
       : "";
-
   const showReligion =
     religion &&
     religion !== "Prefer not to say" &&
@@ -271,6 +361,24 @@ export default function MemberProfileScreen({ route, navigation }) {
         {/* Connection action */}
         <View style={styles.actionContainer}>{renderConnectionButton()}</View>
 
+        {/* Report / Block row */}
+        <View style={styles.safetyRow}>
+          <TouchableOpacity
+            style={styles.safetyBtn}
+            onPress={() => setShowReportModal(true)}
+          >
+            <Text style={styles.safetyBtnText}>🚩 Report</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.safetyBtn, styles.safetyBtnBlock]}
+            onPress={handleBlock}
+          >
+            <Text style={[styles.safetyBtnText, { color: "#E53E3E" }]}>
+              🚫 Block
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Shared groups */}
         {sharedGroups.length > 0 && (
           <View style={styles.section}>
@@ -343,7 +451,7 @@ export default function MemberProfileScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* Values — religion and politics as strings */}
+        {/* Values */}
         {(showReligion || showPolitics) && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Values</Text>
@@ -381,7 +489,7 @@ export default function MemberProfileScreen({ route, navigation }) {
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      {/* Connection request message modal */}
+      {/* Connection request modal */}
       <Modal
         visible={showMessageModal}
         transparent
@@ -417,6 +525,75 @@ export default function MemberProfileScreen({ route, navigation }) {
                 onPress={handleSendRequest}
               >
                 <Text style={styles.modalSendText}>Send Request</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Report modal */}
+      <Modal
+        visible={showReportModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowReportModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Report {profile.name}</Text>
+            <Text style={styles.modalSubtitle}>
+              Why are you reporting this user?
+            </Text>
+            {REPORT_REASONS.map((reason) => (
+              <TouchableOpacity
+                key={reason}
+                style={[
+                  styles.reportOption,
+                  reportReason === reason && styles.reportOptionSelected,
+                ]}
+                onPress={() => setReportReason(reason)}
+              >
+                <View
+                  style={[
+                    styles.reportRadio,
+                    reportReason === reason && styles.reportRadioSelected,
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.reportOptionText,
+                    reportReason === reason && {
+                      color: "#2B6CB0",
+                      fontWeight: "700",
+                    },
+                  ]}
+                >
+                  {reason}
+                </Text>
+              </TouchableOpacity>
+            ))}
+            <View style={[styles.modalActions, { marginTop: 16 }]}>
+              <TouchableOpacity
+                style={styles.modalCancel}
+                onPress={() => {
+                  setShowReportModal(false);
+                  setReportReason("");
+                }}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modalSend,
+                  { backgroundColor: "#E53E3E" },
+                  (!reportReason || reportSubmitting) && styles.btnDisabled,
+                ]}
+                onPress={handleReport}
+                disabled={!reportReason || reportSubmitting}
+              >
+                <Text style={styles.modalSendText}>
+                  {reportSubmitting ? "Submitting..." : "Submit Report"}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -461,7 +638,24 @@ const styles = StyleSheet.create({
   name: { fontSize: 24, fontWeight: "700", color: "white", marginBottom: 4 },
   location: { fontSize: 14, color: "rgba(255,255,255,0.85)", marginBottom: 2 },
   age: { fontSize: 13, color: "rgba(255,255,255,0.7)" },
-  actionContainer: { margin: 16 },
+  actionContainer: { margin: 16, marginBottom: 8 },
+  safetyRow: {
+    flexDirection: "row",
+    marginHorizontal: 16,
+    marginBottom: 12,
+    gap: 10,
+  },
+  safetyBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: "white",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    alignItems: "center",
+  },
+  safetyBtnBlock: { borderColor: "#FED7D7" },
+  safetyBtnText: { fontSize: 13, fontWeight: "600", color: "#718096" },
   connectBtn: {
     backgroundColor: "#2B6CB0",
     flexDirection: "row",
@@ -610,4 +804,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalSendText: { color: "white", fontWeight: "700", fontSize: 15 },
+  reportOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F7FAFC",
+  },
+  reportOptionSelected: {
+    backgroundColor: "#EBF4FF",
+    borderRadius: 8,
+    paddingHorizontal: 8,
+  },
+  reportOptionText: { fontSize: 15, color: "#4A5568" },
+  reportRadio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: "#CBD5E0",
+  },
+  reportRadioSelected: { borderColor: "#2B6CB0", backgroundColor: "#2B6CB0" },
 });
