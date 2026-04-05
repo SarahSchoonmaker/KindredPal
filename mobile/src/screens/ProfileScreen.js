@@ -9,9 +9,8 @@ import {
   Alert,
   RefreshControl,
 } from "react-native";
-import { Button, Card, ActivityIndicator } from "react-native-paper";
+import { ActivityIndicator } from "react-native-paper";
 import {
-  User,
   MapPin,
   Edit,
   Camera,
@@ -19,17 +18,24 @@ import {
   Trash2,
   Shield,
   ChevronRight,
+  LogOut,
+  User,
 } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as SecureStore from "expo-secure-store";
 import { authAPI, userAPI } from "../services/api";
+import api from "../services/api";
 import { useFocusEffect } from "@react-navigation/native";
+
+const BLUE = "#2B6CB0";
+const RED = "#E53E3E";
 
 export default function ProfileScreen({ navigation }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [photos, setPhotos] = useState([]);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -37,7 +43,11 @@ export default function ProfileScreen({ navigation }) {
       setUser(response.data);
       const currentPhotos = response.data.additionalPhotos || [];
       setPhotos(
-        [response.data.profilePhoto, ...currentPhotos, ...Array(3 - currentPhotos.length - 1).fill(null)].slice(0, 3)
+        [
+          response.data.profilePhoto,
+          ...currentPhotos,
+          ...Array(Math.max(0, 3 - currentPhotos.length - 1)).fill(null),
+        ].slice(0, 3),
       );
     } catch (error) {
       console.error("Error fetching profile:", error);
@@ -48,16 +58,14 @@ export default function ProfileScreen({ navigation }) {
     }
   }, []);
 
-  // Load once on mount
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
 
-  // Silent refresh on re-focus — no wipe, no spinner
   useFocusEffect(
     useCallback(() => {
       if (!loading) fetchProfile();
-    }, [fetchProfile, loading])
+    }, [fetchProfile, loading]),
   );
 
   const onRefresh = () => {
@@ -67,7 +75,8 @@ export default function ProfileScreen({ navigation }) {
 
   const pickImage = async (index) => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
         Alert.alert("Permission needed", "Please grant photo library access");
         return;
@@ -97,7 +106,7 @@ export default function ProfileScreen({ navigation }) {
       Alert.alert("Cannot Delete", "You must have a profile photo");
       return;
     }
-    Alert.alert("Delete Photo", "Are you sure you want to delete this photo?", [
+    Alert.alert("Delete Photo", "Remove this photo?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -136,7 +145,7 @@ export default function ProfileScreen({ navigation }) {
         profilePhoto: filteredPhotos[0],
         additionalPhotos: filteredPhotos.slice(1),
       });
-      Alert.alert("Success", "Photos updated successfully");
+      Alert.alert("Success", "Photos updated!");
       fetchProfile();
     } catch (error) {
       console.error("Error updating photos:", error);
@@ -144,11 +153,11 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
-  const handleLogout = async () => {
-    Alert.alert("Logout", "Are you sure you want to logout?", [
+  const handleLogout = () => {
+    Alert.alert("Log Out", "Are you sure you want to log out?", [
       { text: "Cancel", style: "cancel" },
       {
-        text: "Logout",
+        text: "Log Out",
         style: "destructive",
         onPress: async () => {
           await SecureStore.deleteItemAsync("token");
@@ -159,49 +168,68 @@ export default function ProfileScreen({ navigation }) {
     ]);
   };
 
-  const handleDeleteAccount = async () => {
+  const handleDeleteAccount = () => {
     Alert.alert(
       "Delete Account",
-      "Are you sure you want to permanently delete your account? This action cannot be undone.",
+      "This will permanently delete your account and all your data. This cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Delete",
+          text: "Continue",
           style: "destructive",
           onPress: () => {
             Alert.alert(
-              "Final Confirmation",
-              "This will permanently delete all your data, matches, and messages. Are you absolutely sure?",
+              "Are You Sure?",
+              "All your groups, connections, messages and profile data will be permanently deleted.",
               [
                 { text: "Cancel", style: "cancel" },
                 {
                   text: "Delete Forever",
                   style: "destructive",
-                  onPress: async () => {
-                    try {
-                      await userAPI.deleteAccount();
-                      await SecureStore.deleteItemAsync("token");
-                      await SecureStore.deleteItemAsync("userId");
-                      Alert.alert("Account Deleted", "Your account has been permanently deleted.", [
-                        { text: "OK", onPress: () => navigation.reset({ index: 0, routes: [{ name: "Login" }] }) },
-                      ]);
-                    } catch (error) {
-                      Alert.alert("Error", "Failed to delete account. Please try again.");
-                    }
-                  },
+                  onPress: performDeleteAccount,
                 },
-              ]
+              ],
             );
           },
         },
-      ]
+      ],
     );
+  };
+
+  const performDeleteAccount = async () => {
+    setDeletingAccount(true);
+    try {
+      // Use direct api call — avoids userAPI wrapper issues
+      await api.delete("/users/account");
+      await SecureStore.deleteItemAsync("token");
+      await SecureStore.deleteItemAsync("userId");
+      Alert.alert(
+        "Account Deleted",
+        "Your account has been permanently deleted.",
+        [
+          {
+            text: "OK",
+            onPress: () =>
+              navigation.reset({ index: 0, routes: [{ name: "Login" }] }),
+          },
+        ],
+      );
+    } catch (error) {
+      console.error("Delete account error:", error.response?.data);
+      Alert.alert(
+        "Error",
+        error.response?.data?.message ||
+          "Failed to delete account. Please try again.",
+      );
+    } finally {
+      setDeletingAccount(false);
+    }
   };
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#2B6CB0" />
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={BLUE} />
         <Text style={styles.loadingText}>Loading profile...</Text>
       </View>
     );
@@ -209,11 +237,11 @@ export default function ProfileScreen({ navigation }) {
 
   if (!user) {
     return (
-      <View style={styles.centerContainer}>
+      <View style={styles.center}>
         <Text style={styles.errorText}>Profile not found</Text>
-        <Button mode="contained" onPress={fetchProfile} buttonColor="#2B6CB0" style={{ marginTop: 16 }}>
-          Retry
-        </Button>
+        <TouchableOpacity style={styles.retryBtn} onPress={fetchProfile}>
+          <Text style={styles.retryBtnText}>Retry</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -221,247 +249,480 @@ export default function ProfileScreen({ navigation }) {
   return (
     <ScrollView
       style={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
     >
+      {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <Text style={styles.name}>{user.name}</Text>
-          <View style={styles.location}>
-            <MapPin color="#666" size={16} />
-            <Text style={styles.locationText}>{user.city}, {user.state}</Text>
+        <View style={styles.headerLeft}>
+          {user.profilePhoto ? (
+            <Image
+              source={{ uri: user.profilePhoto }}
+              style={styles.headerAvatar}
+            />
+          ) : (
+            <View style={[styles.headerAvatar, styles.headerAvatarPlaceholder]}>
+              <Text style={styles.headerAvatarInitial}>
+                {user.name?.charAt(0)?.toUpperCase() || "?"}
+              </Text>
+            </View>
+          )}
+          <View>
+            <Text style={styles.headerName}>{user.name}</Text>
+            {user.city || user.state ? (
+              <View style={styles.headerLocation}>
+                <MapPin size={13} color="#718096" />
+                <Text style={styles.headerLocationText}>
+                  {[user.city, user.state].filter(Boolean).join(", ")}
+                </Text>
+              </View>
+            ) : null}
           </View>
         </View>
-        <TouchableOpacity style={styles.editButton} onPress={() => navigation.navigate("EditProfile")}>
-          <Edit color="#2B6CB0" size={24} />
+        <TouchableOpacity
+          style={styles.editBtn}
+          onPress={() => navigation.navigate("EditProfile")}
+        >
+          <Edit size={20} color={BLUE} />
         </TouchableOpacity>
       </View>
 
+      {/* Photos */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Photos</Text>
         <View style={styles.photoGrid}>
           {photos.map((photo, index) => (
-            <View key={index} style={styles.photoContainer}>
+            <View key={index} style={styles.photoWrap}>
               {photo ? (
                 <>
-                  <Image source={{ uri: photo }} style={styles.photo} resizeMode="cover" />
+                  <Image
+                    source={{ uri: photo }}
+                    style={styles.photo}
+                    resizeMode="cover"
+                  />
                   {index === 0 && (
                     <View style={styles.profileBadge}>
-                      <Star color="white" size={16} fill="white" />
+                      <Star size={11} color="white" fill="white" />
                       <Text style={styles.profileBadgeText}>Profile</Text>
                     </View>
                   )}
                   <View style={styles.photoActions}>
                     {index !== 0 && (
-                      <TouchableOpacity style={styles.photoActionButton} onPress={() => setAsProfilePhoto(index)}>
-                        <Star color="white" size={18} />
+                      <TouchableOpacity
+                        style={styles.photoActionBtn}
+                        onPress={() => setAsProfilePhoto(index)}
+                      >
+                        <Star size={16} color="white" />
                       </TouchableOpacity>
                     )}
-                    <TouchableOpacity style={[styles.photoActionButton, styles.deleteButton]} onPress={() => deletePhoto(index)}>
-                      <Trash2 color="white" size={18} />
+                    <TouchableOpacity
+                      style={[styles.photoActionBtn, styles.photoDeleteBtn]}
+                      onPress={() => deletePhoto(index)}
+                    >
+                      <Trash2 size={16} color="white" />
                     </TouchableOpacity>
                   </View>
                 </>
               ) : (
-                <TouchableOpacity style={styles.addPhoto} onPress={() => pickImage(index)}>
-                  <Camera color="#2B6CB0" size={32} />
+                <TouchableOpacity
+                  style={styles.addPhoto}
+                  onPress={() => pickImage(index)}
+                >
+                  <Camera size={28} color={BLUE} />
                   <Text style={styles.addPhotoText}>Add Photo</Text>
                 </TouchableOpacity>
               )}
             </View>
           ))}
         </View>
-        <Text style={styles.photoHint}>Tap the star icon to set a photo as your profile picture</Text>
+        <Text style={styles.photoHint}>
+          ⭐ Tap the star to set as your profile picture
+        </Text>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>About</Text>
-        <Card style={styles.card}>
-          <Card.Content>
-            <View style={styles.infoRow}>
-              <User color="#2B6CB0" size={20} />
-              <Text style={styles.infoText}>{user.age}{user.gender ? ` • ${user.gender}` : ""}</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.emailRow}
-              onPress={() => navigation.navigate("EditProfile", { focusEmail: true })}
-            >
-              <View style={styles.emailLeft}>
-                <Text style={styles.emailLabel}>Email</Text>
-                <Text style={styles.emailValue}>{user.email}</Text>
+      {/* About */}
+      {user.bio || user.age ? (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>About</Text>
+          <View style={styles.card}>
+            {user.age ? (
+              <View style={styles.infoRow}>
+                <User size={16} color={BLUE} />
+                <Text style={styles.infoText}>{user.age} years old</Text>
               </View>
-              <ChevronRight size={16} color="#a0aec0" />
-            </TouchableOpacity>
-            {user.bio && (
-              <View style={styles.bioContainer}>
+            ) : null}
+            {user.email ? (
+              <TouchableOpacity
+                style={styles.emailRow}
+                onPress={() => navigation.navigate("EditProfile")}
+              >
+                <View>
+                  <Text style={styles.emailLabel}>Email</Text>
+                  <Text style={styles.emailValue}>{user.email}</Text>
+                </View>
+                <ChevronRight size={16} color="#a0aec0" />
+              </TouchableOpacity>
+            ) : null}
+            {user.bio ? (
+              <View style={styles.bioWrap}>
                 <Text style={styles.bio}>{user.bio}</Text>
               </View>
-            )}
-          </Card.Content>
-        </Card>
-      </View>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Values & Beliefs</Text>
-        <Card style={styles.card}>
-          <Card.Content>
-            {user.politicalBeliefs && typeof user.politicalBeliefs === "string" && user.politicalBeliefs.length > 0 && (
-              <View style={styles.valueSection}>
-                <Text style={styles.valueLabel}>Political Views</Text>
-                <View style={styles.chips}>
-                  <View style={styles.chip}><Text style={styles.chipText}>{user.politicalBeliefs}</Text></View>
+      {/* Values & Beliefs */}
+      {user.politicalBeliefs ||
+      user.religion ||
+      user.causes?.length > 0 ||
+      user.lifeStage?.length > 0 ||
+      user.familySituation?.length > 0 ||
+      user.coreValues?.length > 0 ? (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Values & Beliefs</Text>
+          <View style={styles.card}>
+            {user.politicalBeliefs &&
+              typeof user.politicalBeliefs === "string" && (
+                <View style={styles.valueRow}>
+                  <Text style={styles.valueLabel}>Political Views</Text>
+                  <View style={styles.chips}>
+                    <View style={styles.chip}>
+                      <Text style={styles.chipText}>
+                        {user.politicalBeliefs}
+                      </Text>
+                    </View>
+                  </View>
                 </View>
-              </View>
-            )}
-            {user.religion && (
-              <View style={styles.valueSection}>
+              )}
+            {user.religion ? (
+              <View style={styles.valueRow}>
                 <Text style={styles.valueLabel}>Religion</Text>
                 <Text style={styles.valueText}>{user.religion}</Text>
               </View>
-            )}
-            {user.causes && user.causes.length > 0 && (
-              <View style={styles.valueSection}>
-                <Text style={styles.valueLabel}>Causes</Text>
-                <View style={styles.chips}>
-                  {user.causes.map((cause, index) => (
-                    <View key={index} style={styles.chip}><Text style={styles.chipText}>{cause}</Text></View>
-                  ))}
-                </View>
-              </View>
-            )}
-            {user.lifeStage && user.lifeStage.length > 0 && (
-              <View style={styles.valueSection}>
-                <Text style={styles.valueLabel}>Life Stage</Text>
-                <View style={styles.chips}>
-                  {user.lifeStage.map((stage, index) => (
-                    <View key={index} style={styles.chip}><Text style={styles.chipText}>{stage}</Text></View>
-                  ))}
-                </View>
-              </View>
-            )}
-            {user.familySituation && user.familySituation.length > 0 && (
-              <View style={styles.valueSection}>
-                <Text style={styles.valueLabel}>Family</Text>
-                <View style={styles.chips}>
-                  {user.familySituation.map((item, index) => (
-                    <View key={index} style={styles.chip}><Text style={styles.chipText}>{item}</Text></View>
-                  ))}
-                </View>
-              </View>
-            )}
-            {user.coreValues && user.coreValues.length > 0 && (
-              <View style={styles.valueSection}>
+            ) : null}
+            {user.coreValues?.length > 0 ? (
+              <View style={styles.valueRow}>
                 <Text style={styles.valueLabel}>Core Values</Text>
                 <View style={styles.chips}>
-                  {user.coreValues.map((val, index) => (
-                    <View key={index} style={[styles.chip, {backgroundColor: "#FAF5FF"}]}><Text style={[styles.chipText, {color: "#6B21A8"}]}>{val}</Text></View>
+                  {user.coreValues.map((v, i) => (
+                    <View
+                      key={i}
+                      style={[styles.chip, { backgroundColor: "#FAF5FF" }]}
+                    >
+                      <Text style={[styles.chipText, { color: "#6B21A8" }]}>
+                        {v}
+                      </Text>
+                    </View>
                   ))}
                 </View>
               </View>
-            )}
-            {user.lookingFor && user.lookingFor.length > 0 && (
-              <View style={styles.valueSection}>
-                <Text style={styles.valueLabel}>Looking For</Text>
+            ) : null}
+            {user.lifeStage?.length > 0 ? (
+              <View style={styles.valueRow}>
+                <Text style={styles.valueLabel}>Life Stage</Text>
                 <View style={styles.chips}>
-                  {(Array.isArray(user.lookingFor) ? user.lookingFor : [user.lookingFor]).map((item, index) => (
-                    <View key={index} style={styles.chip}><Text style={styles.chipText}>{item}</Text></View>
+                  {user.lifeStage.map((s, i) => (
+                    <View
+                      key={i}
+                      style={[styles.chip, { backgroundColor: "#F0FFF4" }]}
+                    >
+                      <Text style={[styles.chipText, { color: "#276749" }]}>
+                        {s}
+                      </Text>
+                    </View>
                   ))}
                 </View>
               </View>
-            )}
-          </Card.Content>
-        </Card>
-      </View>
+            ) : null}
+            {user.familySituation?.length > 0 ? (
+              <View style={styles.valueRow}>
+                <Text style={styles.valueLabel}>Family</Text>
+                <View style={styles.chips}>
+                  {user.familySituation.map((f, i) => (
+                    <View
+                      key={i}
+                      style={[styles.chip, { backgroundColor: "#FFF5F5" }]}
+                    >
+                      <Text style={[styles.chipText, { color: "#742A2A" }]}>
+                        {f}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+            {user.causes?.length > 0 ? (
+              <View style={styles.valueRow}>
+                <Text style={styles.valueLabel}>Causes</Text>
+                <View style={styles.chips}>
+                  {user.causes.map((c, i) => (
+                    <View key={i} style={styles.chip}>
+                      <Text style={styles.chipText}>{c}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
 
+      {/* Privacy & Safety */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Privacy & Safety</Text>
-        <TouchableOpacity style={styles.settingsLink} onPress={() => navigation.navigate("BlockedUsers")}>
-          <View style={styles.settingsLinkContent}>
-            <Shield size={20} color="#2B6CB0" />
-            <Text style={styles.settingsLinkText}>Blocked Users</Text>
+        <TouchableOpacity
+          style={styles.menuRow}
+          onPress={() => navigation.navigate("BlockedUsers")}
+        >
+          <View style={styles.menuRowLeft}>
+            <View style={[styles.menuIcon, { backgroundColor: "#EBF4FF" }]}>
+              <Shield size={18} color={BLUE} />
+            </View>
+            <Text style={styles.menuRowText}>Blocked Users</Text>
           </View>
-          <ChevronRight size={20} color="#718096" />
+          <ChevronRight size={18} color="#a0aec0" />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.actionsSection}>
-        <Button mode="contained" onPress={handleLogout} style={[styles.actionButton, styles.logoutButton]} buttonColor="#E53E3E">
-          Logout
-        </Button>
-        <Button mode="outlined" onPress={handleDeleteAccount} style={[styles.actionButton, styles.deleteAccountButton]} textColor="#E53E3E">
-          Delete Account
-        </Button>
+      {/* Account Actions */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Account</Text>
+
+        <TouchableOpacity style={styles.menuRow} onPress={handleLogout}>
+          <View style={styles.menuRowLeft}>
+            <View style={[styles.menuIcon, { backgroundColor: "#FFF5F5" }]}>
+              <LogOut size={18} color={RED} />
+            </View>
+            <Text style={[styles.menuRowText, { color: RED }]}>Log Out</Text>
+          </View>
+          <ChevronRight size={18} color="#a0aec0" />
+        </TouchableOpacity>
+
+        <View style={styles.menuDivider} />
+
+        <TouchableOpacity
+          style={styles.menuRow}
+          onPress={handleDeleteAccount}
+          disabled={deletingAccount}
+        >
+          <View style={styles.menuRowLeft}>
+            <View style={[styles.menuIcon, { backgroundColor: "#FFF5F5" }]}>
+              <Trash2 size={18} color={RED} />
+            </View>
+            <Text style={[styles.menuRowText, { color: RED }]}>
+              {deletingAccount ? "Deleting..." : "Delete Account"}
+            </Text>
+          </View>
+          {!deletingAccount && <ChevronRight size={18} color="#a0aec0" />}
+          {deletingAccount && <ActivityIndicator size={16} color={RED} />}
+        </TouchableOpacity>
       </View>
 
-      <View style={{ height: 40 }} />
+      <View style={{ height: 60 }} />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F7FAFC" },
-  centerContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: 40 },
-  loadingText: { marginTop: 16, fontSize: 16, color: "#718096" },
-  errorText: { fontSize: 18, color: "#718096" },
-  header: {
-    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-    padding: 20, backgroundColor: "white", borderBottomWidth: 1, borderBottomColor: "#E2E8F0",
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 16,
+    padding: 40,
   },
-  headerContent: { flex: 1 },
-  name: { fontSize: 28, fontWeight: "bold", color: "#2D3748", marginBottom: 4 },
-  location: { flexDirection: "row", alignItems: "center", gap: 4 },
-  locationText: { fontSize: 14, color: "#718096" },
-  editButton: { padding: 8 },
-  section: { padding: 20 },
-  sectionTitle: { fontSize: 20, fontWeight: "600", color: "#2D3748", marginBottom: 16 },
-  photoGrid: { flexDirection: "row", gap: 12, marginBottom: 8 },
-  photoContainer: { flex: 1, aspectRatio: 1, borderRadius: 12, overflow: "hidden", position: "relative" },
+  loadingText: { marginTop: 12, fontSize: 15, color: "#718096" },
+  errorText: { fontSize: 16, color: "#718096" },
+  retryBtn: {
+    backgroundColor: BLUE,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryBtnText: { color: "white", fontWeight: "700" },
+
+  // Header
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+  },
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 14, flex: 1 },
+  headerAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#E2E8F0",
+  },
+  headerAvatarPlaceholder: {
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: BLUE,
+  },
+  headerAvatarInitial: { fontSize: 24, fontWeight: "700", color: "white" },
+  headerName: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1a202c",
+    marginBottom: 3,
+  },
+  headerLocation: { flexDirection: "row", alignItems: "center", gap: 4 },
+  headerLocationText: { fontSize: 13, color: "#718096" },
+  editBtn: { padding: 8 },
+
+  // Section
+  section: { padding: 16, paddingBottom: 0 },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#2D3748",
+    marginBottom: 10,
+  },
+
+  // Photos
+  photoGrid: { flexDirection: "row", gap: 10, marginBottom: 8 },
+  photoWrap: { flex: 1, aspectRatio: 1, borderRadius: 12, overflow: "hidden" },
   photo: { width: "100%", height: "100%", backgroundColor: "#E2E8F0" },
   addPhoto: {
-    flex: 1, backgroundColor: "#F8FAFC", borderWidth: 2, borderColor: "#E2E8F0",
-    borderStyle: "dashed", borderRadius: 12, justifyContent: "center", alignItems: "center",
+    flex: 1,
+    backgroundColor: "white",
+    borderWidth: 2,
+    borderColor: "#E2E8F0",
+    borderStyle: "dashed",
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    minHeight: 100,
   },
-  addPhotoText: { marginTop: 8, fontSize: 12, color: "#2B6CB0", fontWeight: "600" },
+  addPhotoText: { marginTop: 6, fontSize: 11, color: BLUE, fontWeight: "600" },
   profileBadge: {
-    position: "absolute", top: 8, left: 8, backgroundColor: "#2B6CB0",
-    flexDirection: "row", alignItems: "center", paddingHorizontal: 8,
-    paddingVertical: 4, borderRadius: 12, gap: 4,
+    position: "absolute",
+    top: 6,
+    left: 6,
+    backgroundColor: BLUE,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 10,
+    gap: 3,
   },
   profileBadgeText: { color: "white", fontSize: 10, fontWeight: "600" },
-  photoActions: { position: "absolute", bottom: 8, right: 8, flexDirection: "row", gap: 8 },
-  photoActionButton: { backgroundColor: "rgba(43, 108, 176, 0.9)", padding: 8, borderRadius: 20 },
-  deleteButton: { backgroundColor: "rgba(229, 62, 62, 0.9)" },
+  photoActions: {
+    position: "absolute",
+    bottom: 6,
+    right: 6,
+    flexDirection: "row",
+    gap: 6,
+  },
+  photoActionBtn: {
+    backgroundColor: "rgba(43,108,176,0.85)",
+    padding: 7,
+    borderRadius: 16,
+  },
+  photoDeleteBtn: { backgroundColor: "rgba(229,62,62,0.85)" },
+  photoHint: {
+    fontSize: 11,
+    color: "#a0aec0",
+    textAlign: "center",
+    fontStyle: "italic",
+    marginBottom: 16,
+  },
+
+  // Card
+  card: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    marginBottom: 16,
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  infoText: { fontSize: 14, color: "#718096" },
   emailRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    paddingHorizontal: 14,
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: "#E2E8F0",
-    marginTop: 4,
+    borderTopColor: "#F7FAFC",
   },
-  emailLeft: { flex: 1 },
-  emailLabel: { fontSize: 12, fontWeight: "600", color: "#718096", marginBottom: 2, textTransform: "uppercase", letterSpacing: 0.5 },
-  emailValue: { fontSize: 15, color: "#2D3748" },
-  photoHint: { fontSize: 12, color: "#718096", textAlign: "center", fontStyle: "italic" },
-  card: { backgroundColor: "white" },
-  infoRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },
-  infoText: { fontSize: 16, color: "#718096" },
-  bioContainer: { paddingTop: 12, borderTopWidth: 1, borderTopColor: "#E2E8F0" },
-  bio: { fontSize: 15, color: "#2D3748", lineHeight: 22 },
-  valueSection: { marginBottom: 16 },
-  valueLabel: { fontSize: 14, fontWeight: "600", color: "#718096", marginBottom: 8 },
-  valueText: { fontSize: 15, color: "#2D3748" },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: { backgroundColor: "#EBF4FF", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
-  chipText: { fontSize: 13, color: "#2B6CB0", fontWeight: "500" },
-  settingsLink: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    backgroundColor: "white", padding: 16, borderRadius: 8, borderWidth: 1, borderColor: "#E2E8F0",
+  emailLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#718096",
+    marginBottom: 2,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
   },
-  settingsLinkContent: { flexDirection: "row", alignItems: "center", gap: 12 },
-  settingsLinkText: { fontSize: 16, color: "#2D3748", fontWeight: "500" },
-  actionsSection: { padding: 20, gap: 12 },
-  actionButton: { paddingVertical: 6 },
-  logoutButton: { marginTop: 8 },
-  deleteAccountButton: { borderColor: "#E53E3E" },
+  emailValue: { fontSize: 14, color: "#2D3748" },
+  bioWrap: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#F7FAFC",
+  },
+  bio: { fontSize: 14, color: "#4A5568", lineHeight: 20 },
+
+  // Values
+  valueRow: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#F7FAFC",
+  },
+  valueLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#718096",
+    marginBottom: 8,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  valueText: { fontSize: 14, color: "#2D3748" },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  chip: {
+    backgroundColor: "#EBF4FF",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+  },
+  chipText: { fontSize: 12, color: BLUE, fontWeight: "500" },
+
+  // Menu rows
+  menuRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "white",
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    marginBottom: 10,
+  },
+  menuRowLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
+  menuIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  menuRowText: { fontSize: 15, fontWeight: "500", color: "#2D3748" },
+  menuDivider: { height: 0 },
 });
