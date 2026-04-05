@@ -2,57 +2,103 @@ const express = require("express");
 const router = express.Router();
 const Message = require("../models/Message");
 const User = require("../models/User");
+const Connection = require("../models/Connection");
 const auth = require("../middleware/auth");
 const { sendPushNotification } = require("../utils/pushNotifications");
 const logger = require("../utils/logger");
 
+// Helper: check if two users are connected (accepted connection OR in matches)
+async function areConnected(userIdA, userIdB) {
+  // Check Connection model first (new system)
+  const connection = await Connection.findOne({
+    $or: [
+      { from: userIdA, to: userIdB },
+      { from: userIdB, to: userIdA },
+    ],
+    status: "accepted",
+  });
+  if (connection) return true;
+
+  // Fallback: check legacy user.matches array
+  const user = await User.findById(userIdA).select("matches").lean();
+  if (user?.matches?.some((id) => id.toString() === userIdB.toString()))
+    return true;
+
+  return false;
+}
+
 // Get all conversations (users you've messaged with)
 router.get("/conversations", auth, async (req, res) => {
   try {
-    logger.info("📥 Getting conversations for user:", req.userId);
+    const userId = req.userId || req.user?.id;
+    logger.info("📥 Getting conversations for user:", userId);
 
-    const currentUser = await User.findById(req.userId);
+    // FIX: Get conversations from both connections AND matches
+    // so that existing message history is never lost during transition
+    const currentUser = await User.findById(userId).select("matches").lean();
 
-    if (!currentUser) {
-      logger.error("❌ Current user not found:", req.userId);
-      return res.status(404).json({ message: "User not found" });
+    // Get accepted connections
+    const connections = await Connection.find({
+      $or: [{ from: userId }, { to: userId }],
+      status: "accepted",
+    })
+      .populate("from", "_id name profilePhoto city state")
+      .populate("to", "_id name profilePhoto city state")
+      .lean();
+
+    // Build set of all users we can message
+    const messageableUsers = new Map();
+
+    // Add connections
+    connections.forEach((c) => {
+      const fromId = c.from?._id?.toString();
+      const other = fromId === userId.toString() ? c.to : c.from;
+      if (other?._id) {
+        messageableUsers.set(other._id.toString(), other);
+      }
+    });
+
+    // Also add legacy matches (in case they have message history)
+    const matchIds = (currentUser?.matches || []).map((id) => id.toString());
+    if (matchIds.length > 0) {
+      const matchUsers = await User.find({ _id: { $in: matchIds } })
+        .select("_id name profilePhoto city state")
+        .lean();
+      matchUsers.forEach((u) => {
+        if (!messageableUsers.has(u._id.toString())) {
+          messageableUsers.set(u._id.toString(), u);
+        }
+      });
     }
 
-    // Get all matches (only matched users can message)
-    const matchedUsers = await User.find({
-      _id: { $in: currentUser.matches },
-    })
-      .select("name profilePhoto city state")
-      .lean(); // ← Add .lean() for plain objects
+    const allUsers = Array.from(messageableUsers.values());
 
-    logger.info("✅ Found", matchedUsers.length, "matched users");
-
-    // Get last message with each match
+    // Get last message with each user
     const conversationsWithMessages = await Promise.all(
-      matchedUsers.map(async (user) => {
+      allUsers.map(async (otherUser) => {
+        const otherId = otherUser._id.toString();
         const lastMessage = await Message.findOne({
           $or: [
-            { senderId: req.userId, recipientId: user._id },
-            { senderId: user._id, recipientId: req.userId },
+            { senderId: userId, recipientId: otherId },
+            { senderId: otherId, recipientId: userId },
           ],
         })
           .sort({ createdAt: -1 })
           .limit(1)
-          .lean(); // ← Add .lean()
+          .lean();
 
         const unreadCount = await Message.countDocuments({
-          senderId: user._id,
-          recipientId: req.userId,
+          senderId: otherId,
+          recipientId: userId,
           read: false,
         });
 
-        // ✅ CRITICAL FIX: Return flat object with _id at top level
         return {
-          _id: user._id.toString(), // ← Frontend needs this!
-          name: user.name,
-          profilePhoto: user.profilePhoto,
-          city: user.city,
-          state: user.state,
+          _id: otherId,
+          name: otherUser.name,
+          profilePhoto: otherUser.profilePhoto || "",
+          city: otherUser.city || "",
+          state: otherUser.state || "",
           lastMessage: lastMessage || null,
           unreadCount,
         };
@@ -71,11 +117,9 @@ router.get("/conversations", auth, async (req, res) => {
       conversationsWithMessages.length,
       "conversations",
     );
-
     res.json(conversationsWithMessages);
   } catch (error) {
     logger.error("❌ Get conversations error:", error);
-    logger.error("Stack:", error.stack);
     res.status(500).json({ message: "Error fetching conversations" });
   }
 });
@@ -83,44 +127,40 @@ router.get("/conversations", auth, async (req, res) => {
 // Get messages with a specific user
 router.get("/:userId", auth, async (req, res) => {
   try {
+    const currentUserId = req.userId || req.user?.id;
+    const otherUserId = req.params.userId;
+
     logger.info(
       "📥 Getting messages between",
-      req.userId,
+      currentUserId,
       "and",
-      req.params.userId,
+      otherUserId,
     );
 
-    // Verify they're matched
-    const currentUser = await User.findById(req.userId);
-    if (!currentUser.matches.includes(req.params.userId)) {
+    // FIX: Check connection status using both Connection model and legacy matches
+    const connected = await areConnected(currentUserId, otherUserId);
+    if (!connected) {
       return res
         .status(403)
-        .json({ message: "You can only message your matches" });
+        .json({ message: "You can only message your connections" });
     }
 
     const messages = await Message.find({
       $or: [
-        { senderId: req.userId, recipientId: req.params.userId },
-        { senderId: req.params.userId, recipientId: req.userId },
+        { senderId: currentUserId, recipientId: otherUserId },
+        { senderId: otherUserId, recipientId: currentUserId },
       ],
     })
       .sort({ createdAt: 1 })
-      .limit(100); // Last 100 messages
+      .limit(100);
 
     // Mark messages as read
     await Message.updateMany(
-      {
-        senderId: req.params.userId,
-        recipientId: req.userId,
-        read: false,
-      },
-      {
-        $set: { read: true, readAt: new Date() },
-      },
+      { senderId: otherUserId, recipientId: currentUserId, read: false },
+      { $set: { read: true, readAt: new Date() } },
     );
 
     logger.info("✅ Found", messages.length, "messages");
-
     res.json(messages);
   } catch (error) {
     logger.error("❌ Get messages error:", error);
@@ -131,62 +171,57 @@ router.get("/:userId", auth, async (req, res) => {
 // Send a message
 router.post("/", auth, async (req, res) => {
   try {
+    const currentUserId = req.userId || req.user?.id;
     const { recipientId, content } = req.body;
 
-    logger.info("📥 Sending message from", req.userId, "to", recipientId);
+    logger.info("📥 Sending message from", currentUserId, "to", recipientId);
 
     if (!content || content.trim().length === 0) {
       return res.status(400).json({ message: "Message content is required" });
     }
-
     if (content.length > 1000) {
       return res
         .status(400)
         .json({ message: "Message too long (max 1000 characters)" });
     }
 
-    // Verify they're matched
-    const currentUser = await User.findById(req.userId);
-    if (!currentUser.matches.includes(recipientId)) {
+    // FIX: Allow messaging between accepted connections (not just legacy matches)
+    const connected = await areConnected(currentUserId, recipientId);
+    if (!connected) {
       return res
         .status(403)
         .json({ message: "You can only message your connections" });
     }
 
     const message = new Message({
-      senderId: req.userId,
+      senderId: currentUserId,
       recipientId,
       content: content.trim(),
     });
 
     await message.save();
-
     logger.info("✅ Message sent:", message._id);
 
-    // 🔔 Send push notification
+    // Push notification
     const recipient = await User.findById(recipientId);
-    if (recipient.pushTokens && recipient.pushTokens.length > 0) {
-      const sender = await User.findById(req.userId);
+    if (recipient?.pushTokens?.length > 0) {
+      const sender = await User.findById(currentUserId);
       await sendPushNotification(
         recipient.pushTokens,
         `New message from ${sender.name}`,
         content.substring(0, 100),
-        { type: "message", userId: req.userId },
+        { type: "message", userId: currentUserId },
       );
     }
 
-    // ✅ EMIT SOCKET EVENT
+    // Socket event
     const io = req.app.get("io");
     const userSockets = req.app.get("userSockets");
-
     if (io && userSockets) {
       const recipientSocketId = userSockets.get(recipientId);
-
       if (recipientSocketId) {
-        logger.info("📨 Emitting new-message event to recipient:", recipientId);
+        logger.info("📨 Emitting new-message to:", recipientId);
         io.to(recipientSocketId).emit("new-message", message);
-      } else {
-        logger.info("⚠️ Recipient not currently online:", recipientId);
       }
     }
 
@@ -200,19 +235,15 @@ router.post("/", auth, async (req, res) => {
 // Mark message as read
 router.put("/:messageId/read", auth, async (req, res) => {
   try {
+    const userId = req.userId || req.user?.id;
     const message = await Message.findOne({
       _id: req.params.messageId,
-      recipientId: req.userId,
+      recipientId: userId,
     });
-
-    if (!message) {
-      return res.status(404).json({ message: "Message not found" });
-    }
-
+    if (!message) return res.status(404).json({ message: "Message not found" });
     message.read = true;
     message.readAt = new Date();
     await message.save();
-
     res.json(message);
   } catch (error) {
     logger.error("❌ Mark read error:", error);
@@ -223,11 +254,11 @@ router.put("/:messageId/read", auth, async (req, res) => {
 // Get unread message count
 router.get("/unread/count", auth, async (req, res) => {
   try {
+    const userId = req.userId || req.user?.id;
     const count = await Message.countDocuments({
-      recipientId: req.userId,
+      recipientId: userId,
       read: false,
     });
-
     res.json({ count });
   } catch (error) {
     logger.error("❌ Get unread count error:", error);
@@ -235,15 +266,15 @@ router.get("/unread/count", auth, async (req, res) => {
   }
 });
 
-// Get unread message count for specific user
+// Get unread count for specific user
 router.get("/unread/count/:userId", auth, async (req, res) => {
   try {
+    const currentUserId = req.userId || req.user?.id;
     const count = await Message.countDocuments({
       senderId: req.params.userId,
-      recipientId: req.userId,
+      recipientId: currentUserId,
       read: false,
     });
-
     res.json({ count });
   } catch (error) {
     logger.error("❌ Get unread count for user error:", error);
