@@ -262,12 +262,6 @@ const Messages = () => {
                       key={message._id}
                       className={`message ${message.senderId === (user?.id || user?._id) ? "sent" : "received"}`}
                     >
-                      {/* FIX: Show sender name above received messages */}
-                      {message.senderId !== (user?.id || user?._id) && (
-                        <span className="message-sender-name">
-                          {selectedUser.name}
-                        </span>
-                      )}
                       <div className="message-bubble">
                         <p>{message.content}</p>
                         <span className="message-time">
