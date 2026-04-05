@@ -38,12 +38,6 @@ export default function MessagesScreen({ navigation }) {
 
   const fetchMatches = useCallback(async () => {
     try {
-      // FIX: Use connections API as primary source.
-      // The old code used userAPI.getMatches() which reads user.matches[] —
-      // but the app now uses the Connection model. Connections and matches
-      // can be out of sync, causing an empty list even when conversations exist.
-      // GET /connections returns all accepted connections with user data,
-      // which is the correct source of truth for who you can message.
       const [connectionsRes, conversationsRes] = await Promise.allSettled([
         api.get("/connections"),
         messageAPI.getConversations(),
@@ -59,12 +53,14 @@ export default function MessagesScreen({ navigation }) {
           ? conversationsRes.value.data || []
           : [];
 
-      // Merge connection user data with last message / unread count
       const merged = connectionData
         .map((conn) => {
           const user = conn.user;
           const userId = user?._id?.toString() || user?.id?.toString();
           const conv = conversations.find((c) => c._id === userId);
+          // FIX: force unreadCount to a real integer — API may return string "0"
+          // which is truthy and would show a badge even when there are no unread messages
+          const unreadCount = parseInt(conv?.unreadCount || 0, 10) || 0;
           return {
             _id: userId,
             name: user?.name || "",
@@ -75,7 +71,7 @@ export default function MessagesScreen({ navigation }) {
             bio: user?.bio || "",
             lastMessage: conv?.lastMessage?.content || null,
             timestamp: conv?.lastMessage?.createdAt || null,
-            unreadCount: conv?.unreadCount || 0,
+            unreadCount,
           };
         })
         .sort((a, b) => {
@@ -113,7 +109,8 @@ export default function MessagesScreen({ navigation }) {
                 ...m,
                 lastMessage: conv.lastMessage?.content || m.lastMessage,
                 timestamp: conv.lastMessage?.createdAt || m.timestamp,
-                unreadCount: conv.unreadCount || 0,
+                // FIX: ensure integer
+                unreadCount: parseInt(conv.unreadCount || 0, 10) || 0,
               };
             }),
           );
@@ -144,6 +141,15 @@ export default function MessagesScreen({ navigation }) {
     socket.on("new-message", handle);
     return () => socket.off("new-message", handle);
   }, [socket]);
+
+  // Clear unread count for a match immediately when opening chat
+  const handleOpenChat = (match) => {
+    // Optimistically clear the badge before navigating
+    setMatches((prev) =>
+      prev.map((m) => (m._id === match._id ? { ...m, unreadCount: 0 } : m)),
+    );
+    navigation.navigate("Chat", { match });
+  };
 
   if (loading) {
     return (
@@ -207,6 +213,7 @@ export default function MessagesScreen({ navigation }) {
                   </Text>
                 </View>
               )}
+              {/* FIX: only show badge when unreadCount is a real positive integer */}
               {match.unreadCount > 0 && (
                 <View style={styles.badge}>
                   <Text style={styles.badgeText}>
@@ -216,10 +223,10 @@ export default function MessagesScreen({ navigation }) {
               )}
             </TouchableOpacity>
 
-            {/* Message info — tapping opens chat */}
+            {/* Message info — tapping opens chat and clears badge */}
             <TouchableOpacity
               style={styles.info}
-              onPress={() => navigation.navigate("Chat", { match })}
+              onPress={() => handleOpenChat(match)}
             >
               <View style={styles.nameRow}>
                 <TouchableOpacity
