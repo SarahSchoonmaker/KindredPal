@@ -108,11 +108,17 @@ export const groupsAPI = {
     api.post(`/groups/${groupId}/approve/${userId}`),
   rejectRequest: (groupId, userId) =>
     api.post(`/groups/${groupId}/reject/${userId}`),
+  // FIX: removeMember uses dedicated route for removing existing members.
+  // rejectRequest is only for pending join requests — do not use it for this.
+  removeMember: (groupId, userId) =>
+    api.post(`/groups/${groupId}/remove-member/${userId}`),
   updateGroup: (groupId, data) => api.put(`/groups/${groupId}`, data),
   inviteToGroup: (groupId, userId) =>
     api.post(`/groups/${groupId}/invite/${userId}`),
   acceptInvite: (groupId) => api.post(`/groups/${groupId}/accept-invite`),
   declineInvite: (groupId) => api.post(`/groups/${groupId}/decline-invite`),
+  rsvpInvite: (groupId, response) =>
+    api.post(`/groups/${groupId}/rsvp-invite`, { response }),
   getMyInvites: () => api.get("/groups/my-invites"),
   uploadPhoto: (groupId, formData) =>
     api.post(`/groups/${groupId}/photo`, formData, {

@@ -295,8 +295,7 @@ function InviteModal({ groupId, groupName, existingMemberIds, onClose }) {
     try {
       await groupsAPI.inviteToGroup(groupId, userId);
       setInvited((prev) => ({ ...prev, [userId]: true }));
-    } catch (err) {
-      // If already member or already invited, still show as invited
+    } catch {
       setInvited((prev) => ({ ...prev, [userId]: true }));
     } finally {
       setInviting((prev) => ({ ...prev, [userId]: false }));
@@ -449,6 +448,9 @@ function MemberRow({
     );
   };
 
+  const isCreatorMember =
+    createdBy && (member._id === createdBy || member._id === createdBy?._id);
+
   return (
     <div
       className="member-row"
@@ -471,9 +473,7 @@ function MemberRow({
       <div className="member-details">
         <div className="member-name-row">
           <span className="member-name">{member.name}</span>
-          {member._id === createdBy && (
-            <span className="creator-badge">👑 Creator</span>
-          )}
+          {isCreatorMember && <span className="creator-badge">👑 Creator</span>}
         </div>
         <span className="member-location">
           {member.city}, {member.state}
@@ -498,7 +498,8 @@ function MemberRow({
       </div>
       <div className="member-row-actions" onClick={(e) => e.stopPropagation()}>
         {renderAction()}
-        {isAdmin && member._id !== currentUserId && (
+        {/* FIX: Remove button — only for admins, not on creator's card, not on own card */}
+        {isAdmin && member._id !== currentUserId && !isCreatorMember && (
           <button
             className="btn-remove-member"
             onClick={() => onRemove(member._id, member.name)}
@@ -794,8 +795,6 @@ function EventCard({
       {event.description && (
         <p className="event-description">{event.description}</p>
       )}
-
-      {/* Attendance preview — show avatars of who's going */}
       {event.goingPreview?.length > 0 && (
         <div className="event-attendees-preview">
           <div className="attendee-avatars">
@@ -824,7 +823,6 @@ function EventCard({
           </span>
         </div>
       )}
-
       <div className="event-footer">
         <div className="event-counts">
           <span>✅ {event.goingCount} going</span>
@@ -964,17 +962,14 @@ export default function GroupDetailPage() {
     try {
       await groupsAPI.rsvpInvite(groupId, response);
       if (response === "accept") {
-        // Refresh group — user is now a member
         await fetchGroup();
       } else if (response === "maybe") {
         alert("Marked as maybe! The group admin will see your response.");
         await fetchGroup();
       } else {
-        // declined
         navigate("/groups");
       }
     } catch (err) {
-      console.error("RSVP error:", err.response?.status, err.response?.data);
       alert(
         err.response?.data?.message ||
           "Could not update response. Please try again.",
@@ -992,11 +987,18 @@ export default function GroupDetailPage() {
     }
   };
 
+  // FIX: Use removeMember API (POST /groups/:id/remove-member/:userId)
+  // instead of rejectRequest which is for pending join requests only.
+  // Update local state immediately so UI reflects change without refetch.
   const handleRemoveMember = async (memberId, memberName) => {
     if (!window.confirm(`Remove ${memberName} from this group?`)) return;
     try {
-      await groupsAPI.rejectRequest(groupId, memberId);
-      await fetchGroup();
+      await groupsAPI.removeMember(groupId, memberId);
+      setGroup((prev) => ({
+        ...prev,
+        members: prev.members.filter((m) => m._id !== memberId),
+        memberCount: Math.max(0, (prev.memberCount || prev.members.length) - 1),
+      }));
     } catch (err) {
       alert(err.response?.data?.message || "Could not remove member");
     }
@@ -1308,7 +1310,6 @@ export default function GroupDetailPage() {
             className={`gd-tab ${activeTab === "chat" ? "active" : ""}`}
             onClick={() => {
               setActiveTab("chat");
-              // Scroll to tabs, not bottom
               setTimeout(() => {
                 document
                   .querySelector(".group-detail-tabs")
@@ -1343,7 +1344,7 @@ export default function GroupDetailPage() {
         </div>
       </div>
 
-      {/* ── ABOUT TAB ── */}
+      {/* About Tab */}
       {activeTab === "about" && (
         <>
           <div className="group-section">
@@ -1374,7 +1375,7 @@ export default function GroupDetailPage() {
         </>
       )}
 
-      {/* ── EVENTS TAB ── */}
+      {/* Events Tab */}
       {activeTab === "events" && (
         <div className="group-section">
           <div className="events-section-header">
@@ -1423,7 +1424,7 @@ export default function GroupDetailPage() {
         </div>
       )}
 
-      {/* ── MEMBERS TAB ── */}
+      {/* Members Tab */}
       {activeTab === "members" && (
         <>
           {(group.isMember || !group.isPrivate) && group.members?.length > 0 ? (
@@ -1462,7 +1463,7 @@ export default function GroupDetailPage() {
         </>
       )}
 
-      {/* ── CHAT TAB ── */}
+      {/* Chat Tab */}
       {activeTab === "chat" && (group.isMember || group.isAdmin) && (
         <div className="group-section group-chat-section">
           <GroupChat groupId={groupId} group={group} events={events} />

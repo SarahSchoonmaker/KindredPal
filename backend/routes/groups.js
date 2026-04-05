@@ -338,14 +338,12 @@ router.post("/", auth, async (req, res) => {
     await group.populate("createdBy", "name profilePhoto");
 
     console.log("POST /groups created:", group._id, "by user:", userId);
-    res
-      .status(201)
-      .json({
-        ...group.toObject(),
-        isMember: true,
-        isAdmin: true,
-        isCreator: true,
-      });
+    res.status(201).json({
+      ...group.toObject(),
+      isMember: true,
+      isAdmin: true,
+      isCreator: true,
+    });
   } catch (err) {
     console.error("POST /groups error:", err);
     res.status(500).json({ message: "Server error" });
@@ -394,11 +392,9 @@ router.post("/:id/leave", auth, async (req, res) => {
     const userId = (req.user.id || req.user._id || req.userId).toString();
 
     if (group.createdBy.toString() === userId) {
-      return res
-        .status(400)
-        .json({
-          message: "Group creator cannot leave. Delete the group instead.",
-        });
+      return res.status(400).json({
+        message: "Group creator cannot leave. Delete the group instead.",
+      });
     }
 
     group.members = group.members.filter((m) => m.toString() !== userId);
@@ -408,6 +404,47 @@ router.post("/:id/leave", auth, async (req, res) => {
     res.json({ message: "Left group" });
   } catch (err) {
     console.error("POST /groups/:id/leave error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// POST /api/groups/:id/remove-member/:userId
+// Only group creator or admins can remove members
+router.post("/:id/remove-member/:userId", auth, async (req, res) => {
+  try {
+    const requesterId = (req.user.id || req.user._id || req.userId).toString();
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ message: "Group not found" });
+
+    // Only creator or admins can remove members
+    const isCreator = group.createdBy.toString() === requesterId;
+    const isAdmin = group.admins?.some((a) => a.toString() === requesterId);
+    if (!isCreator && !isAdmin) {
+      return res
+        .status(403)
+        .json({ message: "Only group admins can remove members" });
+    }
+
+    const targetUserId = req.params.userId;
+
+    // Cannot remove the creator
+    if (group.createdBy.toString() === targetUserId) {
+      return res
+        .status(400)
+        .json({ message: "Cannot remove the group creator" });
+    }
+
+    // Remove from members and admins
+    group.members = group.members.filter((m) => m.toString() !== targetUserId);
+    group.admins = (group.admins || []).filter(
+      (a) => a.toString() !== targetUserId,
+    );
+    group.memberCount = group.members.length;
+
+    await group.save();
+    res.json({ message: "Member removed successfully" });
+  } catch (err) {
+    console.error("Remove member error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -623,11 +660,9 @@ router.post("/:id/rsvp-invite", auth, async (req, res) => {
     );
 
     if (!isInvited && !isAlreadyMember) {
-      return res
-        .status(403)
-        .json({
-          message: "No pending invite found. You may need to refresh the page.",
-        });
+      return res.status(403).json({
+        message: "No pending invite found. You may need to refresh the page.",
+      });
     }
 
     if (isAlreadyMember && response === "accept")

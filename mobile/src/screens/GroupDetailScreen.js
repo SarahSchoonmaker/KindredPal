@@ -18,6 +18,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Modal,
+  ActionSheetIOS,
 } from "react-native";
 import { Text, ActivityIndicator } from "react-native-paper";
 import { MessageCircle, Lock, Globe, LogOut, Send } from "lucide-react-native";
@@ -31,52 +32,97 @@ const BLUE = "#2B6CB0";
 function MemberCard({
   member,
   isCurrentUser,
+  isAdmin,
+  isCreator,
   connectionStatus,
   onPress,
   onMessage,
   onConnect,
+  onRemove,
 }) {
+  const handleMore = () => {
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ["Cancel", "View Profile", "Remove from Group"],
+          destructiveButtonIndex: 2,
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) onPress();
+          if (buttonIndex === 2) onRemove(member);
+        },
+      );
+    } else {
+      Alert.alert(member.name || "Member", "What would you like to do?", [
+        { text: "View Profile", onPress: () => onPress() },
+        {
+          text: "Remove from Group",
+          style: "destructive",
+          onPress: () => onRemove(member),
+        },
+        { text: "Cancel", style: "cancel" },
+      ]);
+    }
+  };
+
   return (
-    <TouchableOpacity
-      style={styles.memberCard}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      <Image
-        source={{
-          uri:
-            member.profilePhoto ||
-            "https://ui-avatars.com/api/?background=CBD5E0&color=718096&size=44",
-        }}
-        style={styles.memberPhoto}
-      />
-      <View style={styles.memberInfo}>
-        <Text style={styles.memberName}>{member.name || "Member"}</Text>
-        {member.city || member.state ? (
-          <Text style={styles.memberMeta}>
-            {[member.city, member.state].filter(Boolean).join(", ")}
-          </Text>
-        ) : null}
-      </View>
-      {!isCurrentUser && (
-        <View>
-          {connectionStatus === "accepted" ? (
-            <TouchableOpacity style={styles.btnMessage} onPress={onMessage}>
-              <MessageCircle size={16} color="white" />
-              <Text style={styles.btnMessageText}>Message</Text>
-            </TouchableOpacity>
-          ) : connectionStatus === "pending" ? (
-            <View style={styles.btnPending}>
-              <Text style={styles.btnPendingText}>Pending</Text>
-            </View>
-          ) : (
-            <TouchableOpacity style={styles.btnConnect} onPress={onConnect}>
-              <Text style={styles.btnConnectText}>+ Connect</Text>
-            </TouchableOpacity>
-          )}
+    <View style={styles.memberCard}>
+      <TouchableOpacity
+        style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
+        onPress={onPress}
+        activeOpacity={0.7}
+      >
+        <Image
+          source={{
+            uri:
+              member.profilePhoto ||
+              "https://ui-avatars.com/api/?background=CBD5E0&color=718096&size=44",
+          }}
+          style={styles.memberPhoto}
+        />
+        <View style={styles.memberInfo}>
+          <Text style={styles.memberName}>{member.name || "Member"}</Text>
+          {member.city || member.state ? (
+            <Text style={styles.memberMeta}>
+              {[member.city, member.state].filter(Boolean).join(", ")}
+            </Text>
+          ) : null}
         </View>
-      )}
-    </TouchableOpacity>
+      </TouchableOpacity>
+
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        {!isCurrentUser && (
+          <>
+            {connectionStatus === "accepted" ? (
+              <TouchableOpacity style={styles.btnMessage} onPress={onMessage}>
+                <MessageCircle size={16} color="white" />
+                <Text style={styles.btnMessageText}>Message</Text>
+              </TouchableOpacity>
+            ) : connectionStatus === "pending" ? (
+              <View style={styles.btnPending}>
+                <Text style={styles.btnPendingText}>Pending</Text>
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.btnConnect} onPress={onConnect}>
+                <Text style={styles.btnConnectText}>+ Connect</Text>
+              </TouchableOpacity>
+            )}
+          </>
+        )}
+
+        {/* ... menu — only for admins/creators, not on their own card */}
+        {(isAdmin || isCreator) && !isCurrentUser && (
+          <TouchableOpacity
+            style={styles.moreBtn}
+            onPress={handleMore}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Text style={styles.moreBtnText}>•••</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
   );
 }
 
@@ -131,6 +177,7 @@ export default function GroupDetailScreen({ route, navigation }) {
   useEffect(() => {
     fetchGroup();
   }, [fetchGroup]);
+
   useFocusEffect(
     useCallback(() => {
       fetchGroup();
@@ -263,14 +310,9 @@ export default function GroupDetailScreen({ route, navigation }) {
           onPress: async () => {
             try {
               await api.delete(`/groups/${groupId}`);
-              // FIX: Navigate to MainTabs > Groups with deletedGroupId param
-              // so GroupsScreen patches both Discover and My Groups lists
               navigation.navigate("MainTabs", {
                 screen: "Groups",
-                params: {
-                  deletedGroupId: groupId,
-                  timestamp: Date.now(),
-                },
+                params: { deletedGroupId: groupId, timestamp: Date.now() },
               });
             } catch (err) {
               Alert.alert(
@@ -282,6 +324,37 @@ export default function GroupDetailScreen({ route, navigation }) {
         },
       ],
     );
+  };
+
+  // Remove a member from the group (admin/creator only)
+  const handleRemoveMember = (member) => {
+    const memberId = member._id?.toString() || member.toString();
+    const memberName = member.name || "this member";
+    Alert.alert("Remove Member", `Remove ${memberName} from ${group?.name}?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await api.post(`/groups/${groupId}/remove-member/${memberId}`);
+            // Update local state immediately — no need to refetch
+            setGroup((prev) => ({
+              ...prev,
+              members: prev.members.filter(
+                (m) => (m._id?.toString() || m.toString()) !== memberId,
+              ),
+              memberCount: (prev.memberCount || prev.members.length) - 1,
+            }));
+          } catch (err) {
+            Alert.alert(
+              "Error",
+              err.response?.data?.message || "Could not remove member",
+            );
+          }
+        },
+      },
+    ]);
   };
 
   const handleViewProfile = (member) => {
@@ -345,16 +418,8 @@ export default function GroupDetailScreen({ route, navigation }) {
     try {
       const res = await api.put(`/groups/${groupId}`, editForm);
       setShowEdit(false);
-      // Update local state immediately from response
       setGroup((prev) => ({ ...prev, ...res.data }));
       Alert.alert("Saved ✓", "Group updated successfully.");
-
-      // FIX: Use navigation.navigate("MainTabs", { screen: "Groups", params: {...} })
-      // instead of navigation.navigate("Groups", {...}) directly.
-      // From a root stack screen (GroupDetailScreen), navigating to "Groups" finds
-      // the tab but doesn't reliably pass params INTO the tab's screen component.
-      // The nested params pattern guarantees GroupsScreen receives updatedGroup
-      // and patches both Discover and My Groups lists immediately.
       navigation.navigate("MainTabs", {
         screen: "Groups",
         params: {
@@ -587,10 +652,13 @@ export default function GroupDetailScreen({ route, navigation }) {
                     key={id}
                     member={member}
                     isCurrentUser={id === currentUserId}
+                    isAdmin={isAdmin}
+                    isCreator={isCreator}
                     connectionStatus={connectionStatuses[id] || "none"}
                     onPress={() => handleViewProfile(member)}
                     onMessage={() => handleMessage(member)}
                     onConnect={() => handleConnect(member)}
+                    onRemove={handleRemoveMember}
                   />
                 );
               })
@@ -1076,6 +1144,8 @@ const styles = StyleSheet.create({
     borderColor: "#CBD5E0",
   },
   btnPendingText: { color: "#718096", fontSize: 12, fontWeight: "600" },
+  moreBtn: { paddingHorizontal: 8, paddingVertical: 6 },
+  moreBtnText: { fontSize: 14, color: "#718096", letterSpacing: 2 },
   privateMessage: { alignItems: "center", paddingVertical: 40, gap: 12 },
   privateMessageText: { fontSize: 14, color: "#718096", textAlign: "center" },
   chatContainer: { flex: 1, backgroundColor: "#F7FAFC" },
