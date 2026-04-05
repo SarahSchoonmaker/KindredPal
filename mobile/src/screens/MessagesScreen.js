@@ -7,13 +7,28 @@ import {
   RefreshControl,
   Image,
 } from "react-native";
-import { Text, ActivityIndicator, Badge } from "react-native-paper";
+import { Text, ActivityIndicator } from "react-native-paper";
 import { MessageCircle } from "lucide-react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSocket } from "../context/SocketContext";
-import { userAPI, messageAPI } from "../services/api";
+import { messageAPI } from "../services/api";
+import api from "../services/api";
 
 const BLUE = "#2B6CB0";
+
+function formatTime(date) {
+  if (!date) return "";
+  const now = new Date();
+  const d = new Date(date);
+  const mins = Math.floor((now - d) / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d`;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
 
 export default function MessagesScreen({ navigation }) {
   const [matches, setMatches] = useState([]);
@@ -23,23 +38,20 @@ export default function MessagesScreen({ navigation }) {
 
   const fetchMatches = useCallback(async () => {
     try {
-      const [matchesRes, conversationsRes, blockedRes] =
-        await Promise.allSettled([
-          userAPI.getMatches(),
-          messageAPI.getConversations(),
-          userAPI.getBlockedUsers(),
-        ]);
+      // FIX: Use connections API as primary source.
+      // The old code used userAPI.getMatches() which reads user.matches[] —
+      // but the app now uses the Connection model. Connections and matches
+      // can be out of sync, causing an empty list even when conversations exist.
+      // GET /connections returns all accepted connections with user data,
+      // which is the correct source of truth for who you can message.
+      const [connectionsRes, conversationsRes] = await Promise.allSettled([
+        api.get("/connections"),
+        messageAPI.getConversations(),
+      ]);
 
-      const matchData =
-        matchesRes.status === "fulfilled"
-          ? Array.isArray(matchesRes.value.data)
-            ? matchesRes.value.data
-            : matchesRes.value.data?.matches || []
-          : [];
-
-      const blockedIds =
-        blockedRes.status === "fulfilled"
-          ? (blockedRes.value.data || []).map((u) => u._id)
+      const connectionData =
+        connectionsRes.status === "fulfilled"
+          ? connectionsRes.value.data?.connections || []
           : [];
 
       const conversations =
@@ -47,12 +59,20 @@ export default function MessagesScreen({ navigation }) {
           ? conversationsRes.value.data || []
           : [];
 
-      const merged = matchData
-        .filter((m) => !blockedIds.includes(m._id))
-        .map((match) => {
-          const conv = conversations.find((c) => c._id === match._id);
+      // Merge connection user data with last message / unread count
+      const merged = connectionData
+        .map((conn) => {
+          const user = conn.user;
+          const userId = user?._id?.toString() || user?.id?.toString();
+          const conv = conversations.find((c) => c._id === userId);
           return {
-            ...match,
+            _id: userId,
+            name: user?.name || "",
+            profilePhoto: user?.profilePhoto || "",
+            photo: user?.profilePhoto || "",
+            city: user?.city || "",
+            state: user?.state || "",
+            bio: user?.bio || "",
             lastMessage: conv?.lastMessage?.content || null,
             timestamp: conv?.lastMessage?.createdAt || null,
             unreadCount: conv?.unreadCount || 0,
@@ -78,7 +98,7 @@ export default function MessagesScreen({ navigation }) {
     fetchMatches();
   }, [fetchMatches]);
 
-  // Silently refresh unread counts on focus
+  // Silently refresh unread counts on tab focus
   useFocusEffect(
     useCallback(() => {
       messageAPI
@@ -124,20 +144,6 @@ export default function MessagesScreen({ navigation }) {
     socket.on("new-message", handle);
     return () => socket.off("new-message", handle);
   }, [socket]);
-
-  const formatTime = (date) => {
-    if (!date) return "";
-    const now = new Date();
-    const d = new Date(date);
-    const mins = Math.floor((now - d) / 60000);
-    if (mins < 1) return "Just now";
-    if (mins < 60) return `${mins}m`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h`;
-    const days = Math.floor(hrs / 24);
-    if (days < 7) return `${days}d`;
-    return d.toLocaleDateString();
-  };
 
   if (loading) {
     return (
@@ -189,9 +195,9 @@ export default function MessagesScreen({ navigation }) {
               }
               style={styles.avatarWrap}
             >
-              {match.profilePhoto || match.photo ? (
+              {match.profilePhoto ? (
                 <Image
-                  source={{ uri: match.profilePhoto || match.photo }}
+                  source={{ uri: match.profilePhoto }}
                   style={styles.avatar}
                 />
               ) : (
@@ -216,7 +222,6 @@ export default function MessagesScreen({ navigation }) {
               onPress={() => navigation.navigate("Chat", { match })}
             >
               <View style={styles.nameRow}>
-                {/* Name clickable to profile */}
                 <TouchableOpacity
                   onPress={() =>
                     navigation.navigate("MemberProfile", {
@@ -265,11 +270,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#F7FAFC",
   },
   loadingText: { marginTop: 12, color: "#718096", fontSize: 14 },
-
   header: { padding: 20, paddingBottom: 10 },
   headerTitle: { fontSize: 24, fontWeight: "800", color: "#1a202c" },
   headerSub: { fontSize: 13, color: "#718096", marginTop: 2 },
-
   empty: { alignItems: "center", paddingTop: 80, paddingHorizontal: 40 },
   emptyTitle: {
     fontSize: 20,
@@ -284,7 +287,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 20,
   },
-
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -294,14 +296,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#F0F4F8",
   },
-
   avatarWrap: { position: "relative", marginRight: 14 },
-  avatar: { width: 54, height: 54, borderRadius: 27 },
-  avatarPlaceholder: {
+  avatar: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     backgroundColor: "#EBF4FF",
-    justifyContent: "center",
-    alignItems: "center",
   },
+  avatarPlaceholder: { justifyContent: "center", alignItems: "center" },
   avatarInitial: { fontSize: 20, fontWeight: "700", color: BLUE },
   badge: {
     position: "absolute",
@@ -318,7 +320,6 @@ const styles = StyleSheet.create({
     borderColor: "white",
   },
   badgeText: { color: "white", fontSize: 11, fontWeight: "700" },
-
   info: { flex: 1 },
   nameRow: {
     flexDirection: "row",
