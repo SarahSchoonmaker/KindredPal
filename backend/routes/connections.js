@@ -11,6 +11,7 @@ const Connection = require("../models/Connection");
 router.get("/", auth, async (req, res) => {
   try {
     const userId = (req.user.id || req.user._id || req.userId).toString();
+    console.log("📥 GET /connections for userId:", userId);
 
     const connections = await Connection.find({
       $or: [{ from: userId }, { to: userId }],
@@ -19,28 +20,29 @@ router.get("/", auth, async (req, res) => {
       .populate("from", "_id name city state lifeStage bio")
       .populate("to", "_id name city state lifeStage bio")
       .sort({ updatedAt: -1 })
-      .lean(); // FIX: use .lean() so _id fields are plain ObjectIds, not Mongoose docs
+      .lean();
 
-    // Build list of the "other" user for each connection
-    // FIX: compare _id.toString() explicitly — populated docs need _id extracted first
+    console.log("🔗 Raw connections found:", connections.length);
+
+    // Collect the "other" user for each connection
     const otherIds = [];
     const otherUserMap = {};
 
     connections.forEach((c) => {
       const fromId = c.from?._id?.toString();
       const toId = c.to?._id?.toString();
+      // FIX: compare string IDs explicitly after .lean()
       const otherId = fromId === userId ? toId : fromId;
       const otherUser = fromId === userId ? c.to : c.from;
+      console.log(`  Connection: from=${fromId} to=${toId} → other=${otherId}`);
       if (otherId && otherUser) {
         otherIds.push(otherId);
         otherUserMap[otherId] = otherUser;
       }
     });
 
-    // Batch fetch fresh profilePhotos from User collection
-    const freshUsers = await User.find({
-      _id: { $in: otherIds },
-    })
+    // Batch fetch fresh profilePhotos
+    const freshUsers = await User.find({ _id: { $in: otherIds } })
       .select("_id profilePhoto")
       .lean();
 
@@ -70,6 +72,7 @@ router.get("/", auth, async (req, res) => {
       };
     });
 
+    console.log("📤 Returning connections:", result.length);
     res.json({ connections: result });
   } catch (err) {
     console.error("GET /connections error:", err);
