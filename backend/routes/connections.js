@@ -10,36 +10,49 @@ const Connection = require("../models/Connection");
 // ── GET /api/connections ─────────────────────────────────────
 router.get("/", auth, async (req, res) => {
   try {
-    const userId = req.user.id || req.user._id || req.userId;
+    const userId = (req.user.id || req.user._id || req.userId).toString();
 
     const connections = await Connection.find({
       $or: [{ from: userId }, { to: userId }],
       status: "accepted",
     })
-      // FIX: explicitly include profilePhoto in both populate calls
-      .populate("from", "name profilePhoto city state lifeStage bio")
-      .populate("to", "name profilePhoto city state lifeStage bio")
+      .populate("from", "_id name city state lifeStage bio")
+      .populate("to", "_id name city state lifeStage bio")
       .sort({ updatedAt: -1 });
 
-    const result = connections.map((c) => {
-      const fromId = c.from?._id?.toString() || c.from?.toString();
-      const other = fromId === userId.toString() ? c.to : c.from;
+    // FIX: Fetch profilePhoto directly from User for each connection.
+    // The Connection populate can return a stale or empty profilePhoto
+    // if the user updated their photo after connecting. Fetching fresh
+    // from User guarantees the current photo — same source as the profile
+    // page which correctly shows photos on web and mobile.
+    // We deliberately exclude profilePhoto from the populate above and
+    // fetch it fresh here so there's no ambiguity.
+    const otherIds = connections.map((c) => {
+      const fromId = c.from?._id?.toString();
+      return fromId === userId ? c.to?._id : c.from?._id;
+    });
 
-      // FIX: normalize profilePhoto — ensure it's either a valid URL string
-      // or null, never an empty string (which causes iOS Image to show nothing)
-      const rawPhoto = other?.profilePhoto;
-      const profilePhoto =
-        typeof rawPhoto === "string" && rawPhoto.startsWith("http")
-          ? rawPhoto
-          : null;
+    const freshUsers = await User.find({ _id: { $in: otherIds } })
+      .select("_id profilePhoto")
+      .lean();
+
+    const photoMap = {};
+    freshUsers.forEach((u) => {
+      photoMap[u._id.toString()] = u.profilePhoto || "";
+    });
+
+    const result = connections.map((c) => {
+      const fromId = c.from?._id?.toString();
+      const other = fromId === userId ? c.to : c.from;
+      const otherId = other?._id?.toString();
 
       return {
         connectionId: c._id,
         user: {
-          _id: other?._id,
-          id: other?._id?.toString(),
+          _id: otherId,
+          id: otherId,
           name: other?.name || "",
-          profilePhoto, // guaranteed to be a valid URL or null
+          profilePhoto: photoMap[otherId] || other?.profilePhoto || "",
           city: other?.city || "",
           state: other?.state || "",
           bio: other?.bio || "",
@@ -59,7 +72,7 @@ router.get("/", auth, async (req, res) => {
 // ── GET /api/connections/requests ────────────────────────────
 router.get("/requests", auth, async (req, res) => {
   try {
-    const userId = req.user.id || req.user._id || req.userId;
+    const userId = (req.user.id || req.user._id || req.userId).toString();
 
     const requests = await Connection.find({
       to: userId,
@@ -71,23 +84,7 @@ router.get("/requests", auth, async (req, res) => {
       )
       .sort({ createdAt: -1 });
 
-    // Normalize profilePhoto in requests too
-    const result = requests.map((r) => {
-      const rawPhoto = r.from?.profilePhoto;
-      const profilePhoto =
-        typeof rawPhoto === "string" && rawPhoto.startsWith("http")
-          ? rawPhoto
-          : null;
-      return {
-        ...r.toObject(),
-        from: {
-          ...r.from?.toObject(),
-          profilePhoto,
-        },
-      };
-    });
-
-    res.json({ requests: result });
+    res.json({ requests });
   } catch (err) {
     res.status(500).json({ message: "Server error" });
   }
@@ -96,7 +93,7 @@ router.get("/requests", auth, async (req, res) => {
 // ── GET /api/connections/sent ─────────────────────────────────
 router.get("/sent", auth, async (req, res) => {
   try {
-    const userId = req.user.id || req.user._id || req.userId;
+    const userId = (req.user.id || req.user._id || req.userId).toString();
 
     const sent = await Connection.find({
       from: userId,
@@ -114,10 +111,10 @@ router.get("/sent", auth, async (req, res) => {
 // ── POST /api/connections/request/:userId ─────────────────────
 router.post("/request/:userId", auth, async (req, res) => {
   try {
-    const fromId = req.user.id || req.user._id || req.userId;
+    const fromId = (req.user.id || req.user._id || req.userId).toString();
     const toId = req.params.userId;
 
-    if (fromId.toString() === toId) {
+    if (fromId === toId) {
       return res.status(400).json({ message: "Cannot connect with yourself" });
     }
 
@@ -182,12 +179,12 @@ router.post("/request/:userId", auth, async (req, res) => {
 // ── POST /api/connections/accept/:connectionId ────────────────
 router.post("/accept/:connectionId", auth, async (req, res) => {
   try {
-    const userId = req.user.id || req.user._id || req.userId;
+    const userId = (req.user.id || req.user._id || req.userId).toString();
     const connection = await Connection.findById(req.params.connectionId);
     if (!connection)
       return res.status(404).json({ message: "Request not found" });
 
-    if (connection.to.toString() !== userId.toString()) {
+    if (connection.to.toString() !== userId) {
       return res.status(403).json({ message: "Not authorized" });
     }
     if (connection.status !== "pending") {
@@ -213,12 +210,12 @@ router.post("/accept/:connectionId", auth, async (req, res) => {
 // ── POST /api/connections/decline/:connectionId ───────────────
 router.post("/decline/:connectionId", auth, async (req, res) => {
   try {
-    const userId = req.user.id || req.user._id || req.userId;
+    const userId = (req.user.id || req.user._id || req.userId).toString();
     const connection = await Connection.findById(req.params.connectionId);
     if (!connection)
       return res.status(404).json({ message: "Request not found" });
 
-    if (connection.to.toString() !== userId.toString()) {
+    if (connection.to.toString() !== userId) {
       return res.status(403).json({ message: "Not authorized" });
     }
 
@@ -261,7 +258,7 @@ router.delete("/:connectionId", auth, async (req, res) => {
 // ── GET /api/connections/status/:userId ───────────────────────
 router.get("/status/:userId", auth, async (req, res) => {
   try {
-    const userId = req.user.id || req.user._id || req.userId;
+    const userId = (req.user.id || req.user._id || req.userId).toString();
 
     const connection = await Connection.findOne({
       $or: [
@@ -275,7 +272,7 @@ router.get("/status/:userId", auth, async (req, res) => {
     res.json({
       status: connection.status,
       connectionId: connection._id,
-      isSender: connection.from.toString() === userId.toString(),
+      isSender: connection.from.toString() === userId,
     });
   } catch (err) {
     res.status(500).json({ message: "Server error" });
