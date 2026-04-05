@@ -18,21 +18,29 @@ router.get("/", auth, async (req, res) => {
     })
       .populate("from", "_id name city state lifeStage bio")
       .populate("to", "_id name city state lifeStage bio")
-      .sort({ updatedAt: -1 });
+      .sort({ updatedAt: -1 })
+      .lean(); // FIX: use .lean() so _id fields are plain ObjectIds, not Mongoose docs
 
-    // FIX: Fetch profilePhoto directly from User for each connection.
-    // The Connection populate can return a stale or empty profilePhoto
-    // if the user updated their photo after connecting. Fetching fresh
-    // from User guarantees the current photo — same source as the profile
-    // page which correctly shows photos on web and mobile.
-    // We deliberately exclude profilePhoto from the populate above and
-    // fetch it fresh here so there's no ambiguity.
-    const otherIds = connections.map((c) => {
+    // Build list of the "other" user for each connection
+    // FIX: compare _id.toString() explicitly — populated docs need _id extracted first
+    const otherIds = [];
+    const otherUserMap = {};
+
+    connections.forEach((c) => {
       const fromId = c.from?._id?.toString();
-      return fromId === userId ? c.to?._id : c.from?._id;
+      const toId = c.to?._id?.toString();
+      const otherId = fromId === userId ? toId : fromId;
+      const otherUser = fromId === userId ? c.to : c.from;
+      if (otherId && otherUser) {
+        otherIds.push(otherId);
+        otherUserMap[otherId] = otherUser;
+      }
     });
 
-    const freshUsers = await User.find({ _id: { $in: otherIds } })
+    // Batch fetch fresh profilePhotos from User collection
+    const freshUsers = await User.find({
+      _id: { $in: otherIds },
+    })
       .select("_id profilePhoto")
       .lean();
 
@@ -43,8 +51,8 @@ router.get("/", auth, async (req, res) => {
 
     const result = connections.map((c) => {
       const fromId = c.from?._id?.toString();
-      const other = fromId === userId ? c.to : c.from;
-      const otherId = other?._id?.toString();
+      const otherId = fromId === userId ? c.to?._id?.toString() : fromId;
+      const other = otherUserMap[otherId];
 
       return {
         connectionId: c._id,
