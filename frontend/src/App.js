@@ -30,7 +30,7 @@ import BlockedUsers from "./pages/BlockedUsers";
 // Protected pages
 import Messages from "./pages/Messages";
 import Profile from "./pages/Profile";
-import UserProfile from "./pages/Profile";
+import MemberProfilePage from "./pages/MemberProfilePage";
 import MeetupsPage from "./pages/MeetupsPage";
 import MeetupDetailsPage from "./pages/MeetupDetailsPage";
 import OnboardingPage from "./pages/OnboardingPage";
@@ -124,16 +124,14 @@ function AppRoutes() {
           <Route path="meetups" element={<MeetupsPage />} />
           <Route path="meetups/:meetupId" element={<MeetupDetailsPage />} />
 
-          {/* Profile — own profile uses Profile.js, others use UserProfile.js */}
+          {/* Own profile — edit form, no Report/Block */}
           <Route path="profile" element={<Profile />} />
-          <Route path="profile/:userId" element={<UserProfile />} />
 
-          {/* Member profile — clicking a user from groups/connections/messages */}
-          {/* UserProfile detects if it's your own ID and shows edit form, */}
-          {/* otherwise shows their profile with Report and Block buttons    */}
-          <Route path="members/:userId" element={<UserProfile />} />
+          {/* Other user profiles — ALWAYS shows Report + Block */}
+          <Route path="members/:userId" element={<MemberProfilePage />} />
+          <Route path="profile/:userId" element={<MemberProfilePage />} />
 
-          {/* Old routes — redirects so bookmarks don't break */}
+          {/* Old routes — kept as redirects */}
           <Route path="discover" element={<Navigate to="/groups" />} />
           <Route path="matches" element={<Navigate to="/connections" />} />
           <Route path="likes-you" element={<Navigate to="/connections" />} />

@@ -89,7 +89,7 @@ function MeetupDetailsPage() {
     }
   };
 
-  // Navigate to member profile — uses /members/:userId so Report/Block buttons show
+  // Navigate to member profile page which always shows Report + Block buttons
   const goToProfile = (userId) => {
     const uid = userId?.toString();
     const cid = currentUserId?.toString();
@@ -264,37 +264,26 @@ function MeetupDetailsPage() {
               <div className="guest-list">
                 {meetup.rsvps
                   .filter((r) => r.status === "going")
-                  .map((rsvp) => (
-                    <div key={rsvp.user._id} className="guest-item">
-                      <img
-                        src={rsvp.user.profilePhoto}
-                        alt={rsvp.user.name}
-                        className="guest-avatar"
-                        style={{
-                          cursor:
-                            rsvp.user._id?.toString() !==
-                            currentUserId?.toString()
-                              ? "pointer"
-                              : "default",
-                        }}
-                        onClick={() => goToProfile(rsvp.user._id)}
-                      />
-                      <div
-                        className="guest-info"
-                        style={{
-                          cursor:
-                            rsvp.user._id?.toString() !==
-                            currentUserId?.toString()
-                              ? "pointer"
-                              : "default",
-                        }}
-                        onClick={() => goToProfile(rsvp.user._id)}
-                      >
-                        <div className="guest-name">{rsvp.user.name}</div>
-                      </div>
-                      {isCreator &&
-                        rsvp.user._id?.toString() !==
-                          currentUserId?.toString() && (
+                  .map((rsvp) => {
+                    const isMe =
+                      rsvp.user._id?.toString() === currentUserId?.toString();
+                    return (
+                      <div key={rsvp.user._id} className="guest-item">
+                        <img
+                          src={rsvp.user.profilePhoto}
+                          alt={rsvp.user.name}
+                          className="guest-avatar"
+                          style={{ cursor: isMe ? "default" : "pointer" }}
+                          onClick={() => goToProfile(rsvp.user._id)}
+                        />
+                        <div
+                          className="guest-info"
+                          style={{ cursor: isMe ? "default" : "pointer" }}
+                          onClick={() => goToProfile(rsvp.user._id)}
+                        >
+                          <div className="guest-name">{rsvp.user.name}</div>
+                        </div>
+                        {isCreator && !isMe && (
                           <button
                             className="unmatch-btn"
                             onClick={() =>
@@ -305,8 +294,9 @@ function MeetupDetailsPage() {
                             <UserMinus size={18} />
                           </button>
                         )}
-                    </div>
-                  ))}
+                      </div>
+                    );
+                  })}
               </div>
             </div>
           )}
@@ -317,37 +307,26 @@ function MeetupDetailsPage() {
               <div className="guest-list">
                 {meetup.rsvps
                   .filter((r) => r.status === "maybe")
-                  .map((rsvp) => (
-                    <div key={rsvp.user._id} className="guest-item">
-                      <img
-                        src={rsvp.user.profilePhoto}
-                        alt={rsvp.user.name}
-                        className="guest-avatar"
-                        style={{
-                          cursor:
-                            rsvp.user._id?.toString() !==
-                            currentUserId?.toString()
-                              ? "pointer"
-                              : "default",
-                        }}
-                        onClick={() => goToProfile(rsvp.user._id)}
-                      />
-                      <div
-                        className="guest-info"
-                        style={{
-                          cursor:
-                            rsvp.user._id?.toString() !==
-                            currentUserId?.toString()
-                              ? "pointer"
-                              : "default",
-                        }}
-                        onClick={() => goToProfile(rsvp.user._id)}
-                      >
-                        <div className="guest-name">{rsvp.user.name}</div>
-                      </div>
-                      {isCreator &&
-                        rsvp.user._id?.toString() !==
-                          currentUserId?.toString() && (
+                  .map((rsvp) => {
+                    const isMe =
+                      rsvp.user._id?.toString() === currentUserId?.toString();
+                    return (
+                      <div key={rsvp.user._id} className="guest-item">
+                        <img
+                          src={rsvp.user.profilePhoto}
+                          alt={rsvp.user.name}
+                          className="guest-avatar"
+                          style={{ cursor: isMe ? "default" : "pointer" }}
+                          onClick={() => goToProfile(rsvp.user._id)}
+                        />
+                        <div
+                          className="guest-info"
+                          style={{ cursor: isMe ? "default" : "pointer" }}
+                          onClick={() => goToProfile(rsvp.user._id)}
+                        >
+                          <div className="guest-name">{rsvp.user.name}</div>
+                        </div>
+                        {isCreator && !isMe && (
                           <button
                             className="unmatch-btn"
                             onClick={() =>
@@ -358,8 +337,9 @@ function MeetupDetailsPage() {
                             <UserMinus size={18} />
                           </button>
                         )}
-                    </div>
-                  ))}
+                      </div>
+                    );
+                  })}
               </div>
             </div>
           )}
@@ -374,44 +354,37 @@ function MeetupDetailsPage() {
                       (r) => r.user._id?.toString() === u._id?.toString(),
                     ),
                 )
-                .map((u) => (
-                  <div key={u._id} className="guest-item">
-                    <img
-                      src={u.profilePhoto}
-                      alt={u.name}
-                      className="guest-avatar"
-                      style={{
-                        cursor:
-                          u._id?.toString() !== currentUserId?.toString()
-                            ? "pointer"
-                            : "default",
-                      }}
-                      onClick={() => goToProfile(u._id)}
-                    />
-                    <div
-                      className="guest-info"
-                      style={{
-                        cursor:
-                          u._id?.toString() !== currentUserId?.toString()
-                            ? "pointer"
-                            : "default",
-                      }}
-                      onClick={() => goToProfile(u._id)}
-                    >
-                      <div className="guest-name">{u.name}</div>
-                      <div className="guest-status">Not responded</div>
-                    </div>
-                    {isCreator && (
-                      <button
-                        className="unmatch-btn"
-                        onClick={() => handleUnmatch(u._id, u.name)}
-                        title="Unmatch"
+                .map((u) => {
+                  const isMe = u._id?.toString() === currentUserId?.toString();
+                  return (
+                    <div key={u._id} className="guest-item">
+                      <img
+                        src={u.profilePhoto}
+                        alt={u.name}
+                        className="guest-avatar"
+                        style={{ cursor: isMe ? "default" : "pointer" }}
+                        onClick={() => goToProfile(u._id)}
+                      />
+                      <div
+                        className="guest-info"
+                        style={{ cursor: isMe ? "default" : "pointer" }}
+                        onClick={() => goToProfile(u._id)}
                       >
-                        <UserMinus size={18} />
-                      </button>
-                    )}
-                  </div>
-                ))}
+                        <div className="guest-name">{u.name}</div>
+                        <div className="guest-status">Not responded</div>
+                      </div>
+                      {isCreator && (
+                        <button
+                          className="unmatch-btn"
+                          onClick={() => handleUnmatch(u._id, u.name)}
+                          title="Unmatch"
+                        >
+                          <UserMinus size={18} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
             </div>
           </div>
         </div>

@@ -1,33 +1,10 @@
+// MemberProfilePage.js
+// This page is ONLY ever shown for OTHER users — /members/:userId
+// It always shows Report and Block buttons. No own-vs-other detection needed.
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { connectionsAPI, userAPI } from "../services/api";
+import { useNavigate, useParams } from "react-router-dom";
+import { userAPI, connectionsAPI } from "../services/api";
 import api from "../services/api";
-
-const CATEGORY_ICONS = {
-  "Caregiver Support": "🤲",
-  "Grief & Loss": "🌿",
-  "Sober & Clean Living": "🍃",
-  "New Parent Support": "👶",
-  "Chronic Illness Support": "🎗️",
-  "Anxiety & Mental Wellness": "🧘",
-  "Veteran Support": "🎖️",
-  "Senior Wellness": "🌻",
-  "Loneliness & Social Connection": "💙",
-  "Divorce Recovery": "🌱",
-  "Faith & Spiritual Support": "🙏",
-  "Life Transitions": "🔄",
-  "Trauma Recovery": "🕊️",
-  "Cancer Support": "💛",
-  "Single Parent Support": "👨‍👧",
-  "Addiction Recovery": "⭐",
-  "Autism & Special Needs Families": "🦋",
-  "Singles Social Support": "🌟",
-  "Married No Kids": "💑",
-  "Career Change Support": "💼",
-  "Financial Recovery": "💰",
-  "Sports & Fitness": "🏃",
-  "Local Activity Groups": "🎯",
-};
 
 const REPORT_REASONS = [
   "Inappropriate content",
@@ -54,44 +31,55 @@ const S = {
     fontFamily: "inherit",
   },
   hero: {
-    background: "linear-gradient(135deg, #1e4d8c, #2d6abf)",
+    display: "flex",
+    alignItems: "center",
+    gap: 20,
+    marginBottom: 24,
+    padding: 24,
+    background: "white",
     borderRadius: 16,
-    padding: "32px 24px",
-    textAlign: "center",
-    marginBottom: 16,
-    color: "white",
+    boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
   },
   avatar: {
-    width: 96,
-    height: 96,
+    width: 80,
+    height: 80,
     borderRadius: "50%",
     objectFit: "cover",
-    border: "4px solid rgba(255,255,255,0.4)",
-    marginBottom: 12,
+    border: "3px solid #e2e8f0",
+    flexShrink: 0,
   },
   avatarPlaceholder: {
-    width: 96,
-    height: 96,
+    width: 80,
+    height: 80,
     borderRadius: "50%",
-    background: "rgba(255,255,255,0.2)",
+    background: "linear-gradient(135deg, #1e4d8c, #2d6abf)",
+    color: "white",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 40,
+    fontSize: 34,
     fontWeight: 700,
-    margin: "0 auto 12px",
+    flexShrink: 0,
   },
-  heroName: { fontSize: 26, fontWeight: 700, margin: "0 0 6px" },
-  heroSub: { fontSize: 14, opacity: 0.85, margin: "0 0 4px" },
-  actionCard: {
+  heroName: {
+    fontSize: 22,
+    fontWeight: 700,
+    color: "#1a202c",
+    margin: "0 0 4px",
+  },
+  heroSub: { fontSize: 14, color: "#718096", margin: "0 0 2px" },
+  heroLocation: { fontSize: 14, color: "#4a5568", margin: 0 },
+  card: {
     background: "white",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: 16,
     boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+    marginBottom: 16,
+    overflow: "hidden",
   },
   connectBtn: {
-    width: "100%",
+    display: "block",
+    width: "calc(100% - 32px)",
+    margin: "16px 16px 0",
     padding: "13px",
     background: "#1e4d8c",
     color: "white",
@@ -101,10 +89,12 @@ const S = {
     fontWeight: 600,
     cursor: "pointer",
     fontFamily: "inherit",
-    marginBottom: 10,
+    textAlign: "center",
   },
   messageBtn: {
-    width: "100%",
+    display: "block",
+    width: "calc(100% - 32px)",
+    margin: "16px 16px 0",
     padding: "13px",
     background: "#38a169",
     color: "white",
@@ -114,10 +104,12 @@ const S = {
     fontWeight: 600,
     cursor: "pointer",
     fontFamily: "inherit",
-    marginBottom: 10,
+    textAlign: "center",
   },
   pendingBtn: {
-    width: "100%",
+    display: "block",
+    width: "calc(100% - 32px)",
+    margin: "16px 16px 0",
     padding: "13px",
     background: "#fefcbf",
     color: "#744210",
@@ -126,29 +118,17 @@ const S = {
     fontSize: 15,
     fontWeight: 600,
     fontFamily: "inherit",
-    marginBottom: 10,
+    textAlign: "center",
   },
-  acceptBtn: {
-    width: "100%",
-    padding: "13px",
-    background: "#2b6cb0",
-    color: "white",
-    border: "none",
-    borderRadius: 10,
-    fontSize: 15,
-    fontWeight: 600,
-    cursor: "pointer",
-    fontFamily: "inherit",
-    marginBottom: 10,
-  },
-  safetyRow: { display: "flex", gap: 10 },
+  divider: { height: 1, background: "#f0f4f8", margin: "16px 16px 0" },
+  safetyRow: { display: "flex", gap: 10, padding: "12px 16px 16px" },
   reportBtn: {
     flex: 1,
-    padding: "10px",
+    padding: "11px 10px",
     background: "white",
-    border: "1px solid #e2e8f0",
+    border: "1.5px solid #e2e8f0",
     borderRadius: 8,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: 600,
     color: "#718096",
     cursor: "pointer",
@@ -156,11 +136,11 @@ const S = {
   },
   blockBtn: {
     flex: 1,
-    padding: "10px",
+    padding: "11px 10px",
     background: "white",
-    border: "1px solid #fed7d7",
+    border: "1.5px solid #fed7d7",
     borderRadius: 8,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: 600,
     color: "#e53e3e",
     cursor: "pointer",
@@ -168,18 +148,18 @@ const S = {
   },
   section: {
     background: "white",
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 12,
+    borderRadius: 16,
+    padding: "20px 24px",
     boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+    marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 700,
-    color: "#718096",
+    color: "#a0aec0",
     textTransform: "uppercase",
-    letterSpacing: "0.05em",
-    margin: "0 0 12px",
+    letterSpacing: "0.08em",
+    margin: "0 0 10px",
   },
   bio: { fontSize: 15, color: "#2d3748", lineHeight: 1.7, margin: 0 },
   pills: { display: "flex", flexWrap: "wrap", gap: 8 },
@@ -188,37 +168,7 @@ const S = {
     borderRadius: 20,
     fontSize: 13,
     fontWeight: 500,
-  },
-  sharedGroup: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    padding: "10px 0",
-    borderBottom: "1px solid #f7fafc",
-  },
-  sharedGroupIcon: { fontSize: 20 },
-  sharedGroupName: { fontSize: 14, color: "#4a5568", fontWeight: 500 },
-  infoRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    padding: "8px 0",
-    borderBottom: "1px solid #f7fafc",
-    fontSize: 14,
-  },
-  infoLabel: { color: "#718096", fontWeight: 500 },
-  infoValue: { color: "#2d3748", fontWeight: 600 },
-  loading: {
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 80,
-  },
-  spinner: {
-    width: 36,
-    height: 36,
-    border: "3px solid #e2e8f0",
-    borderTopColor: "#1e4d8c",
-    borderRadius: "50%",
+    display: "inline-block",
   },
   errorBox: {
     background: "#fff5f5",
@@ -238,10 +188,18 @@ const S = {
     fontSize: 14,
     marginBottom: 12,
   },
+  loading: { display: "flex", justifyContent: "center", padding: 80 },
+  spinner: {
+    width: 36,
+    height: 36,
+    border: "3px solid #e2e8f0",
+    borderTopColor: "#1e4d8c",
+    borderRadius: "50%",
+  },
   overlay: {
     position: "fixed",
     inset: 0,
-    background: "rgba(0,0,0,0.5)",
+    background: "rgba(0,0,0,0.55)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -254,7 +212,7 @@ const S = {
     padding: "28px 24px",
     maxWidth: 400,
     width: "100%",
-    boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
+    boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
   },
   modalTitle: {
     fontSize: 18,
@@ -262,12 +220,12 @@ const S = {
     color: "#1a202c",
     margin: "0 0 6px",
   },
-  modalSub: { fontSize: 14, color: "#718096", margin: "0 0 20px" },
+  modalMsg: { fontSize: 14, color: "#718096", margin: "0 0 18px" },
   reasonOption: {
     display: "flex",
     alignItems: "center",
     gap: 12,
-    padding: "12px",
+    padding: "11px 10px",
     borderRadius: 8,
     cursor: "pointer",
     marginBottom: 4,
@@ -280,7 +238,6 @@ const S = {
     border: "2px solid #cbd5e0",
     flexShrink: 0,
   },
-  reasonLabel: { fontSize: 14, color: "#4a5568" },
   modalActions: {
     display: "flex",
     gap: 10,
@@ -311,11 +268,9 @@ const S = {
   },
 };
 
-export default function MemberProfile() {
+export default function MemberProfilePage() {
   const { userId } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
-  const sharedGroups = location.state?.sharedGroups || [];
 
   const [profile, setProfile] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState("none");
@@ -331,7 +286,7 @@ export default function MemberProfile() {
 
   useEffect(() => {
     if (!userId) return;
-    const fetchData = async () => {
+    const load = async () => {
       try {
         const [profileRes, statusRes] = await Promise.allSettled([
           api.get(`/users/profile/${userId}`),
@@ -344,14 +299,13 @@ export default function MemberProfile() {
           setConnectionId(statusRes.value.data.connectionId);
           setIsSender(statusRes.value.data.isSender);
         }
-      } catch (err) {
-        console.error("MemberProfile fetch error:", err);
+      } catch {
         setError("Could not load profile.");
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
+    load();
   }, [userId]);
 
   const handleConnect = async () => {
@@ -383,11 +337,10 @@ export default function MemberProfile() {
       await userAPI.reportUser(userId, reportReason);
       setShowReportModal(false);
       setReportReason("");
-      setSuccess("Report submitted. Thank you — our team will review it.");
+      setSuccess("Report submitted. Our team will review it.");
       setTimeout(() => setSuccess(""), 4000);
     } catch (err) {
       setError(err.response?.data?.message || "Could not submit report");
-      setTimeout(() => setError(""), 3000);
     } finally {
       setReportSubmitting(false);
     }
@@ -396,7 +349,7 @@ export default function MemberProfile() {
   const handleBlock = async () => {
     if (
       !window.confirm(
-        `Block ${profile?.name}? They won't be able to see your profile or message you.`,
+        `Block ${profile?.name}? They won't be able to see your profile or contact you.`,
       )
     )
       return;
@@ -407,17 +360,45 @@ export default function MemberProfile() {
       setTimeout(() => navigate(-1), 1500);
     } catch (err) {
       setError(err.response?.data?.message || "Could not block user");
-      setTimeout(() => setError(""), 3000);
     } finally {
       setBlocking(false);
     }
   };
 
+  const renderConnectionButton = () => {
+    if (connectionStatus === "accepted")
+      return (
+        <button
+          style={S.messageBtn}
+          onClick={() => navigate(`/messages/${userId}`)}
+        >
+          💬 Send Message
+        </button>
+      );
+    if (connectionStatus === "pending" && isSender)
+      return (
+        <button style={S.pendingBtn} disabled>
+          ⏳ Request Pending
+        </button>
+      );
+    if (connectionStatus === "pending" && !isSender)
+      return (
+        <button style={S.connectBtn} onClick={handleAccept}>
+          ✓ Accept Connection Request
+        </button>
+      );
+    return (
+      <button style={S.connectBtn} onClick={handleConnect}>
+        + Send Connection Request
+      </button>
+    );
+  };
+
   if (loading)
     return (
       <div style={S.loading}>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } } .kp-spin { animation: spin 0.7s linear infinite; }`}</style>
-        <div style={S.spinner} className="kp-spin" />
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}} .kps{animation:spin .7s linear infinite}`}</style>
+        <div style={S.spinner} className="kps" />
       </div>
     );
 
@@ -427,7 +408,7 @@ export default function MemberProfile() {
         <button style={S.backBtn} onClick={() => navigate(-1)}>
           ← Back
         </button>
-        <div style={S.section}>
+        <div style={{ background: "white", borderRadius: 16, padding: 24 }}>
           <p style={{ color: "#718096" }}>Profile not found.</p>
         </div>
       </div>
@@ -447,46 +428,9 @@ export default function MemberProfile() {
       ? profile.politicalBeliefs
       : "";
   const showReligion =
-    religion &&
-    religion !== "Prefer not to say" &&
-    religion !== "None" &&
-    religion !== "";
+    religion && religion !== "Prefer not to say" && religion !== "None";
   const showPolitics =
-    politicalBeliefs &&
-    politicalBeliefs !== "Prefer not to say" &&
-    politicalBeliefs !== "";
-
-  const renderConnectionButton = () => {
-    if (connectionStatus === "accepted") {
-      return (
-        <button
-          style={S.messageBtn}
-          onClick={() => navigate(`/messages/${userId}`)}
-        >
-          💬 Send Message
-        </button>
-      );
-    }
-    if (connectionStatus === "pending" && isSender) {
-      return (
-        <button style={S.pendingBtn} disabled>
-          ⏳ Request Pending
-        </button>
-      );
-    }
-    if (connectionStatus === "pending" && !isSender) {
-      return (
-        <button style={S.acceptBtn} onClick={handleAccept}>
-          ✓ Accept Connection Request
-        </button>
-      );
-    }
-    return (
-      <button style={S.connectBtn} onClick={handleConnect}>
-        + Send Connection Request
-      </button>
-    );
-  };
+    politicalBeliefs && politicalBeliefs !== "Prefer not to say";
 
   return (
     <div style={S.page}>
@@ -506,42 +450,30 @@ export default function MemberProfile() {
             {profile.name?.[0]?.toUpperCase()}
           </div>
         )}
-        <h1 style={S.heroName}>{profile.name}</h1>
-        {(profile.city || profile.state) && (
-          <p style={S.heroSub}>
-            📍 {[profile.city, profile.state].filter(Boolean).join(", ")}
-          </p>
-        )}
-        {profile.age && <p style={S.heroSub}>{profile.age} years old</p>}
+        <div>
+          <h1 style={S.heroName}>{profile.name}</h1>
+          {profile.age && <p style={S.heroSub}>{profile.age} years old</p>}
+          {(profile.city || profile.state) && (
+            <p style={S.heroLocation}>
+              📍 {[profile.city, profile.state].filter(Boolean).join(", ")}
+            </p>
+          )}
+        </div>
       </div>
 
-      {/* Connection + Safety actions */}
-      <div style={S.actionCard}>
+      {/* Connection + Report + Block — always visible */}
+      <div style={S.card}>
         {renderConnectionButton()}
+        <div style={S.divider} />
         <div style={S.safetyRow}>
           <button style={S.reportBtn} onClick={() => setShowReportModal(true)}>
-            🚩 Report
+            🚩 Report User
           </button>
           <button style={S.blockBtn} onClick={handleBlock} disabled={blocking}>
-            {blocking ? "Blocking..." : "🚫 Block"}
+            {blocking ? "Blocking..." : "🚫 Block User"}
           </button>
         </div>
       </div>
-
-      {/* Shared groups */}
-      {sharedGroups.length > 0 && (
-        <div style={S.section}>
-          <p style={S.sectionTitle}>Groups in Common</p>
-          {sharedGroups.map((g) => (
-            <div key={g._id} style={S.sharedGroup}>
-              <span style={S.sharedGroupIcon}>
-                {CATEGORY_ICONS[g.category] || "✨"}
-              </span>
-              <span style={S.sharedGroupName}>{g.name}</span>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Bio */}
       {profile.bio && (
@@ -647,31 +579,31 @@ export default function MemberProfile() {
         <div style={S.overlay} onClick={() => setShowReportModal(false)}>
           <div style={S.modalCard} onClick={(e) => e.stopPropagation()}>
             <h3 style={S.modalTitle}>Report {profile.name}</h3>
-            <p style={S.modalSub}>Why are you reporting this user?</p>
+            <p style={S.modalMsg}>Why are you reporting this user?</p>
             {REPORT_REASONS.map((reason) => {
-              const selected = reportReason === reason;
+              const sel = reportReason === reason;
               return (
                 <div
                   key={reason}
                   style={{
                     ...S.reasonOption,
-                    background: selected ? "#ebf4ff" : "white",
-                    borderColor: selected ? "#bee3f8" : "transparent",
+                    background: sel ? "#ebf4ff" : "white",
+                    borderColor: sel ? "#bee3f8" : "transparent",
                   }}
                   onClick={() => setReportReason(reason)}
                 >
                   <div
                     style={{
                       ...S.reasonRadio,
-                      borderColor: selected ? "#1e4d8c" : "#cbd5e0",
-                      background: selected ? "#1e4d8c" : "white",
+                      borderColor: sel ? "#1e4d8c" : "#cbd5e0",
+                      background: sel ? "#1e4d8c" : "white",
                     }}
                   />
                   <span
                     style={{
-                      ...S.reasonLabel,
-                      color: selected ? "#1e4d8c" : "#4a5568",
-                      fontWeight: selected ? 600 : 400,
+                      fontSize: 14,
+                      color: sel ? "#1e4d8c" : "#4a5568",
+                      fontWeight: sel ? 600 : 400,
                     }}
                   >
                     {reason}
