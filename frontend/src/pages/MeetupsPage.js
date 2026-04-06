@@ -15,6 +15,8 @@ function MeetupsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [groupInvites, setGroupInvites] = useState([]);
   const [myGroups, setMyGroups] = useState([]);
+  // FIX: prevent duplicate meetup creation on double-tap
+  const [submittingMeetup, setSubmittingMeetup] = useState(false);
   const { markMeetupsSeen, user: currentUser } = useAuth();
 
   const fetchMeetups = useCallback(async () => {
@@ -40,8 +42,6 @@ function MeetupsPage() {
           : [],
       );
 
-      // ✅ Only mark INVITE IDs as seen (meetups where you are not the creator)
-      // Badge only tracks invites, not meetups you created
       if (markMeetupsSeen && currentUser) {
         const userId = currentUser._id || currentUser.id;
         const inviteIds = data
@@ -61,7 +61,10 @@ function MeetupsPage() {
     fetchMeetups();
   }, [fetchMeetups]);
 
+  // FIX: guard against double submission
   const handleCreateMeetup = async (meetupData) => {
+    if (submittingMeetup) return;
+    setSubmittingMeetup(true);
     try {
       await api.post("/meetups", meetupData);
       setShowCreateModal(false);
@@ -69,6 +72,8 @@ function MeetupsPage() {
     } catch (error) {
       console.error("❌ Error creating meetup:", error);
       alert(error.response?.data?.message || "Failed to create meetup");
+    } finally {
+      setSubmittingMeetup(false);
     }
   };
 
@@ -262,7 +267,13 @@ function MeetupsPage() {
       ) : (
         <div className="meetups-grid">
           {meetups.map((meetup) => (
-            <div key={meetup._id} className="meetup-card">
+            // FIX: entire card is now clickable — removed the "View Details" button
+            <div
+              key={meetup._id}
+              className="meetup-card"
+              onClick={() => navigate(`/meetups/${meetup._id}`)}
+              style={{ cursor: "pointer" }}
+            >
               <div className="meetup-header">
                 <h3>{meetup.title}</h3>
                 <span className="attendee-count">
@@ -302,13 +313,7 @@ function MeetupsPage() {
                   />
                   <span>by {meetup.creator?.name}</span>
                 </div>
-                {/* ✅ Use navigate instead of window.location.href — no full page reload */}
-                <button
-                  className="btn-secondary"
-                  onClick={() => navigate(`/meetups/${meetup._id}`)}
-                >
-                  View Details
-                </button>
+                <span className="meetup-view-hint">Tap to view →</span>
               </div>
             </div>
           ))}
@@ -319,6 +324,7 @@ function MeetupsPage() {
         <CreateMeetupModal
           onClose={() => setShowCreateModal(false)}
           onCreate={handleCreateMeetup}
+          submitting={submittingMeetup}
         />
       )}
     </div>

@@ -7,10 +7,9 @@ const { body, validationResult } = require("express-validator");
 const logger = require("../utils/logger");
 const { Resend } = require("resend");
 
-// FIX: require User directly instead of using mongoose.model("User") at runtime.
-// The getUser() pattern causes MissingSchemaError if this file loads before
-// the User model is registered with Mongoose.
-const User = require("../models/User");
+// Lazy require — called inside handlers to avoid circular dependency
+// with the User model. This is safe because Node caches modules.
+const getUser = () => require("../models/User");
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -97,10 +96,10 @@ function resetEmailHtml(name, resetUrl) {
           </a>
         </div>
         <p style="color: #718096; font-size: 14px; line-height: 1.6;">
-          If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.
+          If you didn't request a password reset, you can safely ignore this email.
         </p>
         <p style="color: #718096; font-size: 13px; margin-top: 24px; padding-top: 16px; border-top: 1px solid #E2E8F0;">
-          Or copy this link into your browser:<br/>
+          Or copy this link:<br/>
           <a href="${resetUrl}" style="color: #2B6CB0; word-break: break-all;">${resetUrl}</a>
         </p>
       </div>
@@ -138,7 +137,9 @@ router.post(
           .json({ message: errors.array()[0].msg, errors: errors.array() });
       }
 
+      const User = getUser();
       const userData = req.body;
+
       const existingUser = await User.findOne({ email: userData.email });
       if (existingUser) {
         return res
@@ -168,7 +169,7 @@ router.post(
       await user.save();
       logger.info("✅ User saved successfully:", user.email);
 
-      // Send welcome email — non-blocking, won't fail signup if email fails
+      // Send welcome email — non-blocking
       sendEmail({
         to: user.email,
         subject: "Welcome to KindredPal 🎉",
@@ -211,6 +212,7 @@ router.post(
       logger.info("\n========== LOGIN ATTEMPT ==========");
       logger.info("📧 Email:", email);
 
+      const User = getUser();
       const user = await User.findOne({ email });
       if (!user) {
         logger.info("❌ User not found");
@@ -238,6 +240,7 @@ router.post(
 // ===== GET PROFILE =====
 router.get("/profile", auth, async (req, res) => {
   try {
+    const User = getUser();
     const user = await User.findById(req.userId).select("-password");
     if (!user) return res.status(404).json({ message: "User not found" });
     const userResponse = user.toObject();
@@ -265,9 +268,9 @@ router.post(
         return res.status(400).json({ message: errors.array()[0].msg });
 
       const { email } = req.body;
+      const User = getUser();
       const user = await User.findOne({ email });
 
-      // Always return 200 to prevent email enumeration
       if (!user) {
         return res.status(200).json({
           message:
@@ -282,7 +285,7 @@ router.post(
         .digest("hex");
 
       user.resetPasswordToken = hashedToken;
-      user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+      user.resetPasswordExpires = Date.now() + 3600000;
       await user.save();
 
       const resetUrl = `${CLIENT_URL}/reset-password/${resetToken}`;
@@ -325,6 +328,7 @@ router.post(
         .update(token)
         .digest("hex");
 
+      const User = getUser();
       const user = await User.findOne({
         resetPasswordToken: hashedToken,
         resetPasswordExpires: { $gt: Date.now() },

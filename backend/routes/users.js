@@ -1,17 +1,21 @@
 const express = require("express");
 const router = express.Router();
-const User = require("../models/User");
 const auth = require("../middleware/auth");
 const logger = require("../utils/logger");
-const Message = require("../models/Message");
 const mongoose = require("mongoose");
-const Group = require("../models/Group");
-const Connection = require("../models/Connection");
-const Meetup = require("../models/Meetup");
+
+// Lazy requires — called inside handlers to avoid circular dependency issues.
+// Node caches modules so this is safe and efficient.
+const getUser = () => require("../models/User");
+const getMessage = () => require("../models/Message");
+const getGroup = () => require("../models/Group");
+const getConnection = () => require("../models/Connection");
+const getMeetup = () => require("../models/Meetup");
 
 // ===== TEST ENDPOINTS =====
 router.get("/test/db", async (req, res) => {
   try {
+    const User = getUser();
     const dbState = mongoose.connection.readyState;
     const stateMap = {
       0: "disconnected",
@@ -36,6 +40,7 @@ router.get("/test/db", async (req, res) => {
 
 router.get("/test/databases", async (req, res) => {
   try {
+    const User = getUser();
     const admin = mongoose.connection.db.admin();
     const { databases } = await admin.listDatabases();
     const currentDB = mongoose.connection.db.databaseName;
@@ -67,6 +72,7 @@ router.get("/test/databases", async (req, res) => {
 
 router.get("/debug/discover", auth, async (req, res) => {
   try {
+    const User = getUser();
     const currentUser = await User.findById(req.userId)
       .select(
         "name email city state locationPreference likes passed matches blockedUsers",
@@ -128,6 +134,7 @@ router.get("/debug/discover", auth, async (req, res) => {
 // ==========================================
 router.get("/discover", auth, async (req, res) => {
   try {
+    const User = getUser();
     const currentUser = await User.findById(req.userId)
       .select(
         "_id email city state latitude longitude locationPreference filterPoliticalBeliefs filterReligions filterLifeStages matches likes passed blockedUsers",
@@ -258,6 +265,7 @@ function toRad(degrees) {
 // ===== LIKE USER =====
 router.post("/like/:userId", auth, async (req, res) => {
   try {
+    const User = getUser();
     const currentUser = await User.findById(req.userId);
     const likedUserId = req.params.userId;
     const likedUser = await User.findById(likedUserId);
@@ -303,6 +311,7 @@ router.post("/like/:userId", auth, async (req, res) => {
 // ===== PASS USER =====
 router.post("/pass/:userId", auth, async (req, res) => {
   try {
+    const User = getUser();
     const currentUser = await User.findById(req.userId);
     const passedUserId = req.params.userId;
     if (!currentUser.passed.includes(passedUserId)) {
@@ -319,6 +328,7 @@ router.post("/pass/:userId", auth, async (req, res) => {
 // ===== CLEAR PASSED =====
 router.delete("/passed", auth, async (req, res) => {
   try {
+    const User = getUser();
     await User.findByIdAndUpdate(req.userId, { $set: { passed: [] } });
     res.json({ message: "Passed list cleared" });
   } catch (error) {
@@ -329,6 +339,7 @@ router.delete("/passed", auth, async (req, res) => {
 // ===== GET MATCHES =====
 router.get("/matches", auth, async (req, res) => {
   try {
+    const User = getUser();
     const user = await User.findById(req.userId).populate(
       "matches",
       "name age city state profilePhoto bio causes lifeStage",
@@ -344,6 +355,7 @@ router.get("/matches", auth, async (req, res) => {
 // ===== GET LIKES YOU =====
 router.get("/likes-you", auth, async (req, res) => {
   try {
+    const User = getUser();
     const currentUser = await User.findById(req.userId);
     if (!currentUser)
       return res.status(404).json({ message: "User not found" });
@@ -374,6 +386,7 @@ router.get("/likes-you", auth, async (req, res) => {
 // ===== UPDATE PROFILE =====
 router.put("/profile", auth, async (req, res) => {
   try {
+    const User = getUser();
     const updates = req.body;
     const allowedUpdates = [
       "name",
@@ -438,6 +451,7 @@ router.put("/profile", auth, async (req, res) => {
 // ===== GET USER PROFILE =====
 router.get("/profile/:userId", auth, async (req, res) => {
   try {
+    const User = getUser();
     const user = await User.findById(req.params.userId)
       .select("-password")
       .lean();
@@ -453,6 +467,7 @@ router.get("/profile/:userId", auth, async (req, res) => {
 // ===== UPDATE NOTIFICATION SETTINGS =====
 router.put("/notification-settings", auth, async (req, res) => {
   try {
+    const User = getUser();
     const user = await User.findById(req.userId);
     user.emailNotifications = { ...user.emailNotifications, ...req.body };
     await user.save();
@@ -466,6 +481,7 @@ router.put("/notification-settings", auth, async (req, res) => {
 // ===== UNMATCH USER =====
 router.post("/unmatch/:userId", auth, async (req, res) => {
   try {
+    const User = getUser();
     const currentUser = await User.findById(req.userId);
     const targetUser = await User.findById(req.params.userId);
     if (!targetUser) return res.status(404).json({ message: "User not found" });
@@ -504,33 +520,31 @@ router.post("/unmatch/:userId", auth, async (req, res) => {
 // ===== DELETE ACCOUNT =====
 router.delete("/account", auth, async (req, res) => {
   try {
+    const User = getUser();
+    const Group = getGroup();
+    const Connection = getConnection();
+
     const userId = (req.user?.id || req.user?._id || req.userId)?.toString();
     if (!userId) return res.status(401).json({ message: "Not authenticated" });
 
     console.log("🗑️ Deleting account for userId:", userId);
 
-    await User.findByIdAndUpdate(userId, {
-      $set: {
-        isDeleted: true,
-        isActive: false,
-        email: `deleted_${userId}_${Date.now()}@deleted.kindredpal.com`,
-        name: "Deleted User",
-        profilePhoto: "",
-        bio: "",
-        matches: [],
-        likes: [],
-        passed: [],
-        pushTokens: [],
-        blockedUsers: [],
-      },
-    });
+    // Use the softDelete method defined on the User model
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
 
+    await user.softDelete();
+
+    // Remove from all groups
     await Group.updateMany(
       { members: userId },
       { $pull: { members: userId, admins: userId }, $inc: { memberCount: -1 } },
     );
 
+    // Remove all connections
     await Connection.deleteMany({ $or: [{ from: userId }, { to: userId }] });
+
+    // Remove from other users' matches
     await User.updateMany({ matches: userId }, { $pull: { matches: userId } });
 
     console.log("✅ Account deleted for userId:", userId);
@@ -547,6 +561,7 @@ router.delete("/account", auth, async (req, res) => {
 // ===== REPORT USER =====
 router.post("/:userId/report", auth, async (req, res) => {
   try {
+    const User = getUser();
     const { userId } = req.params;
     const { reason } = req.body;
     if (!reason)
@@ -570,6 +585,8 @@ router.post("/:userId/report", auth, async (req, res) => {
 // ===== BLOCK USER =====
 router.post("/:userId/block", auth, async (req, res) => {
   try {
+    const User = getUser();
+    const Message = getMessage();
     const currentUser = await User.findById(req.userId);
     if (!currentUser)
       return res.status(404).json({ message: "User not found" });
@@ -597,6 +614,7 @@ router.post("/:userId/block", auth, async (req, res) => {
 // ===== UNBLOCK USER =====
 router.delete("/:userId/block", auth, async (req, res) => {
   try {
+    const User = getUser();
     const currentUser = await User.findById(req.userId);
     if (!currentUser)
       return res.status(404).json({ message: "User not found" });
@@ -616,6 +634,7 @@ router.delete("/:userId/block", auth, async (req, res) => {
 // ===== GET BLOCKED USERS =====
 router.get("/blocked", auth, async (req, res) => {
   try {
+    const User = getUser();
     const user = await User.findById(req.userId)
       .populate("blockedUsers", "name profilePhoto")
       .lean();
@@ -630,6 +649,7 @@ router.get("/blocked", auth, async (req, res) => {
 // ===== SAVE PUSH TOKEN =====
 router.post("/push-token", auth, async (req, res) => {
   try {
+    const User = getUser();
     const { token, device } = req.body;
     if (!token) return res.status(400).json({ message: "Token is required" });
     const user = await User.findById(req.userId);
@@ -647,9 +667,13 @@ router.post("/push-token", auth, async (req, res) => {
 });
 
 // ===== GET ALL BADGE COUNTS =====
-// FIX: removed inline require() calls — all models imported at top of file
 router.get("/counts", auth, async (req, res) => {
   try {
+    const Message = getMessage();
+    const Meetup = getMeetup();
+    const Group = getGroup();
+    const Connection = getConnection();
+
     const userId = req.user.id;
 
     const unread = await Message.countDocuments({

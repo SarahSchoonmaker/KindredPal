@@ -1,11 +1,6 @@
 const jwt = require("jsonwebtoken");
 const logger = require("../utils/logger");
 
-// FIX: require User directly instead of mongoose.model("User") at runtime.
-// The mongoose.model() pattern causes MissingSchemaError if auth middleware
-// runs before the User model is registered with Mongoose.
-const User = require("../models/User");
-
 const auth = async (req, res, next) => {
   try {
     const token = req.header("Authorization")?.replace("Bearer ", "");
@@ -18,12 +13,14 @@ const auth = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Support both 'userId' and 'id' in JWT payload
     const userId = decoded.userId || decoded.id;
     if (!userId) {
       return res.status(401).json({ message: "Invalid token payload" });
     }
 
+    // Lazy require inside the handler — avoids circular dependency
+    // while still getting the fully-registered Mongoose model
+    const User = require("../models/User");
     const user = await User.findById(userId).select("-password");
 
     if (!user) {
