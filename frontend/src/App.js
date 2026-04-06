@@ -36,15 +36,18 @@ import MeetupDetailsPage from "./pages/MeetupDetailsPage";
 
 import OnboardingPage from "./pages/OnboardingPage";
 
-// Protected pages — new Groups + Connections
+// Protected pages — Groups + Connections
 import GroupsPage from "./pages/GroupsPage";
 import GroupDetailPage from "./pages/GroupDetailPage";
 import CreateGroupPage from "./pages/CreateGroupPage";
 import ConnectionsPage from "./pages/ConnectionsPage";
 
+// Member profile page — view another user's profile with Report/Block
+import MemberProfile from "./pages/MemberProfile";
+
 import "./App.css";
 
-// Protected Route wrapper — also redirects to onboarding if not completed
+// Protected Route wrapper
 const ProtectedRoute = ({ children, skipOnboarding = false }) => {
   const { isAuthenticated, loading, user } = useAuth();
   if (loading) return <div className="loading-screen">Loading...</div>;
@@ -55,7 +58,7 @@ const ProtectedRoute = ({ children, skipOnboarding = false }) => {
   return children;
 };
 
-// Public Route wrapper (redirect to groups if already authenticated)
+// Public Route wrapper
 const PublicRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
   if (loading) return <div className="loading-screen">Loading...</div>;
@@ -68,9 +71,30 @@ function AppRoutes() {
       <ScrollToTop />
       <Routes>
         {/* Public routes */}
-        <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
-        <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-        <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
+        <Route
+          path="/"
+          element={
+            <PublicRoute>
+              <Landing />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/login"
+          element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/signup"
+          element={
+            <PublicRoute>
+              <Signup />
+            </PublicRoute>
+          }
+        />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
 
@@ -92,24 +116,30 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         >
-          {/* Groups — new home */}
+          {/* Groups */}
           <Route path="/groups" element={<GroupsPage />} />
           <Route path="/groups/create" element={<CreateGroupPage />} />
           <Route path="/groups/:groupId" element={<GroupDetailPage />} />
 
-          {/* Connections — replaces Matches + LikesYou */}
+          {/* Connections */}
           <Route path="connections" element={<ConnectionsPage />} />
 
-          {/* Existing pages kept intact */}
+          {/* Messages */}
           <Route path="messages" element={<Messages />} />
           <Route path="messages/:userId" element={<Messages />} />
+
+          {/* Meetups */}
           <Route path="meetups" element={<MeetupsPage />} />
           <Route path="meetups/:meetupId" element={<MeetupDetailsPage />} />
+
+          {/* Own profile */}
           <Route path="profile" element={<Profile />} />
           <Route path="profile/:userId" element={<UserProfile />} />
-          <Route path="members/:userId" element={<UserProfile />} />
 
-          {/* Old routes kept as redirects so bookmarks don't break */}
+          {/* Member profile — view another user with Report/Block */}
+          <Route path="members/:userId" element={<MemberProfile />} />
+
+          {/* Old routes — kept as redirects */}
           <Route path="discover" element={<Navigate to="/groups" />} />
           <Route path="matches" element={<Navigate to="/connections" />} />
           <Route path="likes-you" element={<Navigate to="/connections" />} />

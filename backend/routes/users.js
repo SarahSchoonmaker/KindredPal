@@ -4,8 +4,6 @@ const auth = require("../middleware/auth");
 const logger = require("../utils/logger");
 const mongoose = require("mongoose");
 
-// Lazy requires — called inside handlers to avoid circular dependency issues.
-// Node caches modules so this is safe and efficient.
 const getUser = () => require("../models/User");
 const getMessage = () => require("../models/Message");
 const getGroup = () => require("../models/Group");
@@ -164,26 +162,25 @@ router.get("/discover", auth, async (req, res) => {
       ...(currentUser.passed || []),
       ...(currentUser.blockedUsers || []),
     ];
-
     let query = { _id: { $nin: excludedIds }, isDeleted: { $ne: true } };
     const needsDistanceCalc = locationPref.includes("miles");
 
     if (!needsDistanceCalc) {
-      if (locationPref === "Same city") {
-        if (currentUser.city && currentUser.state) {
-          query.city = {
-            $regex: new RegExp(`^${currentUser.city.trim()}$`, "i"),
-          };
-          query.state = {
-            $regex: new RegExp(`^${currentUser.state.trim()}$`, "i"),
-          };
-        }
-      } else if (locationPref === "Same state") {
-        if (currentUser.state) {
-          query.state = {
-            $regex: new RegExp(`^${currentUser.state.trim()}$`, "i"),
-          };
-        }
+      if (
+        locationPref === "Same city" &&
+        currentUser.city &&
+        currentUser.state
+      ) {
+        query.city = {
+          $regex: new RegExp(`^${currentUser.city.trim()}$`, "i"),
+        };
+        query.state = {
+          $regex: new RegExp(`^${currentUser.state.trim()}$`, "i"),
+        };
+      } else if (locationPref === "Same state" && currentUser.state) {
+        query.state = {
+          $regex: new RegExp(`^${currentUser.state.trim()}$`, "i"),
+        };
       }
     }
 
@@ -205,33 +202,32 @@ router.get("/discover", auth, async (req, res) => {
         if (currentUser.state)
           users = users.filter((u) => u.state === currentUser.state);
       } else {
-        users = users.filter((user) => {
-          if (!user.latitude || !user.longitude) return false;
-          return (
+        users = users.filter(
+          (u) =>
+            u.latitude &&
+            u.longitude &&
             calculateDistance(
               currentUser.latitude,
               currentUser.longitude,
-              user.latitude,
-              user.longitude,
-            ) <= miles
-          );
-        });
+              u.latitude,
+              u.longitude,
+            ) <= miles,
+        );
       }
     }
 
-    users.forEach((user) => {
-      delete user.latitude;
-      delete user.longitude;
+    users.forEach((u) => {
+      delete u.latitude;
+      delete u.longitude;
     });
 
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
     const totalCount = users.length;
-    const paginatedUsers = users.slice(skip, skip + limit);
 
     return res.json({
-      users: paginatedUsers,
+      users: users.slice(skip, skip + limit),
       pagination: {
         page,
         limit,
@@ -258,8 +254,8 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
       Math.sin(dLon / 2);
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
-function toRad(degrees) {
-  return degrees * (Math.PI / 180);
+function toRad(d) {
+  return d * (Math.PI / 180);
 }
 
 // ===== LIKE USER =====
@@ -270,12 +266,10 @@ router.post("/like/:userId", auth, async (req, res) => {
     const likedUserId = req.params.userId;
     const likedUser = await User.findById(likedUserId);
     if (!likedUser) return res.status(404).json({ message: "User not found" });
-
     if (!currentUser.likes.includes(likedUserId)) {
       currentUser.likes.push(likedUserId);
       await currentUser.save();
     }
-
     const isMatch = likedUser.likes.includes(req.userId);
     if (isMatch) {
       if (!currentUser.matches.includes(likedUserId))
@@ -298,7 +292,6 @@ router.post("/like/:userId", auth, async (req, res) => {
         },
       });
     }
-
     const io = req.app.get("io");
     if (io) io.to(likedUserId).emit("new-like");
     res.json({ isMatch: false });
@@ -313,9 +306,8 @@ router.post("/pass/:userId", auth, async (req, res) => {
   try {
     const User = getUser();
     const currentUser = await User.findById(req.userId);
-    const passedUserId = req.params.userId;
-    if (!currentUser.passed.includes(passedUserId)) {
-      currentUser.passed.push(passedUserId);
+    if (!currentUser.passed.includes(req.params.userId)) {
+      currentUser.passed.push(req.params.userId);
       await currentUser.save();
     }
     res.json({ message: "User passed" });
@@ -328,8 +320,7 @@ router.post("/pass/:userId", auth, async (req, res) => {
 // ===== CLEAR PASSED =====
 router.delete("/passed", auth, async (req, res) => {
   try {
-    const User = getUser();
-    await User.findByIdAndUpdate(req.userId, { $set: { passed: [] } });
+    await getUser().findByIdAndUpdate(req.userId, { $set: { passed: [] } });
     res.json({ message: "Passed list cleared" });
   } catch (error) {
     res.status(500).json({ message: "Error clearing passed list" });
@@ -339,13 +330,14 @@ router.delete("/passed", auth, async (req, res) => {
 // ===== GET MATCHES =====
 router.get("/matches", auth, async (req, res) => {
   try {
-    const User = getUser();
-    const user = await User.findById(req.userId).populate(
-      "matches",
-      "name age city state profilePhoto bio causes lifeStage",
-    );
+    const user = await getUser()
+      .findById(req.userId)
+      .populate(
+        "matches",
+        "name age city state profilePhoto bio causes lifeStage",
+      );
     if (!user) return res.status(404).json({ message: "User not found" });
-    res.json(user.matches.map((match) => match.toObject()));
+    res.json(user.matches.map((m) => m.toObject()));
   } catch (error) {
     logger.error("Get matches error:", error);
     res.status(500).json({ message: "Error fetching matches" });
@@ -386,7 +378,6 @@ router.get("/likes-you", auth, async (req, res) => {
 // ===== UPDATE PROFILE =====
 router.put("/profile", auth, async (req, res) => {
   try {
-    const User = getUser();
     const updates = req.body;
     const allowedUpdates = [
       "name",
@@ -422,7 +413,6 @@ router.put("/profile", auth, async (req, res) => {
       "city",
       "state",
     ];
-
     const filteredUpdates = {};
     allowedUpdates.forEach((field) => {
       if (updates[field] === undefined) return;
@@ -431,8 +421,7 @@ router.put("/profile", auth, async (req, res) => {
         val = val[0] ?? "";
       filteredUpdates[field] = val;
     });
-
-    const updatedUser = await User.findByIdAndUpdate(
+    const updatedUser = await getUser().findByIdAndUpdate(
       req.userId,
       { $set: filteredUpdates },
       { new: true, runValidators: false },
@@ -451,8 +440,8 @@ router.put("/profile", auth, async (req, res) => {
 // ===== GET USER PROFILE =====
 router.get("/profile/:userId", auth, async (req, res) => {
   try {
-    const User = getUser();
-    const user = await User.findById(req.params.userId)
+    const user = await getUser()
+      .findById(req.params.userId)
       .select("-password")
       .lean();
     if (!user) return res.status(404).json({ message: "User not found" });
@@ -467,8 +456,7 @@ router.get("/profile/:userId", auth, async (req, res) => {
 // ===== UPDATE NOTIFICATION SETTINGS =====
 router.put("/notification-settings", auth, async (req, res) => {
   try {
-    const User = getUser();
-    const user = await User.findById(req.userId);
+    const user = await getUser().findById(req.userId);
     user.emailNotifications = { ...user.emailNotifications, ...req.body };
     await user.save();
     res.json({ message: "Notification settings updated" });
@@ -485,13 +473,11 @@ router.post("/unmatch/:userId", auth, async (req, res) => {
     const currentUser = await User.findById(req.userId);
     const targetUser = await User.findById(req.params.userId);
     if (!targetUser) return res.status(404).json({ message: "User not found" });
-
     const isMatched = currentUser.matches.some(
       (id) => id.toString() === targetUser._id.toString(),
     );
     if (!isMatched)
       return res.status(400).json({ message: "Not matched with this user" });
-
     currentUser.matches = currentUser.matches.filter(
       (id) => id.toString() !== targetUser._id.toString(),
     );
@@ -504,7 +490,6 @@ router.post("/unmatch/:userId", auth, async (req, res) => {
     targetUser.likes = targetUser.likes.filter(
       (id) => id.toString() !== currentUser._id.toString(),
     );
-
     await currentUser.save({ validateBeforeSave: false });
     await targetUser.save({ validateBeforeSave: false });
     res.json({
@@ -518,6 +503,9 @@ router.post("/unmatch/:userId", auth, async (req, res) => {
 });
 
 // ===== DELETE ACCOUNT =====
+// FIX: uses findByIdAndUpdate with runValidators:false to bypass schema validation
+// errors caused by legacy data (arrays in string fields, invalid enum values).
+// softDelete() triggers .save() which runs validators and fails on dirty data.
 router.delete("/account", auth, async (req, res) => {
   try {
     const User = getUser();
@@ -529,7 +517,6 @@ router.delete("/account", auth, async (req, res) => {
 
     console.log("🗑️ Deleting account for userId:", userId);
 
-    // Use the softDelete method defined on the User model
     await User.findByIdAndUpdate(
       userId,
       {
@@ -548,19 +535,15 @@ router.delete("/account", auth, async (req, res) => {
           blockedUsers: [],
         },
       },
-      { runValidators: false }, // ← skips all schema validation
+      { runValidators: false }, // skip validation — user may have legacy dirty data
     );
 
-    // Remove from all groups
     await Group.updateMany(
       { members: userId },
       { $pull: { members: userId, admins: userId }, $inc: { memberCount: -1 } },
     );
 
-    // Remove all connections
     await Connection.deleteMany({ $or: [{ from: userId }, { to: userId }] });
-
-    // Remove from other users' matches
     await User.updateMany({ matches: userId }, { $pull: { matches: userId } });
 
     console.log("✅ Account deleted for userId:", userId);
@@ -577,19 +560,20 @@ router.delete("/account", auth, async (req, res) => {
 // ===== REPORT USER =====
 router.post("/:userId/report", auth, async (req, res) => {
   try {
-    const User = getUser();
     const { userId } = req.params;
     const { reason } = req.body;
     if (!reason)
       return res.status(400).json({ message: "Report reason is required" });
-    const reportedUser = await User.findById(userId).lean();
+    const reportedUser = await getUser().findById(userId).lean();
     if (!reportedUser)
       return res.status(404).json({ message: "User not found" });
     if (userId === req.userId)
       return res.status(400).json({ message: "You cannot report yourself" });
-    res.status(200).json({
-      message: "Thank you for your report. Our team will review it shortly.",
-    });
+    res
+      .status(200)
+      .json({
+        message: "Thank you for your report. Our team will review it shortly.",
+      });
   } catch (error) {
     logger.error("Report user error:", error);
     res.status(500).json({ message: "Error reporting user" });
@@ -607,13 +591,15 @@ router.post("/:userId/block", auth, async (req, res) => {
     const userToBlockId = req.params.userId;
     if (!currentUser.blockedUsers.includes(userToBlockId)) {
       currentUser.blockedUsers.push(userToBlockId);
-      await currentUser.save();
+      await currentUser.save({ validateBeforeSave: false });
     }
-    // FIX: use senderId/recipientId — correct field names for Message model
+    // Try both field name patterns for Message model compatibility
     await Message.deleteMany({
       $or: [
         { senderId: req.userId, recipientId: userToBlockId },
         { senderId: userToBlockId, recipientId: req.userId },
+        { sender: req.userId, recipient: userToBlockId },
+        { sender: userToBlockId, recipient: req.userId },
       ],
     });
     res.json({ message: "User blocked and message history deleted" });
@@ -628,14 +614,13 @@ router.post("/:userId/block", auth, async (req, res) => {
 // ===== UNBLOCK USER =====
 router.delete("/:userId/block", auth, async (req, res) => {
   try {
-    const User = getUser();
-    const currentUser = await User.findById(req.userId);
+    const currentUser = await getUser().findById(req.userId);
     if (!currentUser)
       return res.status(404).json({ message: "User not found" });
     currentUser.blockedUsers = currentUser.blockedUsers.filter(
       (id) => id.toString() !== req.params.userId,
     );
-    await currentUser.save();
+    await currentUser.save({ validateBeforeSave: false });
     res.json({ message: "User unblocked successfully" });
   } catch (error) {
     logger.error("Error unblocking user:", error);
@@ -648,8 +633,8 @@ router.delete("/:userId/block", auth, async (req, res) => {
 // ===== GET BLOCKED USERS =====
 router.get("/blocked", auth, async (req, res) => {
   try {
-    const User = getUser();
-    const user = await User.findById(req.userId)
+    const user = await getUser()
+      .findById(req.userId)
       .populate("blockedUsers", "name profilePhoto")
       .lean();
     if (!user) return res.status(404).json({ message: "User not found" });
@@ -663,15 +648,14 @@ router.get("/blocked", auth, async (req, res) => {
 // ===== SAVE PUSH TOKEN =====
 router.post("/push-token", auth, async (req, res) => {
   try {
-    const User = getUser();
     const { token, device } = req.body;
     if (!token) return res.status(400).json({ message: "Token is required" });
-    const user = await User.findById(req.userId);
+    const user = await getUser().findById(req.userId);
     if (!user.pushTokens.find((pt) => pt.token === token)) {
       user.pushTokens.push({ token, device: device || "unknown" });
       if (user.pushTokens.length > 3)
         user.pushTokens = user.pushTokens.slice(-3);
-      await user.save();
+      await user.save({ validateBeforeSave: false });
     }
     res.json({ message: "Push token saved successfully" });
   } catch (error) {
@@ -687,14 +671,12 @@ router.get("/counts", auth, async (req, res) => {
     const Meetup = getMeetup();
     const Group = getGroup();
     const Connection = getConnection();
-
     const userId = req.user.id;
 
     const unread = await Message.countDocuments({
       recipientId: userId,
       read: false,
     });
-
     const meetupInvites = await Meetup.find({
       invitedUsers: userId,
       isActive: true,
@@ -702,7 +684,6 @@ router.get("/counts", auth, async (req, res) => {
     const pendingMeetups = meetupInvites.filter(
       (m) => !m.rsvps.some((r) => r.user.toString() === userId),
     );
-
     const pendingGroupInvites = await Group.find({
       invitedUsers: userId,
       isActive: { $ne: false },
@@ -710,7 +691,6 @@ router.get("/counts", auth, async (req, res) => {
     })
       .select("_id")
       .lean();
-
     const requestCount = await Connection.countDocuments({
       to: userId,
       status: "pending",
