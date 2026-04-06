@@ -368,6 +368,10 @@ function InviteModal({ groupId, groupName, existingMemberIds, onClose }) {
 }
 
 // ── Member Row ─────────────────────────────────────────────────────────────────
+// FIX: Split into two clickable zones:
+// - Left side (avatar + details) → always navigates to profile
+// - Right side (action buttons) → stopPropagation, no navigation
+// This prevents the buttons from blocking profile navigation
 function MemberRow({
   member,
   groupId,
@@ -383,8 +387,14 @@ function MemberRow({
   const [connectionId, setConnectionId] = useState(null);
   const [isSender, setIsSender] = useState(false);
 
+  const memberId = member._id?.toString();
+  const currentId = currentUserId?.toString();
+  const isSelf = memberId === currentId;
+  const isCreatorMember =
+    createdBy && (member._id === createdBy || member._id === createdBy?._id);
+
   useEffect(() => {
-    if (member._id === currentUserId) {
+    if (isSelf) {
       setStatus("self");
       return;
     }
@@ -396,9 +406,10 @@ function MemberRow({
         setIsSender(res.data.isSender);
       })
       .catch(() => setStatus("none"));
-  }, [member._id, currentUserId]);
+  }, [member._id, isSelf]);
 
-  const handleConnect = async () => {
+  const handleConnect = async (e) => {
+    e.stopPropagation();
     try {
       await connectionsAPI.sendRequest(member._id);
       setStatus("pending");
@@ -408,12 +419,25 @@ function MemberRow({
     }
   };
 
-  const handleAccept = async () => {
+  const handleAccept = async (e) => {
+    e.stopPropagation();
     try {
       await connectionsAPI.acceptRequest(connectionId);
       setStatus("accepted");
     } catch {
       alert("Could not accept request");
+    }
+  };
+
+  const goToProfile = () => {
+    if (!isSelf && memberId) {
+      navigate(`/members/${member._id}`, {
+        state: {
+          sharedGroups: [
+            { _id: groupId, name: groupName, category: groupCategory },
+          ],
+        },
+      });
     }
   };
 
@@ -424,14 +448,21 @@ function MemberRow({
       return (
         <button
           className="member-btn btn-message"
-          onClick={() => navigate(`/messages/${member._id}`)}
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/messages/${member._id}`);
+          }}
         >
           <MessageCircle size={14} /> Message
         </button>
       );
     if (status === "pending" && isSender)
       return (
-        <button className="member-btn btn-pending" disabled>
+        <button
+          className="member-btn btn-pending"
+          disabled
+          onClick={(e) => e.stopPropagation()}
+        >
           <Clock size={14} /> Pending
         </button>
       );
@@ -448,64 +479,71 @@ function MemberRow({
     );
   };
 
-  const isCreatorMember =
-    createdBy && (member._id === createdBy || member._id === createdBy?._id);
-
   return (
     <div
       className="member-row"
-      onClick={() => {
-        const memberId = member._id?.toString();
-        const currentId = currentUserId?.toString();
-        if (memberId && memberId !== currentId) {
-          navigate(`/members/${member._id}`, {
-            state: {
-              sharedGroups: [
-                { _id: groupId, name: groupName, category: groupCategory },
-              ],
-            },
-          });
-        }
-      }}
+      style={{ cursor: isSelf ? "default" : "pointer" }}
     >
-      <img
-        src={member.profilePhoto}
-        alt={member.name}
-        className="member-avatar"
-      />
-      <div className="member-details">
-        <div className="member-name-row">
-          <span className="member-name">{member.name}</span>
-          {isCreatorMember && <span className="creator-badge">👑 Creator</span>}
-        </div>
-        <span className="member-location">
-          {member.city}, {member.state}
-        </span>
-        <div className="member-value-tags">
-          {member.lifeStage?.length > 0 && (
-            <span className="member-vtag vtag-stage">
-              {member.lifeStage.slice(0, 2).join(" · ")}
-            </span>
-          )}
-          {member.religion && member.religion !== "None" && (
-            <span className="member-vtag vtag-faith">
-              🙏 {member.religion.replace("Christian (", "").replace(")", "")}
-            </span>
-          )}
-          {member.familySituation?.length > 0 && (
-            <span className="member-vtag vtag-family">
-              👨‍👧 {member.familySituation[0]}
-            </span>
-          )}
+      {/* Left side — clickable to go to profile */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          flex: 1,
+          minWidth: 0,
+          gap: 12,
+        }}
+        onClick={goToProfile}
+      >
+        <img
+          src={member.profilePhoto}
+          alt={member.name}
+          className="member-avatar"
+        />
+        <div className="member-details">
+          <div className="member-name-row">
+            <span className="member-name">{member.name}</span>
+            {isCreatorMember && (
+              <span className="creator-badge">👑 Creator</span>
+            )}
+          </div>
+          <span className="member-location">
+            {member.city}, {member.state}
+          </span>
+          <div className="member-value-tags">
+            {member.lifeStage?.length > 0 && (
+              <span className="member-vtag vtag-stage">
+                {member.lifeStage.slice(0, 2).join(" · ")}
+              </span>
+            )}
+            {member.religion && member.religion !== "None" && (
+              <span className="member-vtag vtag-faith">
+                🙏 {member.religion.replace("Christian (", "").replace(")", "")}
+              </span>
+            )}
+            {member.familySituation?.length > 0 && (
+              <span className="member-vtag vtag-family">
+                👨‍👧 {member.familySituation[0]}
+              </span>
+            )}
+          </div>
         </div>
       </div>
-      <div className="member-row-actions" onClick={(e) => e.stopPropagation()}>
+
+      {/* Right side — action buttons, clicks don't propagate to profile nav */}
+      <div
+        className="member-row-actions"
+        style={{ flexShrink: 0 }}
+        onClick={(e) => e.stopPropagation()}
+      >
         {renderAction()}
-        {/* FIX: Remove button — only for admins, not on creator's card, not on own card */}
-        {isAdmin && member._id !== currentUserId && !isCreatorMember && (
+        {isAdmin && !isSelf && !isCreatorMember && (
           <button
             className="btn-remove-member"
-            onClick={() => onRemove(member._id, member.name)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove(member._id, member.name);
+            }}
             title="Remove from group"
           >
             <UserX size={14} />
@@ -990,9 +1028,6 @@ export default function GroupDetailPage() {
     }
   };
 
-  // FIX: Use removeMember API (POST /groups/:id/remove-member/:userId)
-  // instead of rejectRequest which is for pending join requests only.
-  // Update local state immediately so UI reflects change without refetch.
   const handleRemoveMember = async (memberId, memberName) => {
     if (!window.confirm(`Remove ${memberName} from this group?`)) return;
     try {
@@ -1313,11 +1348,13 @@ export default function GroupDetailPage() {
             className={`gd-tab ${activeTab === "chat" ? "active" : ""}`}
             onClick={() => {
               setActiveTab("chat");
-              setTimeout(() => {
-                document
-                  .querySelector(".group-detail-tabs")
-                  ?.scrollIntoView({ behavior: "smooth", block: "start" });
-              }, 50);
+              setTimeout(
+                () =>
+                  document
+                    .querySelector(".group-detail-tabs")
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" }),
+                50,
+              );
             }}
           >
             <MessageSquare size={15} /> Chat
