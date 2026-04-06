@@ -6,6 +6,9 @@ const { sendPushNotification } = require("../utils/pushNotifications");
 const logger = require("../utils/logger");
 const Message = require("../models/Message");
 const mongoose = require("mongoose");
+const Group = require("../models/Group");
+const Connection = require("../models/Connection");
+const Meetup = require("../models/Meetup");
 
 // ===== TEST ENDPOINTS =====
 router.get("/test/db", async (req, res) => {
