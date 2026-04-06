@@ -429,8 +429,11 @@ function MemberRow({
     }
   };
 
+  // FIXED — always navigates, own profile goes to /profile, others go to /members/:id
   const goToProfile = () => {
-    if (!isSelf && memberId) {
+    if (isSelf) {
+      navigate("/profile");
+    } else if (memberId) {
       navigate(`/members/${member._id}`, {
         state: {
           sharedGroups: [
@@ -480,10 +483,7 @@ function MemberRow({
   };
 
   return (
-    <div
-      className="member-row"
-      style={{ cursor: isSelf ? "default" : "pointer" }}
-    >
+    <div className="member-row" style={{ cursor: "pointer" }}>
       {/* Left side — clickable to go to profile */}
       <div
         style={{

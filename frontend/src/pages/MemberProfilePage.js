@@ -1,6 +1,6 @@
 // MemberProfilePage.js
-// This page is ONLY ever shown for OTHER users — /members/:userId
-// It always shows Report and Block buttons. No own-vs-other detection needed.
+// Shown for OTHER users only — /members/:userId and /profile/:userId
+// Always shows Report + Block/Unblock buttons
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { userAPI, connectionsAPI } from "../services/api";
@@ -120,6 +120,20 @@ const S = {
     fontFamily: "inherit",
     textAlign: "center",
   },
+  blockedBanner: {
+    display: "block",
+    width: "calc(100% - 32px)",
+    margin: "16px 16px 0",
+    padding: "13px",
+    background: "#fff5f5",
+    color: "#c53030",
+    border: "1px solid #feb2b2",
+    borderRadius: 10,
+    fontSize: 14,
+    fontWeight: 600,
+    fontFamily: "inherit",
+    textAlign: "center",
+  },
   divider: { height: 1, background: "#f0f4f8", margin: "16px 16px 0" },
   safetyRow: { display: "flex", gap: 10, padding: "12px 16px 16px" },
   reportBtn: {
@@ -143,6 +157,18 @@ const S = {
     fontSize: 14,
     fontWeight: 600,
     color: "#e53e3e",
+    cursor: "pointer",
+    fontFamily: "inherit",
+  },
+  unblockBtn: {
+    flex: 1,
+    padding: "11px 10px",
+    background: "#fff5f5",
+    border: "1.5px solid #feb2b2",
+    borderRadius: 8,
+    fontSize: 14,
+    fontWeight: 600,
+    color: "#c53030",
     cursor: "pointer",
     fontFamily: "inherit",
   },
@@ -279,25 +305,40 @@ export default function MemberProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Block state — checked on load so button shows correct state immediately
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [blockLoading, setBlockLoading] = useState(false);
+
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportSubmitting, setReportSubmitting] = useState(false);
-  const [blocking, setBlocking] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
     const load = async () => {
       try {
-        const [profileRes, statusRes] = await Promise.allSettled([
+        const [profileRes, statusRes, blockedRes] = await Promise.allSettled([
           api.get(`/users/profile/${userId}`),
           connectionsAPI.getStatus(userId),
+          userAPI.getBlockedUsers(),
         ]);
-        if (profileRes.status === "fulfilled")
+
+        if (profileRes.status === "fulfilled") {
           setProfile(profileRes.value.data);
+        }
         if (statusRes.status === "fulfilled") {
           setConnectionStatus(statusRes.value.data.status || "none");
           setConnectionId(statusRes.value.data.connectionId);
           setIsSender(statusRes.value.data.isSender);
+        }
+        // Check if this user is already in the blocked list
+        if (blockedRes.status === "fulfilled") {
+          const blockedList = blockedRes.value.data || [];
+          const alreadyBlocked = blockedList.some(
+            (b) => b._id?.toString() === userId?.toString(),
+          );
+          setIsBlocked(alreadyBlocked);
         }
       } catch {
         setError("Could not load profile.");
@@ -330,6 +371,50 @@ export default function MemberProfilePage() {
     }
   };
 
+  const handleBlock = async () => {
+    if (
+      !window.confirm(
+        `Block ${profile?.name}? They won't be able to message you or see your profile.`,
+      )
+    )
+      return;
+    setBlockLoading(true);
+    try {
+      await userAPI.blockUser(userId);
+      setIsBlocked(true);
+      // If they were connected, connection is now effectively severed
+      setConnectionStatus("none");
+      setSuccess(`${profile?.name} has been blocked.`);
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || "Could not block user");
+      setTimeout(() => setError(""), 3000);
+    } finally {
+      setBlockLoading(false);
+    }
+  };
+
+  const handleUnblock = async () => {
+    if (
+      !window.confirm(
+        `Unblock ${profile?.name}? They will be able to see your profile and message you again.`,
+      )
+    )
+      return;
+    setBlockLoading(true);
+    try {
+      await userAPI.unblockUser(userId);
+      setIsBlocked(false);
+      setSuccess(`${profile?.name} has been unblocked.`);
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || "Could not unblock user");
+      setTimeout(() => setError(""), 3000);
+    } finally {
+      setBlockLoading(false);
+    }
+  };
+
   const handleReport = async () => {
     if (!reportReason) return;
     setReportSubmitting(true);
@@ -346,26 +431,11 @@ export default function MemberProfilePage() {
     }
   };
 
-  const handleBlock = async () => {
-    if (
-      !window.confirm(
-        `Block ${profile?.name}? They won't be able to see your profile or contact you.`,
-      )
-    )
-      return;
-    setBlocking(true);
-    try {
-      await userAPI.blockUser(userId);
-      setSuccess(`${profile?.name} has been blocked.`);
-      setTimeout(() => navigate(-1), 1500);
-    } catch (err) {
-      setError(err.response?.data?.message || "Could not block user");
-    } finally {
-      setBlocking(false);
-    }
-  };
-
   const renderConnectionButton = () => {
+    // If blocked, don't show connection/message buttons
+    if (isBlocked) {
+      return <div style={S.blockedBanner}>🚫 You have blocked this user</div>;
+    }
     if (connectionStatus === "accepted")
       return (
         <button
@@ -461,7 +531,7 @@ export default function MemberProfilePage() {
         </div>
       </div>
 
-      {/* Connection + Report + Block — always visible */}
+      {/* Connection + Report + Block/Unblock */}
       <div style={S.card}>
         {renderConnectionButton()}
         <div style={S.divider} />
@@ -469,9 +539,23 @@ export default function MemberProfilePage() {
           <button style={S.reportBtn} onClick={() => setShowReportModal(true)}>
             🚩 Report User
           </button>
-          <button style={S.blockBtn} onClick={handleBlock} disabled={blocking}>
-            {blocking ? "Blocking..." : "🚫 Block User"}
-          </button>
+          {isBlocked ? (
+            <button
+              style={S.unblockBtn}
+              onClick={handleUnblock}
+              disabled={blockLoading}
+            >
+              {blockLoading ? "Unblocking..." : "✓ Unblock User"}
+            </button>
+          ) : (
+            <button
+              style={S.blockBtn}
+              onClick={handleBlock}
+              disabled={blockLoading}
+            >
+              {blockLoading ? "Blocking..." : "🚫 Block User"}
+            </button>
+          )}
         </div>
       </div>
 
