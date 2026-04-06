@@ -27,27 +27,20 @@ import CookiePolicy from "./pages/CookiePolicy";
 import AboutUs from "./pages/AboutUs";
 import BlockedUsers from "./pages/BlockedUsers";
 
-// Protected pages — existing
+// Protected pages
 import Messages from "./pages/Messages";
 import Profile from "./pages/Profile";
 import UserProfile from "./pages/UserProfile";
 import MeetupsPage from "./pages/MeetupsPage";
 import MeetupDetailsPage from "./pages/MeetupDetailsPage";
-
 import OnboardingPage from "./pages/OnboardingPage";
-
-// Protected pages — Groups + Connections
 import GroupsPage from "./pages/GroupsPage";
 import GroupDetailPage from "./pages/GroupDetailPage";
 import CreateGroupPage from "./pages/CreateGroupPage";
 import ConnectionsPage from "./pages/ConnectionsPage";
 
-// Member profile page — view another user's profile with Report/Block
-import MemberProfile from "./pages/MemberProfile";
-
 import "./App.css";
 
-// Protected Route wrapper
 const ProtectedRoute = ({ children, skipOnboarding = false }) => {
   const { isAuthenticated, loading, user } = useAuth();
   if (loading) return <div className="loading-screen">Loading...</div>;
@@ -58,7 +51,6 @@ const ProtectedRoute = ({ children, skipOnboarding = false }) => {
   return children;
 };
 
-// Public Route wrapper
 const PublicRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
   if (loading) return <div className="loading-screen">Loading...</div>;
@@ -132,14 +124,16 @@ function AppRoutes() {
           <Route path="meetups" element={<MeetupsPage />} />
           <Route path="meetups/:meetupId" element={<MeetupDetailsPage />} />
 
-          {/* Own profile */}
+          {/* Profile — own profile uses Profile.js, others use UserProfile.js */}
           <Route path="profile" element={<Profile />} />
           <Route path="profile/:userId" element={<UserProfile />} />
 
-          {/* Member profile — view another user with Report/Block */}
-          <Route path="members/:userId" element={<MemberProfile />} />
+          {/* Member profile — clicking a user from groups/connections/messages */}
+          {/* UserProfile detects if it's your own ID and shows edit form, */}
+          {/* otherwise shows their profile with Report and Block buttons    */}
+          <Route path="members/:userId" element={<UserProfile />} />
 
-          {/* Old routes — kept as redirects */}
+          {/* Old routes — redirects so bookmarks don't break */}
           <Route path="discover" element={<Navigate to="/groups" />} />
           <Route path="matches" element={<Navigate to="/connections" />} />
           <Route path="likes-you" element={<Navigate to="/connections" />} />
