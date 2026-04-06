@@ -1373,8 +1373,8 @@ export default function UserProfile() {
   const { userId } = useParams();
   const { user, updateUser, logout } = useAuth();
 
-  const currentUserId = user?.id || user?._id;
-  const isOwnProfile = !userId || userId === currentUserId?.toString();
+  const currentUserId = (user?.id || user?._id)?.toString();
+  const isOwnProfile = !userId || userId.toString() === currentUserId;
 
   if (isOwnProfile) {
     return (
