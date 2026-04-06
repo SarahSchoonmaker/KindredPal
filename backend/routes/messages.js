@@ -9,7 +9,6 @@ const logger = require("../utils/logger");
 
 // Helper: check if two users are connected (accepted connection OR in matches)
 async function areConnected(userIdA, userIdB) {
-  // Check Connection model first (new system)
   const connection = await Connection.findOne({
     $or: [
       { from: userIdA, to: userIdB },
@@ -27,15 +26,29 @@ async function areConnected(userIdA, userIdB) {
   return false;
 }
 
-// Get all conversations (users you've messaged with)
+// Helper: check if recipient has blocked the sender
+async function isBlockedBy(recipientId, senderId) {
+  const recipient = await User.findById(recipientId)
+    .select("blockedUsers")
+    .lean();
+  if (!recipient) return false;
+  return (recipient.blockedUsers || []).some(
+    (id) => id.toString() === senderId.toString(),
+  );
+}
+
+// Get all conversations
 router.get("/conversations", auth, async (req, res) => {
   try {
     const userId = req.userId || req.user?.id;
     logger.info("📥 Getting conversations for user:", userId);
 
-    // FIX: Get conversations from both connections AND matches
-    // so that existing message history is never lost during transition
-    const currentUser = await User.findById(userId).select("matches").lean();
+    const currentUser = await User.findById(userId)
+      .select("matches blockedUsers")
+      .lean();
+    const blockedIds = new Set(
+      (currentUser?.blockedUsers || []).map((id) => id.toString()),
+    );
 
     // Get accepted connections
     const connections = await Connection.find({
@@ -46,34 +59,32 @@ router.get("/conversations", auth, async (req, res) => {
       .populate("to", "_id name profilePhoto city state")
       .lean();
 
-    // Build set of all users we can message
     const messageableUsers = new Map();
 
-    // Add connections
     connections.forEach((c) => {
       const fromId = c.from?._id?.toString();
       const other = fromId === userId.toString() ? c.to : c.from;
-      if (other?._id) {
+      if (other?._id && !blockedIds.has(other._id.toString())) {
         messageableUsers.set(other._id.toString(), other);
       }
     });
 
-    // Also add legacy matches (in case they have message history)
+    // Also add legacy matches
     const matchIds = (currentUser?.matches || []).map((id) => id.toString());
     if (matchIds.length > 0) {
       const matchUsers = await User.find({ _id: { $in: matchIds } })
         .select("_id name profilePhoto city state")
         .lean();
       matchUsers.forEach((u) => {
-        if (!messageableUsers.has(u._id.toString())) {
-          messageableUsers.set(u._id.toString(), u);
+        const uid = u._id.toString();
+        if (!messageableUsers.has(uid) && !blockedIds.has(uid)) {
+          messageableUsers.set(uid, u);
         }
       });
     }
 
     const allUsers = Array.from(messageableUsers.values());
 
-    // Get last message with each user
     const conversationsWithMessages = await Promise.all(
       allUsers.map(async (otherUser) => {
         const otherId = otherUser._id.toString();
@@ -105,7 +116,6 @@ router.get("/conversations", auth, async (req, res) => {
       }),
     );
 
-    // Sort by most recent message
     conversationsWithMessages.sort((a, b) => {
       const aTime = a.lastMessage?.createdAt || 0;
       const bTime = b.lastMessage?.createdAt || 0;
@@ -137,7 +147,6 @@ router.get("/:userId", auth, async (req, res) => {
       otherUserId,
     );
 
-    // FIX: Check connection status using both Connection model and legacy matches
     const connected = await areConnected(currentUserId, otherUserId);
     if (!connected) {
       return res
@@ -154,7 +163,6 @@ router.get("/:userId", auth, async (req, res) => {
       .sort({ createdAt: 1 })
       .limit(100);
 
-    // Mark messages as read
     await Message.updateMany(
       { senderId: otherUserId, recipientId: currentUserId, read: false },
       { $set: { read: true, readAt: new Date() } },
@@ -185,7 +193,22 @@ router.post("/", auth, async (req, res) => {
         .json({ message: "Message too long (max 1000 characters)" });
     }
 
-    // FIX: Allow messaging between accepted connections (not just legacy matches)
+    // Check if recipient has blocked the sender
+    const blocked = await isBlockedBy(recipientId, currentUserId);
+    if (blocked) {
+      return res.status(403).json({ message: "You cannot message this user" });
+    }
+
+    // Check if sender has blocked the recipient
+    const senderBlockedRecipient = await isBlockedBy(
+      currentUserId,
+      recipientId,
+    );
+    if (senderBlockedRecipient) {
+      return res.status(403).json({ message: "You have blocked this user" });
+    }
+
+    // Check connection
     const connected = await areConnected(currentUserId, recipientId);
     if (!connected) {
       return res
