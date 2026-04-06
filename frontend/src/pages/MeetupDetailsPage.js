@@ -18,7 +18,6 @@ import "./MeetupDetailsPage.css";
 function MeetupDetailsPage() {
   const { meetupId } = useParams();
   const navigate = useNavigate();
-  // ✅ Get current user from AuthContext — single source of truth, no separate fetch
   const { user } = useAuth();
   const currentUserId = user?.id || user?._id;
 
@@ -42,7 +41,6 @@ function MeetupDetailsPage() {
     fetchMeetupDetails();
   }, [fetchMeetupDetails]);
 
-  // ✅ getUserRSVP uses currentUserId from useAuth — always current user
   const getUserRSVP = useCallback(
     (currentMeetup) => {
       const m = currentMeetup || meetup;
@@ -55,7 +53,6 @@ function MeetupDetailsPage() {
     [meetup, currentUserId],
   );
 
-  // ✅ Fixed: no early-return bug — status passed directly, compared inline
   const handleRSVP = async (status) => {
     if (rsvpLoading) return;
     const currentStatus = getUserRSVP();
@@ -63,7 +60,6 @@ function MeetupDetailsPage() {
     setRsvpLoading(true);
     try {
       const response = await api.post(`/meetups/${meetupId}/rsvp`, { status });
-      // ✅ Use response data directly to update state — no re-fetch needed
       setMeetup(response.data);
     } catch (error) {
       console.error("Error updating RSVP:", error);
@@ -90,6 +86,15 @@ function MeetupDetailsPage() {
       navigate("/meetups");
     } catch (error) {
       console.error("Error deleting meetup:", error);
+    }
+  };
+
+  // Navigate to member profile — uses /members/:userId so Report/Block buttons show
+  const goToProfile = (userId) => {
+    const uid = userId?.toString();
+    const cid = currentUserId?.toString();
+    if (uid && uid !== cid) {
+      navigate(`/members/${uid}`);
     }
   };
 
@@ -145,6 +150,8 @@ function MeetupDetailsPage() {
                 src={meetup.creator.profilePhoto}
                 alt={meetup.creator.name}
                 className="creator-avatar"
+                style={{ cursor: "pointer" }}
+                onClick={() => goToProfile(meetup.creator._id)}
               />
               <span>Hosted by {meetup.creator.name}</span>
             </div>
@@ -263,9 +270,26 @@ function MeetupDetailsPage() {
                         src={rsvp.user.profilePhoto}
                         alt={rsvp.user.name}
                         className="guest-avatar"
-                        onClick={() => navigate(`/profile/${rsvp.user._id}`)}
+                        style={{
+                          cursor:
+                            rsvp.user._id?.toString() !==
+                            currentUserId?.toString()
+                              ? "pointer"
+                              : "default",
+                        }}
+                        onClick={() => goToProfile(rsvp.user._id)}
                       />
-                      <div className="guest-info">
+                      <div
+                        className="guest-info"
+                        style={{
+                          cursor:
+                            rsvp.user._id?.toString() !==
+                            currentUserId?.toString()
+                              ? "pointer"
+                              : "default",
+                        }}
+                        onClick={() => goToProfile(rsvp.user._id)}
+                      >
                         <div className="guest-name">{rsvp.user.name}</div>
                       </div>
                       {isCreator &&
@@ -299,9 +323,26 @@ function MeetupDetailsPage() {
                         src={rsvp.user.profilePhoto}
                         alt={rsvp.user.name}
                         className="guest-avatar"
-                        onClick={() => navigate(`/profile/${rsvp.user._id}`)}
+                        style={{
+                          cursor:
+                            rsvp.user._id?.toString() !==
+                            currentUserId?.toString()
+                              ? "pointer"
+                              : "default",
+                        }}
+                        onClick={() => goToProfile(rsvp.user._id)}
                       />
-                      <div className="guest-info">
+                      <div
+                        className="guest-info"
+                        style={{
+                          cursor:
+                            rsvp.user._id?.toString() !==
+                            currentUserId?.toString()
+                              ? "pointer"
+                              : "default",
+                        }}
+                        onClick={() => goToProfile(rsvp.user._id)}
+                      >
                         <div className="guest-name">{rsvp.user.name}</div>
                       </div>
                       {isCreator &&
@@ -339,9 +380,24 @@ function MeetupDetailsPage() {
                       src={u.profilePhoto}
                       alt={u.name}
                       className="guest-avatar"
-                      onClick={() => navigate(`/profile/${u._id}`)}
+                      style={{
+                        cursor:
+                          u._id?.toString() !== currentUserId?.toString()
+                            ? "pointer"
+                            : "default",
+                      }}
+                      onClick={() => goToProfile(u._id)}
                     />
-                    <div className="guest-info">
+                    <div
+                      className="guest-info"
+                      style={{
+                        cursor:
+                          u._id?.toString() !== currentUserId?.toString()
+                            ? "pointer"
+                            : "default",
+                      }}
+                      onClick={() => goToProfile(u._id)}
+                    >
                       <div className="guest-name">{u.name}</div>
                       <div className="guest-status">Not responded</div>
                     </div>

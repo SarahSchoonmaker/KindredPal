@@ -1373,13 +1373,14 @@ export default function UserProfile() {
   const { userId } = useParams();
   const { user, updateUser, logout } = useAuth();
 
-  const currentUserId = (user?.id || user?._id)?.toString();
-  const isOwnProfile = !userId || userId.toString() === currentUserId;
+  // Check both id and _id since AuthContext may return either
+  const id1 = user?.id?.toString();
+  const id2 = user?._id?.toString();
+  const urlId = userId?.toString();
 
-  console.log("DEBUG userId:", userId);
-  console.log("DEBUG currentUserId:", currentUserId);
-  console.log("DEBUG isOwnProfile:", isOwnProfile);
-  console.log("DEBUG user:", user?.id, user?._id);
+  // No userId in URL = own profile page (/profile)
+  // userId matches either of the current user's IDs = own profile
+  const isOwnProfile = !urlId || urlId === id1 || urlId === id2;
 
   if (isOwnProfile) {
     return (
