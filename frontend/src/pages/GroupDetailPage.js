@@ -454,16 +454,19 @@ function MemberRow({
   return (
     <div
       className="member-row"
-      onClick={() =>
-        member._id !== currentUserId &&
-        navigate(`/members/${member._id}`, {
-          state: {
-            sharedGroups: [
-              { _id: groupId, name: groupName, category: groupCategory },
-            ],
-          },
-        })
-      }
+      onClick={() => {
+        const memberId = member._id?.toString();
+        const currentId = currentUserId?.toString();
+        if (memberId && memberId !== currentId) {
+          navigate(`/members/${member._id}`, {
+            state: {
+              sharedGroups: [
+                { _id: groupId, name: groupName, category: groupCategory },
+              ],
+            },
+          });
+        }
+      }}
     >
       <img
         src={member.profilePhoto}
