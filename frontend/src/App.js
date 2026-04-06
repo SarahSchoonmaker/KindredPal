@@ -30,7 +30,7 @@ import BlockedUsers from "./pages/BlockedUsers";
 // Protected pages
 import Messages from "./pages/Messages";
 import Profile from "./pages/Profile";
-import UserProfile from "./pages/UserProfile";
+import UserProfile from "./pages/Profile";
 import MeetupsPage from "./pages/MeetupsPage";
 import MeetupDetailsPage from "./pages/MeetupDetailsPage";
 import OnboardingPage from "./pages/OnboardingPage";
