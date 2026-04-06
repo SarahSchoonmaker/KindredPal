@@ -1376,6 +1376,11 @@ export default function UserProfile() {
   const currentUserId = (user?.id || user?._id)?.toString();
   const isOwnProfile = !userId || userId.toString() === currentUserId;
 
+  console.log("DEBUG userId:", userId);
+  console.log("DEBUG currentUserId:", currentUserId);
+  console.log("DEBUG isOwnProfile:", isOwnProfile);
+  console.log("DEBUG user:", user?.id, user?._id);
+
   if (isOwnProfile) {
     return (
       <OwnProfile
