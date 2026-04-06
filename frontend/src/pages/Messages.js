@@ -2,11 +2,10 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Send, ArrowLeft, User as UserIcon } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { messageAPI } from "../services/api";
+import { messageAPI, connectionsAPI } from "../services/api";
 import "./Messages.css";
 import UserActionsMenu from "../components/UserActionsMenu";
 
-// Format timestamp the same way mobile does
 function formatTime(date) {
   if (!date) return "";
   const now = new Date();
@@ -34,12 +33,61 @@ const Messages = () => {
 
   const loadConversations = useCallback(async () => {
     try {
-      const convResponse = await messageAPI.getConversations();
-      if (!convResponse.data || !Array.isArray(convResponse.data)) {
-        setConversations([]);
-        return;
+      // Load both connections and existing conversations in parallel
+      const [connRes, convRes] = await Promise.allSettled([
+        connectionsAPI.getConnections(),
+        messageAPI.getConversations(),
+      ]);
+
+      // Build a map of existing conversations (have message history)
+      const convMap = new Map();
+      if (convRes.status === "fulfilled" && Array.isArray(convRes.value.data)) {
+        convRes.value.data.forEach((c) => convMap.set(c._id, c));
       }
-      setConversations(convResponse.data);
+
+      // Start with all accepted connections
+      const merged = [];
+      if (connRes.status === "fulfilled") {
+        const conns = connRes.value.data.connections || [];
+        conns.forEach((conn) => {
+          const other = conn.user;
+          if (!other?._id) return;
+          const id = other._id.toString();
+          if (convMap.has(id)) {
+            // Has message history — use conversation data (has lastMessage, unreadCount)
+            merged.push(convMap.get(id));
+            convMap.delete(id); // mark as handled
+          } else {
+            // No messages yet — add as a fresh connection
+            merged.push({
+              _id: id,
+              name: other.name,
+              profilePhoto: other.profilePhoto || "",
+              city: other.city || "",
+              state: other.state || "",
+              lastMessage: null,
+              unreadCount: 0,
+            });
+          }
+        });
+      }
+
+      // Add any remaining conversations not in connections
+      // (legacy matches who have message history)
+      convMap.forEach((c) => merged.push(c));
+
+      // Sort: conversations with messages first (by recency), then no-message connections
+      merged.sort((a, b) => {
+        const aTime = a.lastMessage?.createdAt
+          ? new Date(a.lastMessage.createdAt).getTime()
+          : 0;
+        const bTime = b.lastMessage?.createdAt
+          ? new Date(b.lastMessage.createdAt).getTime()
+          : 0;
+        return bTime - aTime;
+      });
+
+      setConversations(merged);
     } catch (error) {
       console.error("Error loading conversations:", error);
       setConversations([]);
@@ -90,6 +138,30 @@ const Messages = () => {
       setNewMessage("");
       const response = await messageAPI.getMessages(selectedUser._id);
       setMessages(response.data || []);
+      // Update last message in sidebar
+      setConversations((prev) => {
+        const updated = prev.map((conv) =>
+          conv._id === selectedUser._id
+            ? {
+                ...conv,
+                lastMessage: {
+                  content: newMessage,
+                  createdAt: new Date().toISOString(),
+                },
+              }
+            : conv,
+        );
+        // Re-sort so this conversation bubbles to top
+        return [...updated].sort((a, b) => {
+          const aTime = a.lastMessage?.createdAt
+            ? new Date(a.lastMessage.createdAt).getTime()
+            : 0;
+          const bTime = b.lastMessage?.createdAt
+            ? new Date(b.lastMessage.createdAt).getTime()
+            : 0;
+          return bTime - aTime;
+        });
+      });
     } catch (error) {
       console.error("Error sending message:", error);
     } finally {
@@ -130,7 +202,10 @@ const Messages = () => {
         >
           <div className="sidebar-header">
             <h2>Messages</h2>
-            <p className="subtitle">{conversations.length} conversations</p>
+            <p className="subtitle">
+              {conversations.length}{" "}
+              {conversations.length === 1 ? "connection" : "connections"}
+            </p>
           </div>
 
           {conversations.length === 0 ? (
@@ -156,11 +231,17 @@ const Messages = () => {
                     onClick={() => handleSelectConversation(conversation)}
                   >
                     <div className="conversation-avatar-wrapper">
-                      <img
-                        src={conversation.profilePhoto}
-                        alt={conversation.name}
-                        className="conversation-avatar"
-                      />
+                      {conversation.profilePhoto ? (
+                        <img
+                          src={conversation.profilePhoto}
+                          alt={conversation.name}
+                          className="conversation-avatar"
+                        />
+                      ) : (
+                        <div className="conversation-avatar conversation-avatar-placeholder">
+                          {conversation.name?.[0]?.toUpperCase()}
+                        </div>
+                      )}
                       {conversation.unreadCount > 0 && (
                         <span className="conversation-unread-badge">
                           {conversation.unreadCount}
@@ -168,7 +249,6 @@ const Messages = () => {
                       )}
                     </div>
 
-                    {/* FIX: Show name on top row with timestamp, last message below */}
                     <div className="conversation-info">
                       <div className="conversation-name-row">
                         <h4
@@ -189,7 +269,7 @@ const Messages = () => {
                           .filter(Boolean)
                           .join(", ")}
                       </p>
-                      {conversation.lastMessage && (
+                      {conversation.lastMessage ? (
                         <p
                           className={`last-message-preview ${conversation.unreadCount > 0 ? "unread-preview" : ""}`}
                         >
@@ -197,6 +277,10 @@ const Messages = () => {
                           {conversation.lastMessage.content?.length > 45
                             ? "…"
                             : ""}
+                        </p>
+                      ) : (
+                        <p className="last-message-preview no-messages-yet">
+                          Tap to say hello 👋
                         </p>
                       )}
                     </div>
@@ -221,11 +305,17 @@ const Messages = () => {
                 >
                   <ArrowLeft size={20} />
                 </button>
-                <img
-                  src={selectedUser.profilePhoto}
-                  alt={selectedUser.name}
-                  className="chat-avatar"
-                />
+                {selectedUser.profilePhoto ? (
+                  <img
+                    src={selectedUser.profilePhoto}
+                    alt={selectedUser.name}
+                    className="chat-avatar"
+                  />
+                ) : (
+                  <div className="chat-avatar chat-avatar-placeholder">
+                    {selectedUser.name?.[0]?.toUpperCase()}
+                  </div>
+                )}
                 <div className="chat-user-info">
                   <h3>{selectedUser.name}</h3>
                   <p>
@@ -298,7 +388,7 @@ const Messages = () => {
             <div className="no-chat-selected">
               <UserIcon size={64} />
               <h3>Select a Connection to Start Chatting</h3>
-              <p>Choose a conversation from the left to begin messaging</p>
+              <p>Choose a connection from the left to begin messaging</p>
             </div>
           )}
         </div>
