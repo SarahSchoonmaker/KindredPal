@@ -537,12 +537,17 @@ export default function Profile() {
     setDeleting(true);
     try {
       await api.delete("/users/account");
+      // Clear auth state first, then navigate to login
       logout();
-      navigate("/");
+      navigate("/login");
     } catch (err) {
-      console.error("Delete account error:", err.response?.data);
+      // Log full error details so we can see what's happening
+      console.error("Delete account error status:", err.response?.status);
+      console.error("Delete account error data:", err.response?.data);
+      console.error("Delete account error message:", err.message);
       setError(
         err.response?.data?.message ||
+          err.message ||
           "Could not delete account. Please try again.",
       );
       setShowDelete(false);

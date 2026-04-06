@@ -530,10 +530,26 @@ router.delete("/account", auth, async (req, res) => {
     console.log("🗑️ Deleting account for userId:", userId);
 
     // Use the softDelete method defined on the User model
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-    await user.softDelete();
+    await User.findByIdAndUpdate(
+      userId,
+      {
+        $set: {
+          isDeleted: true,
+          isActive: false,
+          deletedAt: new Date(),
+          email: `deleted_${Date.now()}_${userId}@deleted.com`,
+          name: "Deleted User",
+          profilePhoto: "",
+          bio: "",
+          matches: [],
+          likes: [],
+          passed: [],
+          pushTokens: [],
+          blockedUsers: [],
+        },
+      },
+      { runValidators: false }, // ← skips all schema validation
+    );
 
     // Remove from all groups
     await Group.updateMany(
@@ -571,11 +587,9 @@ router.post("/:userId/report", auth, async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     if (userId === req.userId)
       return res.status(400).json({ message: "You cannot report yourself" });
-    res
-      .status(200)
-      .json({
-        message: "Thank you for your report. Our team will review it shortly.",
-      });
+    res.status(200).json({
+      message: "Thank you for your report. Our team will review it shortly.",
+    });
   } catch (error) {
     logger.error("Report user error:", error);
     res.status(500).json({ message: "Error reporting user" });
