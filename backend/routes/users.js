@@ -2,7 +2,6 @@ const express = require("express");
 const router = express.Router();
 const User = require("../models/User");
 const auth = require("../middleware/auth");
-const { sendPushNotification } = require("../utils/pushNotifications");
 const logger = require("../utils/logger");
 const Message = require("../models/Message");
 const mongoose = require("mongoose");
@@ -66,7 +65,6 @@ router.get("/test/databases", async (req, res) => {
   }
 });
 
-// ===== DEBUG: See exactly what's stored for current user + state mismatches =====
 router.get("/debug/discover", auth, async (req, res) => {
   try {
     const currentUser = await User.findById(req.userId)
@@ -74,21 +72,18 @@ router.get("/debug/discover", auth, async (req, res) => {
         "name email city state locationPreference likes passed matches blockedUsers",
       )
       .lean();
-
     const allUsers = await User.find({
       _id: { $ne: req.userId },
       isDeleted: { $ne: true },
     })
       .select("name city state _id")
       .lean();
-
     const likedIds = (currentUser.likes || []).map((id) => id.toString());
     const passedIds = (currentUser.passed || []).map((id) => id.toString());
     const matchedIds = (currentUser.matches || []).map((id) => id.toString());
     const blockedIds = (currentUser.blockedUsers || []).map((id) =>
       id.toString(),
     );
-
     const breakdown = allUsers.map((u) => {
       const id = u._id.toString();
       let excludedReason = null;
@@ -107,7 +102,6 @@ router.get("/debug/discover", auth, async (req, res) => {
           currentUser.state?.toLowerCase().trim(),
       };
     });
-
     res.json({
       currentUser: {
         name: currentUser.name,
@@ -132,33 +126,20 @@ router.get("/debug/discover", auth, async (req, res) => {
 // ==========================================
 //  Discover Route
 // ==========================================
-
 router.get("/discover", auth, async (req, res) => {
   try {
-    console.log("\n===== DISCOVER CALLED =====");
-    console.log("User ID:", req.userId);
-    console.log("Query params:", req.query);
-
     const currentUser = await User.findById(req.userId)
       .select(
         "_id email city state latitude longitude locationPreference filterPoliticalBeliefs filterReligions filterLifeStages matches likes passed blockedUsers",
       )
       .lean();
-
-    console.log(
-      "Current user found:",
-      currentUser ? currentUser.email : "NOT FOUND",
-    );
-
-    if (!currentUser) {
+    if (!currentUser)
       return res.status(404).json({ message: "User not found" });
-    }
 
     const locationPref =
       req.query.locationPreference ||
       currentUser.locationPreference ||
       "Same state";
-
     const filterPolitical = req.query.filterPoliticalBeliefs
       ? JSON.parse(req.query.filterPoliticalBeliefs)
       : currentUser.filterPoliticalBeliefs || [];
@@ -177,11 +158,7 @@ router.get("/discover", auth, async (req, res) => {
       ...(currentUser.blockedUsers || []),
     ];
 
-    let query = {
-      _id: { $nin: excludedIds },
-      isDeleted: { $ne: true },
-    };
-
+    let query = { _id: { $nin: excludedIds }, isDeleted: { $ne: true } };
     const needsDistanceCalc = locationPref.includes("miles");
 
     if (!needsDistanceCalc) {
@@ -203,15 +180,11 @@ router.get("/discover", auth, async (req, res) => {
       }
     }
 
-    if (filterPolitical && filterPolitical.length > 0) {
+    if (filterPolitical?.length > 0)
       query.politicalBeliefs = { $in: filterPolitical };
-    }
-    if (filterReligions && filterReligions.length > 0) {
-      query.religion = { $in: filterReligions };
-    }
-    if (filterLifeStages && filterLifeStages.length > 0) {
+    if (filterReligions?.length > 0) query.religion = { $in: filterReligions };
+    if (filterLifeStages?.length > 0)
       query.lifeStage = { $in: filterLifeStages };
-    }
 
     let users = await User.find(query)
       .select(
@@ -222,9 +195,8 @@ router.get("/discover", auth, async (req, res) => {
     if (needsDistanceCalc) {
       const miles = parseInt(locationPref.match(/\d+/)[0]);
       if (!currentUser.latitude || !currentUser.longitude) {
-        if (currentUser.state) {
+        if (currentUser.state)
           users = users.filter((u) => u.state === currentUser.state);
-        }
       } else {
         users = users.filter((user) => {
           if (!user.latitude || !user.longitude) return false;
@@ -262,7 +234,7 @@ router.get("/discover", auth, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("===== DISCOVER ERROR =====", error.message);
+    console.error("DISCOVER ERROR:", error.message);
     return res.status(500).json({ message: error.message });
   }
 });
@@ -304,13 +276,11 @@ router.post("/like/:userId", auth, async (req, res) => {
         likedUser.matches.push(req.userId);
       await currentUser.save();
       await likedUser.save();
-
       const io = req.app.get("io");
       if (io) {
         io.to(likedUserId).emit("new-match");
         io.to(req.userId).emit("new-match");
       }
-
       return res.json({
         isMatch: true,
         matchedUser: {
@@ -323,7 +293,6 @@ router.post("/like/:userId", auth, async (req, res) => {
 
     const io = req.app.get("io");
     if (io) io.to(likedUserId).emit("new-like");
-
     res.json({ isMatch: false });
   } catch (error) {
     logger.error("Like user error:", error);
@@ -347,7 +316,7 @@ router.post("/pass/:userId", auth, async (req, res) => {
   }
 });
 
-// ===== CLEAR PASSED (for testing / admin reset) =====
+// ===== CLEAR PASSED =====
 router.delete("/passed", auth, async (req, res) => {
   try {
     await User.findByIdAndUpdate(req.userId, { $set: { passed: [] } });
@@ -367,7 +336,7 @@ router.get("/matches", auth, async (req, res) => {
     if (!user) return res.status(404).json({ message: "User not found" });
     res.json(user.matches.map((match) => match.toObject()));
   } catch (error) {
-    logger.error("❌ Get matches error:", error);
+    logger.error("Get matches error:", error);
     res.status(500).json({ message: "Error fetching matches" });
   }
 });
@@ -378,13 +347,11 @@ router.get("/likes-you", auth, async (req, res) => {
     const currentUser = await User.findById(req.userId);
     if (!currentUser)
       return res.status(404).json({ message: "User not found" });
-
     const excludedIds = [
       req.userId,
       ...(currentUser.matches || []),
       ...(currentUser.blockedUsers || []),
     ];
-
     const usersWhoLikedYou = await User.find({
       likes: currentUser._id,
       _id: { $nin: excludedIds },
@@ -395,10 +362,9 @@ router.get("/likes-you", auth, async (req, res) => {
         "name age city state profilePhoto bio causes lifeStage familySituation coreValues politicalBeliefs religion lookingFor isVerified",
       )
       .lean();
-
     res.json({ users: usersWhoLikedYou, dailyLikesRemaining: 10 });
   } catch (error) {
-    logger.error("❌ Likes you error:", error);
+    logger.error("Likes you error:", error);
     res
       .status(500)
       .json({ message: "Error fetching likes", error: error.message });
@@ -409,7 +375,6 @@ router.get("/likes-you", auth, async (req, res) => {
 router.put("/profile", auth, async (req, res) => {
   try {
     const updates = req.body;
-    const user = await User.findById(req.userId);
     const allowedUpdates = [
       "name",
       "age",
@@ -449,9 +414,8 @@ router.put("/profile", auth, async (req, res) => {
     allowedUpdates.forEach((field) => {
       if (updates[field] === undefined) return;
       let val = updates[field];
-      if (STRING_FIELDS.includes(field) && Array.isArray(val)) {
+      if (STRING_FIELDS.includes(field) && Array.isArray(val))
         val = val[0] ?? "";
-      }
       filteredUpdates[field] = val;
     });
 
@@ -460,7 +424,6 @@ router.put("/profile", auth, async (req, res) => {
       { $set: filteredUpdates },
       { new: true, runValidators: false },
     );
-
     const userResponse = updatedUser.toObject();
     userResponse.id = userResponse._id.toString();
     res.json(userResponse);
@@ -528,13 +491,12 @@ router.post("/unmatch/:userId", auth, async (req, res) => {
 
     await currentUser.save({ validateBeforeSave: false });
     await targetUser.save({ validateBeforeSave: false });
-
     res.json({
       message: "Successfully unmatched",
       unmatchedUser: { _id: targetUser._id, name: targetUser.name },
     });
   } catch (error) {
-    logger.error("❌ Unmatch error:", error);
+    logger.error("Unmatch error:", error);
     res.status(500).json({ message: "Error unmatching user" });
   }
 });
@@ -542,12 +504,43 @@ router.post("/unmatch/:userId", auth, async (req, res) => {
 // ===== DELETE ACCOUNT =====
 router.delete("/account", auth, async (req, res) => {
   try {
-    const user = await User.findById(req.userId);
-    await user.softDelete();
+    const userId = (req.user?.id || req.user?._id || req.userId)?.toString();
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+
+    console.log("🗑️ Deleting account for userId:", userId);
+
+    await User.findByIdAndUpdate(userId, {
+      $set: {
+        isDeleted: true,
+        isActive: false,
+        email: `deleted_${userId}_${Date.now()}@deleted.kindredpal.com`,
+        name: "Deleted User",
+        profilePhoto: "",
+        bio: "",
+        matches: [],
+        likes: [],
+        passed: [],
+        pushTokens: [],
+        blockedUsers: [],
+      },
+    });
+
+    await Group.updateMany(
+      { members: userId },
+      { $pull: { members: userId, admins: userId }, $inc: { memberCount: -1 } },
+    );
+
+    await Connection.deleteMany({ $or: [{ from: userId }, { to: userId }] });
+    await User.updateMany({ matches: userId }, { $pull: { matches: userId } });
+
+    console.log("✅ Account deleted for userId:", userId);
     res.json({ message: "Account deleted successfully" });
   } catch (error) {
+    console.error("❌ Delete account error:", error);
     logger.error("Delete account error:", error);
-    res.status(500).json({ message: "Error deleting account" });
+    res
+      .status(500)
+      .json({ message: "Error deleting account. Please try again." });
   }
 });
 
@@ -563,11 +556,13 @@ router.post("/:userId/report", auth, async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     if (userId === req.userId)
       return res.status(400).json({ message: "You cannot report yourself" });
-    res.status(200).json({
-      message: "Thank you for your report. Our team will review it shortly.",
-    });
+    res
+      .status(200)
+      .json({
+        message: "Thank you for your report. Our team will review it shortly.",
+      });
   } catch (error) {
-    logger.error("❌ Report user error:", error);
+    logger.error("Report user error:", error);
     res.status(500).json({ message: "Error reporting user" });
   }
 });
@@ -583,10 +578,11 @@ router.post("/:userId/block", auth, async (req, res) => {
       currentUser.blockedUsers.push(userToBlockId);
       await currentUser.save();
     }
+    // FIX: use senderId/recipientId — correct field names for Message model
     await Message.deleteMany({
       $or: [
-        { sender: req.userId, recipient: userToBlockId },
-        { sender: userToBlockId, recipient: req.userId },
+        { senderId: req.userId, recipientId: userToBlockId },
+        { senderId: userToBlockId, recipientId: req.userId },
       ],
     });
     res.json({ message: "User blocked and message history deleted" });
@@ -626,7 +622,7 @@ router.get("/blocked", auth, async (req, res) => {
     if (!user) return res.status(404).json({ message: "User not found" });
     res.json((user.blockedUsers || []).filter(Boolean));
   } catch (error) {
-    logger.error("❌ Get blocked users error:", error);
+    logger.error("Get blocked users error:", error);
     res.status(500).json({ message: "Error fetching blocked users" });
   }
 });
@@ -645,12 +641,13 @@ router.post("/push-token", auth, async (req, res) => {
     }
     res.json({ message: "Push token saved successfully" });
   } catch (error) {
-    logger.error("❌ Save push token error:", error);
+    logger.error("Save push token error:", error);
     res.status(500).json({ message: "Error saving push token" });
   }
 });
 
 // ===== GET ALL BADGE COUNTS =====
+// FIX: removed inline require() calls — all models imported at top of file
 router.get("/counts", auth, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -660,7 +657,6 @@ router.get("/counts", auth, async (req, res) => {
       read: false,
     });
 
-    const Meetup = require("../models/Meetup");
     const meetupInvites = await Meetup.find({
       invitedUsers: userId,
       isActive: true,
@@ -669,7 +665,6 @@ router.get("/counts", auth, async (req, res) => {
       (m) => !m.rsvps.some((r) => r.user.toString() === userId),
     );
 
-    const Group = require("../models/Group");
     const pendingGroupInvites = await Group.find({
       invitedUsers: userId,
       isActive: { $ne: false },
@@ -678,13 +673,10 @@ router.get("/counts", auth, async (req, res) => {
       .select("_id")
       .lean();
 
-    const Connection = require("../models/Connection");
-    // FIX: Connection model uses field "to" for recipient, not "recipient"
     const requestCount = await Connection.countDocuments({
       to: userId,
       status: "pending",
     });
-
     const groupInviteCount = pendingGroupInvites.length;
 
     res.json({
@@ -696,7 +688,7 @@ router.get("/counts", auth, async (req, res) => {
       requestCount,
     });
   } catch (error) {
-    console.error("❌ Get counts error:", error);
+    console.error("Get counts error:", error);
     res.status(500).json({ message: "Error fetching counts" });
   }
 });

@@ -2,11 +2,15 @@ const express = require("express");
 const router = express.Router();
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-const mongoose = require("mongoose");
 const auth = require("../middleware/auth");
 const { body, validationResult } = require("express-validator");
 const logger = require("../utils/logger");
 const { Resend } = require("resend");
+
+// FIX: require User directly instead of using mongoose.model("User") at runtime.
+// The getUser() pattern causes MissingSchemaError if this file loads before
+// the User model is registered with Mongoose.
+const User = require("../models/User");
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -15,9 +19,6 @@ const resend = process.env.RESEND_API_KEY
 const FROM_EMAIL =
   process.env.FROM_EMAIL || "KindredPal <onboarding@resend.dev>";
 const CLIENT_URL = process.env.CLIENT_URL || "https://kindredpal.com";
-
-// Helper — get User model at runtime to avoid circular dependency
-const getUser = () => mongoose.model("User");
 
 // ── Email helper ──────────────────────────────────────────────────
 async function sendEmail({ to, subject, html }) {
@@ -110,7 +111,7 @@ function resetEmailHtml(name, resetUrl) {
   `;
 }
 
-// ===== SIGNUP ROUTE =====
+// ===== SIGNUP =====
 router.post(
   "/signup",
   [
@@ -137,9 +138,7 @@ router.post(
           .json({ message: errors.array()[0].msg, errors: errors.array() });
       }
 
-      const User = getUser();
       const userData = req.body;
-
       const existingUser = await User.findOne({ email: userData.email });
       if (existingUser) {
         return res
@@ -179,8 +178,7 @@ router.post(
       const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
         expiresIn: "7d",
       });
-      const userResponse = buildUserResponse(user);
-      res.status(201).json({ token, user: userResponse });
+      res.status(201).json({ token, user: buildUserResponse(user) });
     } catch (error) {
       logger.error("❌ SIGNUP ERROR:", error);
       res
@@ -190,7 +188,7 @@ router.post(
   },
 );
 
-// ===== LOGIN ROUTE =====
+// ===== LOGIN =====
 router.post(
   "/login",
   [
@@ -213,7 +211,6 @@ router.post(
       logger.info("\n========== LOGIN ATTEMPT ==========");
       logger.info("📧 Email:", email);
 
-      const User = getUser();
       const user = await User.findOne({ email });
       if (!user) {
         logger.info("❌ User not found");
@@ -238,10 +235,9 @@ router.post(
   },
 );
 
-// ===== GET PROFILE ROUTE =====
+// ===== GET PROFILE =====
 router.get("/profile", auth, async (req, res) => {
   try {
-    const User = getUser();
     const user = await User.findById(req.userId).select("-password");
     if (!user) return res.status(404).json({ message: "User not found" });
     const userResponse = user.toObject();
@@ -269,7 +265,6 @@ router.post(
         return res.status(400).json({ message: errors.array()[0].msg });
 
       const { email } = req.body;
-      const User = getUser();
       const user = await User.findOne({ email });
 
       // Always return 200 to prevent email enumeration
@@ -330,7 +325,6 @@ router.post(
         .update(token)
         .digest("hex");
 
-      const User = getUser();
       const user = await User.findOne({
         resetPasswordToken: hashedToken,
         resetPasswordExpires: { $gt: Date.now() },
