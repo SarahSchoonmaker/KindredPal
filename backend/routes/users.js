@@ -538,8 +538,12 @@ router.delete("/account", auth, async (req, res) => {
       { runValidators: false }, // skip validation — user may have legacy dirty data
     );
 
+    // Delete groups the user created
+    await Group.deleteMany({ createdBy: userId });
+
+    // Remove from groups they were just a member of
     await Group.updateMany(
-      { members: userId },
+      { members: userId, createdBy: { $ne: userId } },
       { $pull: { members: userId, admins: userId }, $inc: { memberCount: -1 } },
     );
 
@@ -569,11 +573,9 @@ router.post("/:userId/report", auth, async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     if (userId === req.userId)
       return res.status(400).json({ message: "You cannot report yourself" });
-    res
-      .status(200)
-      .json({
-        message: "Thank you for your report. Our team will review it shortly.",
-      });
+    res.status(200).json({
+      message: "Thank you for your report. Our team will review it shortly.",
+    });
   } catch (error) {
     logger.error("Report user error:", error);
     res.status(500).json({ message: "Error reporting user" });
