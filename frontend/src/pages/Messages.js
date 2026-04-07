@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Send, ArrowLeft, User as UserIcon } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { messageAPI, connectionsAPI } from "../services/api";
+import { messageAPI } from "../services/api";
 import "./Messages.css";
 import UserActionsMenu from "../components/UserActionsMenu";
 
@@ -31,63 +31,16 @@ const Messages = () => {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
 
+  // Backend now returns only accepted connections (no legacy matches)
+  // so this list will always match the Connections page exactly
   const loadConversations = useCallback(async () => {
     try {
-      // Load both connections and existing conversations in parallel
-      const [connRes, convRes] = await Promise.allSettled([
-        connectionsAPI.getConnections(),
-        messageAPI.getConversations(),
-      ]);
-
-      // Build a map of existing conversations (have message history)
-      const convMap = new Map();
-      if (convRes.status === "fulfilled" && Array.isArray(convRes.value.data)) {
-        convRes.value.data.forEach((c) => convMap.set(c._id, c));
+      const convResponse = await messageAPI.getConversations();
+      if (!convResponse.data || !Array.isArray(convResponse.data)) {
+        setConversations([]);
+        return;
       }
-
-      // Start with all accepted connections
-      const merged = [];
-      if (connRes.status === "fulfilled") {
-        const conns = connRes.value.data.connections || [];
-        conns.forEach((conn) => {
-          const other = conn.user;
-          if (!other?._id) return;
-          const id = other._id.toString();
-          if (convMap.has(id)) {
-            // Has message history — use conversation data (has lastMessage, unreadCount)
-            merged.push(convMap.get(id));
-            convMap.delete(id); // mark as handled
-          } else {
-            // No messages yet — add as a fresh connection
-            merged.push({
-              _id: id,
-              name: other.name,
-              profilePhoto: other.profilePhoto || "",
-              city: other.city || "",
-              state: other.state || "",
-              lastMessage: null,
-              unreadCount: 0,
-            });
-          }
-        });
-      }
-
-      // Add any remaining conversations not in connections
-      // (legacy matches who have message history)
-      convMap.forEach((c) => merged.push(c));
-
-      // Sort: conversations with messages first (by recency), then no-message connections
-      merged.sort((a, b) => {
-        const aTime = a.lastMessage?.createdAt
-          ? new Date(a.lastMessage.createdAt).getTime()
-          : 0;
-        const bTime = b.lastMessage?.createdAt
-          ? new Date(b.lastMessage.createdAt).getTime()
-          : 0;
-        return bTime - aTime;
-      });
-
-      setConversations(merged);
+      setConversations(convResponse.data);
     } catch (error) {
       console.error("Error loading conversations:", error);
       setConversations([]);
@@ -138,7 +91,7 @@ const Messages = () => {
       setNewMessage("");
       const response = await messageAPI.getMessages(selectedUser._id);
       setMessages(response.data || []);
-      // Update last message in sidebar
+      // Update last message preview in sidebar and re-sort
       setConversations((prev) => {
         const updated = prev.map((conv) =>
           conv._id === selectedUser._id
@@ -151,7 +104,6 @@ const Messages = () => {
               }
             : conv,
         );
-        // Re-sort so this conversation bubbles to top
         return [...updated].sort((a, b) => {
           const aTime = a.lastMessage?.createdAt
             ? new Date(a.lastMessage.createdAt).getTime()
@@ -196,7 +148,7 @@ const Messages = () => {
   return (
     <div className="messages-container">
       <div className="messages-layout">
-        {/* Conversations List */}
+        {/* Sidebar — all accepted connections */}
         <div
           className={`conversations-sidebar ${selectedUser ? "mobile-hidden" : ""}`}
         >

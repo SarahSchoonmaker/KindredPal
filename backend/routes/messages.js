@@ -7,7 +7,7 @@ const auth = require("../middleware/auth");
 const { sendPushNotification } = require("../utils/pushNotifications");
 const logger = require("../utils/logger");
 
-// Helper: check if two users are connected (accepted connection OR in matches)
+// Helper: check if two users are connected (accepted connection only)
 async function areConnected(userIdA, userIdB) {
   const connection = await Connection.findOne({
     $or: [
@@ -16,14 +16,7 @@ async function areConnected(userIdA, userIdB) {
     ],
     status: "accepted",
   });
-  if (connection) return true;
-
-  // Fallback: check legacy user.matches array
-  const user = await User.findById(userIdA).select("matches").lean();
-  if (user?.matches?.some((id) => id.toString() === userIdB.toString()))
-    return true;
-
-  return false;
+  return !!connection;
 }
 
 // Helper: check if recipient has blocked the sender
@@ -37,20 +30,20 @@ async function isBlockedBy(recipientId, senderId) {
   );
 }
 
-// Get all conversations
+// Get all conversations — only accepted connections, no legacy matches
 router.get("/conversations", auth, async (req, res) => {
   try {
     const userId = req.userId || req.user?.id;
     logger.info("📥 Getting conversations for user:", userId);
 
     const currentUser = await User.findById(userId)
-      .select("matches blockedUsers")
+      .select("blockedUsers")
       .lean();
     const blockedIds = new Set(
       (currentUser?.blockedUsers || []).map((id) => id.toString()),
     );
 
-    // Get accepted connections
+    // Get accepted connections only
     const connections = await Connection.find({
       $or: [{ from: userId }, { to: userId }],
       status: "accepted",
@@ -60,7 +53,6 @@ router.get("/conversations", auth, async (req, res) => {
       .lean();
 
     const messageableUsers = new Map();
-
     connections.forEach((c) => {
       const fromId = c.from?._id?.toString();
       const other = fromId === userId.toString() ? c.to : c.from;
@@ -69,22 +61,8 @@ router.get("/conversations", auth, async (req, res) => {
       }
     });
 
-    // Also add legacy matches
-    const matchIds = (currentUser?.matches || []).map((id) => id.toString());
-    if (matchIds.length > 0) {
-      const matchUsers = await User.find({ _id: { $in: matchIds } })
-        .select("_id name profilePhoto city state")
-        .lean();
-      matchUsers.forEach((u) => {
-        const uid = u._id.toString();
-        if (!messageableUsers.has(uid) && !blockedIds.has(uid)) {
-          messageableUsers.set(uid, u);
-        }
-      });
-    }
-
+    // Build conversation list with last message and unread count for each connection
     const allUsers = Array.from(messageableUsers.values());
-
     const conversationsWithMessages = await Promise.all(
       allUsers.map(async (otherUser) => {
         const otherId = otherUser._id.toString();
@@ -116,9 +94,14 @@ router.get("/conversations", auth, async (req, res) => {
       }),
     );
 
+    // Sort: most recent message first, then connections with no messages
     conversationsWithMessages.sort((a, b) => {
-      const aTime = a.lastMessage?.createdAt || 0;
-      const bTime = b.lastMessage?.createdAt || 0;
+      const aTime = a.lastMessage?.createdAt
+        ? new Date(a.lastMessage.createdAt).getTime()
+        : 0;
+      const bTime = b.lastMessage?.createdAt
+        ? new Date(b.lastMessage.createdAt).getTime()
+        : 0;
       return bTime - aTime;
     });
 
