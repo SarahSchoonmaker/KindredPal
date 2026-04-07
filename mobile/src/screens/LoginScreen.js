@@ -34,9 +34,30 @@ export default function LoginScreen({ navigation }) {
       const response = await authAPI.login(email, password);
       const { token, user } = response.data;
       if (!user?.id) throw new Error("Invalid response");
+
+      // FIX: Always clear old credentials FIRST before saving new ones.
+      // This prevents the previous user's token from lingering if SecureStore
+      // overwrites are delayed, and ensures screens get fresh data for the
+      // new user on navigation.
+      try {
+        await SecureStore.deleteItemAsync("token");
+        await SecureStore.deleteItemAsync("userId");
+      } catch (e) {
+        // ignore — key may not exist
+      }
+
+      // Now save the new user's credentials
       await SecureStore.setItemAsync("token", token);
       await SecureStore.setItemAsync("userId", user.id);
-      navigation.replace("MainTabs");
+
+      // FIX: Use navigation.reset() instead of navigation.replace().
+      // replace() can reuse cached tab screens that still hold the previous
+      // user's state in memory. reset() fully unmounts and remounts all screens
+      // so every tab starts fresh with the new user's data.
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "MainTabs" }],
+      });
     } catch (error) {
       Alert.alert(
         "Login Failed",
@@ -61,21 +82,16 @@ export default function LoginScreen({ navigation }) {
       >
         {/* ── Brand Panel ── */}
         <View style={styles.brandPanel}>
-          {/* Logo */}
           <View style={styles.logoRow}>
             <Image source={{ uri: LOGO_URI }} style={styles.logoIcon} />
             <Text style={styles.logoText}>KindredPal</Text>
           </View>
-
-          {/* Headline */}
           <Text style={styles.headline}>Real support.</Text>
           <Text style={styles.headline}>Real community.</Text>
           <Text style={styles.subheadline}>
             Local peer support groups for caregivers, recovery, grief, and life
             transitions — because no one should face hard times alone.
           </Text>
-
-          {/* Value props */}
           <View style={styles.features}>
             {[
               {
@@ -201,33 +217,25 @@ export default function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: MEDIUM_BLUE },
   scroll: { flexGrow: 1 },
-
-  // ── Brand Panel ──
   brandPanel: {
     backgroundColor: MEDIUM_BLUE,
     paddingTop: 52,
     paddingBottom: 32,
     paddingHorizontal: 28,
   },
-
   logoRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     marginBottom: 32,
   },
-  logoIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-  },
+  logoIcon: { width: 44, height: 44, borderRadius: 10 },
   logoText: {
     fontSize: 24,
     fontWeight: "800",
     color: "white",
     letterSpacing: -0.3,
   },
-
   headline: {
     fontSize: 32,
     fontWeight: "800",
@@ -242,19 +250,9 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 20,
   },
-
   features: { gap: 18 },
-  feature: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 14,
-  },
-  featureEmoji: {
-    fontSize: 22,
-    marginTop: 1,
-    width: 28,
-    textAlign: "center",
-  },
+  feature: { flexDirection: "row", alignItems: "flex-start", gap: 14 },
+  featureEmoji: { fontSize: 22, marginTop: 1, width: 28, textAlign: "center" },
   featureText: { flex: 1 },
   featureTitle: {
     fontSize: 14,
@@ -262,13 +260,7 @@ const styles = StyleSheet.create({
     color: "white",
     marginBottom: 2,
   },
-  featureDesc: {
-    fontSize: 13,
-    color: "rgba(255,255,255,0.7)",
-    lineHeight: 17,
-  },
-
-  // ── Form Panel ──
+  featureDesc: { fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 17 },
   formPanel: {
     backgroundColor: "white",
     borderTopLeftRadius: 28,
@@ -282,7 +274,6 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 10,
   },
-
   formTitle: {
     fontSize: 28,
     fontWeight: "800",
@@ -290,12 +281,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     letterSpacing: -0.3,
   },
-  formSub: {
-    fontSize: 15,
-    color: "#718096",
-    marginBottom: 28,
-  },
-
+  formSub: { fontSize: 15, color: "#718096", marginBottom: 28 },
   field: { marginBottom: 16 },
   fieldLabel: {
     fontSize: 12,
@@ -325,10 +311,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   eyeText: { fontSize: 13, color: BLUE, fontWeight: "700" },
-
   forgotRow: { alignSelf: "flex-end", marginBottom: 22, marginTop: -4 },
   forgotText: { fontSize: 13, color: BLUE, fontWeight: "600" },
-
   loginBtn: {
     backgroundColor: BLUE,
     borderRadius: 14,
@@ -348,7 +332,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 0.3,
   },
-
   dividerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -357,7 +340,6 @@ const styles = StyleSheet.create({
   },
   divider: { flex: 1, height: 1, backgroundColor: "#edf2f7" },
   dividerText: { fontSize: 12, color: "#a0aec0", fontWeight: "600" },
-
   signupBtn: {
     borderWidth: 2,
     borderColor: BLUE,
@@ -365,9 +347,5 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     alignItems: "center",
   },
-  signupBtnText: {
-    color: BLUE,
-    fontSize: 16,
-    fontWeight: "700",
-  },
+  signupBtnText: { color: BLUE, fontSize: 16, fontWeight: "700" },
 });
