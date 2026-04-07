@@ -153,6 +153,7 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
+  // FIX: Clear ALL stored credentials on logout so next login starts fresh
   const handleLogout = () => {
     Alert.alert("Log Out", "Are you sure you want to log out?", [
       { text: "Cancel", style: "cancel" },
@@ -160,8 +161,12 @@ export default function ProfileScreen({ navigation }) {
         text: "Log Out",
         style: "destructive",
         onPress: async () => {
-          await SecureStore.deleteItemAsync("token");
-          await SecureStore.deleteItemAsync("userId");
+          try {
+            await SecureStore.deleteItemAsync("token");
+            await SecureStore.deleteItemAsync("userId");
+          } catch (e) {
+            console.warn("SecureStore clear error:", e);
+          }
           navigation.reset({ index: 0, routes: [{ name: "Login" }] });
         },
       },
@@ -196,13 +201,19 @@ export default function ProfileScreen({ navigation }) {
     );
   };
 
+  // FIX: Clear ALL credentials after delete and navigate to Login
   const performDeleteAccount = async () => {
     setDeletingAccount(true);
     try {
-      // Use direct api call — avoids userAPI wrapper issues
       await api.delete("/users/account");
-      await SecureStore.deleteItemAsync("token");
-      await SecureStore.deleteItemAsync("userId");
+      // Clear all stored credentials
+      try {
+        await SecureStore.deleteItemAsync("token");
+        await SecureStore.deleteItemAsync("userId");
+      } catch (e) {
+        console.warn("SecureStore clear error:", e);
+      }
+      // Navigate to Login — reset stack so user can't go back
       Alert.alert(
         "Account Deleted",
         "Your account has been permanently deleted.",
@@ -342,7 +353,7 @@ export default function ProfileScreen({ navigation }) {
       </View>
 
       {/* About */}
-      {user.bio || user.age ? (
+      {user.bio || user.age || user.email ? (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>About</Text>
           <View style={styles.card}>
@@ -489,7 +500,6 @@ export default function ProfileScreen({ navigation }) {
       {/* Account Actions */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Account</Text>
-
         <TouchableOpacity style={styles.menuRow} onPress={handleLogout}>
           <View style={styles.menuRowLeft}>
             <View style={[styles.menuIcon, { backgroundColor: "#FFF5F5" }]}>
@@ -499,9 +509,7 @@ export default function ProfileScreen({ navigation }) {
           </View>
           <ChevronRight size={18} color="#a0aec0" />
         </TouchableOpacity>
-
         <View style={styles.menuDivider} />
-
         <TouchableOpacity
           style={styles.menuRow}
           onPress={handleDeleteAccount}
@@ -543,8 +551,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   retryBtnText: { color: "white", fontWeight: "700" },
-
-  // Header
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -576,8 +582,6 @@ const styles = StyleSheet.create({
   headerLocation: { flexDirection: "row", alignItems: "center", gap: 4 },
   headerLocationText: { fontSize: 13, color: "#718096" },
   editBtn: { padding: 8 },
-
-  // Section
   section: { padding: 16, paddingBottom: 0 },
   sectionTitle: {
     fontSize: 16,
@@ -585,8 +589,6 @@ const styles = StyleSheet.create({
     color: "#2D3748",
     marginBottom: 10,
   },
-
-  // Photos
   photoGrid: { flexDirection: "row", gap: 10, marginBottom: 8 },
   photoWrap: { flex: 1, aspectRatio: 1, borderRadius: 12, overflow: "hidden" },
   photo: { width: "100%", height: "100%", backgroundColor: "#E2E8F0" },
@@ -635,8 +637,6 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     marginBottom: 16,
   },
-
-  // Card
   card: {
     backgroundColor: "white",
     borderRadius: 12,
@@ -677,8 +677,6 @@ const styles = StyleSheet.create({
     borderTopColor: "#F7FAFC",
   },
   bio: { fontSize: 14, color: "#4A5568", lineHeight: 20 },
-
-  // Values
   valueRow: {
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -702,8 +700,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   chipText: { fontSize: 12, color: BLUE, fontWeight: "500" },
-
-  // Menu rows
   menuRow: {
     flexDirection: "row",
     alignItems: "center",

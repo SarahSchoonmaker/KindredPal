@@ -31,8 +31,6 @@ export default function MeetupsScreen({ navigation, route }) {
       const [response, invitesRes, myGroupsRes] = await Promise.all([
         Promise.race([api.get("/meetups"), timeoutPromise]),
         api.get("/groups/my-invites").catch(() => ({ data: { groups: [] } })),
-        // FIX: Always re-fetch myGroups on every call so the widget updates
-        // when the user creates a group and navigates to the Meetups tab.
         api.get("/groups/my").catch(() => ({ data: { groups: [] } })),
       ]);
       const data = response.data || [];
@@ -40,7 +38,6 @@ export default function MeetupsScreen({ navigation, route }) {
       setGroupInvites(invitesRes.data.groups || []);
       setMyGroups(myGroupsRes.data.groups || []);
 
-      // Per-user scoped seen tracking
       const userId = await SecureStore.getItemAsync("userId");
       if (userId) {
         const seenKey = `seen_meetups_${userId}`;
@@ -55,20 +52,16 @@ export default function MeetupsScreen({ navigation, route }) {
     }
   }, []);
 
-  // Load on mount
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
 
-  // FIX: Re-fetch every time this tab gets focus so My Groups widget stays
-  // current after the user creates/joins/leaves a group in the Groups tab.
   useFocusEffect(
     useCallback(() => {
       fetchAll();
     }, [fetchAll]),
   );
 
-  // Refresh when navigated back with refresh param
   useEffect(() => {
     if (route?.params?.refresh) fetchAll();
   }, [route?.params?.refresh]);
@@ -92,10 +85,16 @@ export default function MeetupsScreen({ navigation, route }) {
   }, [fetchAll]);
 
   const renderMeetup = ({ item }) => {
-    const goingCount =
-      item.rsvps?.filter((r) => r.status === "going").length || 0;
-    // +1 for organizer who is always going
-    const totalGoing = goingCount + 1;
+    // FIX: Don't count organizer in rsvps — they show separately as host
+    // Filter out the creator from the going count to avoid double-counting
+    const goingRsvps = (item.rsvps || []).filter(
+      (r) =>
+        r.status === "going" &&
+        r.user?._id?.toString() !== item.creator?._id?.toString(),
+    );
+    // Organizer is always going, so total = going RSVPs + 1 for organizer
+    const totalGoing = goingRsvps.length + 1;
+
     return (
       <TouchableOpacity
         onPress={() =>
@@ -161,7 +160,6 @@ export default function MeetupsScreen({ navigation, route }) {
 
   return (
     <View style={styles.container}>
-      {/* Group invite banner */}
       {groupInvites.length > 0 && (
         <View style={styles.inviteBanner}>
           <View style={styles.inviteBannerHeader}>
@@ -243,7 +241,6 @@ export default function MeetupsScreen({ navigation, route }) {
         </View>
       )}
 
-      {/* My Groups widget */}
       {myGroups.length > 0 && (
         <View style={styles.myGroupsSection}>
           <View style={styles.myGroupsHeader}>
@@ -278,7 +275,6 @@ export default function MeetupsScreen({ navigation, route }) {
         </View>
       )}
 
-      {/* Meetups list */}
       <View style={styles.meetupsSectionHeader}>
         <Text style={styles.meetupsSectionTitle}>Meetups</Text>
       </View>
