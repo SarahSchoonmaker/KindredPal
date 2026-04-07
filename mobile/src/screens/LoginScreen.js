@@ -11,8 +11,7 @@ import {
   Image,
   TextInput,
 } from "react-native";
-import { authAPI } from "../services/api";
-import * as SecureStore from "expo-secure-store";
+import { useAuth } from "../context/AuthContext";
 
 const LOGO_URI =
   "data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAmACIDASIAAhEBAxEB/8QAGgABAAIDAQAAAAAAAAAAAAAAAAYHAQIDBf/EACoQAAEDAwMDAwQDAAAAAAAAAAECAwQABREGEiEHMUEiQoEIEyNhMlGR/8QAGgEAAgIDAAAAAAAAAAAAAAAAAAQBAwIGB//EACIRAAIBAwQCAwAAAAAAAAAAAAEDAAIREyExUZEk8EFhcf/aAAwDAQACEQMRAD8AhhJJJJJJ7k0pVjaVs+mtH3G03fXckuvPbXW7SyyHS2hWdrj+TgJ920ZJ4/oiulOcFDa5+ANzNAUosPA54lc0q2NaxdF9QNTuDRctMC5BkJbjuRvssT1AE/jPBSv24UADgY8k1S824y8tl1CkONqKFpUMFJBwQahDw0aix4O8yckrOhuORAdcAwHFf7StaVfKZOeisHTE/Vwa1M41tSgKiNOubEOvbhhJPn9Jzz257HzOq62XOpN+WxJekpMo5W7ncFYG5PIHCVZSP0B371GQSCCCQRyCPFWNaTp7qJdIUe7uyLXf1JCHZDKApudtHnJ9LhSO/IJ+BSTKcTsxJItb899+mqKsisQABv3ILYiwm9wFSpDsZgSWy681/NtO4ZUnHkDkVZH1FQ9NR7+1Itjjabu+oquDTa8gekbVKT7VH4z3xzmuN+tukund/Ehtcu73ENh2FDfCdkdXhbqhjdyMhIA7c+DVbz5UifOfnTHS7IkOFx1Z8qJyaijyG0upJAA7vJqOFdSqgCSerTjSlKeikVlKlJUFJUUqByCDgg0pRCZcWt1wuOrW4s91KOSfmtaUohFKUohP/9k=";
@@ -21,6 +20,7 @@ const MEDIUM_BLUE = "#1e4d8c";
 const BLUE = "#2d6abf";
 
 export default function LoginScreen({ navigation }) {
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -31,33 +31,10 @@ export default function LoginScreen({ navigation }) {
     if (!email || !password) return;
     setLoading(true);
     try {
-      const response = await authAPI.login(email, password);
-      const { token, user } = response.data;
-      if (!user?.id) throw new Error("Invalid response");
-
-      // FIX: Always clear old credentials FIRST before saving new ones.
-      // This prevents the previous user's token from lingering if SecureStore
-      // overwrites are delayed, and ensures screens get fresh data for the
-      // new user on navigation.
-      try {
-        await SecureStore.deleteItemAsync("token");
-        await SecureStore.deleteItemAsync("userId");
-      } catch (e) {
-        // ignore — key may not exist
-      }
-
-      // Now save the new user's credentials
-      await SecureStore.setItemAsync("token", token);
-      await SecureStore.setItemAsync("userId", user.id);
-
-      // FIX: Use navigation.reset() instead of navigation.replace().
-      // replace() can reuse cached tab screens that still hold the previous
-      // user's state in memory. reset() fully unmounts and remounts all screens
-      // so every tab starts fresh with the new user's data.
-      navigation.reset({
-        index: 0,
-        routes: [{ name: "MainTabs" }],
-      });
+      // AuthContext.login() clears old credentials, saves new token/userId,
+      // and sets user state — App.js then automatically shows MainTabs.
+      // No manual navigation needed — the navigator reacts to user state.
+      await login(email, password);
     } catch (error) {
       Alert.alert(
         "Login Failed",
@@ -80,7 +57,6 @@ export default function LoginScreen({ navigation }) {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Brand Panel ── */}
         <View style={styles.brandPanel}>
           <View style={styles.logoRow}>
             <Image source={{ uri: LOGO_URI }} style={styles.logoIcon} />
@@ -121,7 +97,6 @@ export default function LoginScreen({ navigation }) {
           </View>
         </View>
 
-        {/* ── Form Panel ── */}
         <View style={styles.formPanel}>
           <Text style={styles.formTitle}>Welcome back</Text>
           <Text style={styles.formSub}>Log in to find your community</Text>

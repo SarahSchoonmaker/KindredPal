@@ -22,15 +22,16 @@ import {
   User,
 } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
-import * as SecureStore from "expo-secure-store";
 import { authAPI, userAPI } from "../services/api";
 import api from "../services/api";
 import { useFocusEffect } from "@react-navigation/native";
+import { useAuth } from "../context/AuthContext";
 
 const BLUE = "#2B6CB0";
 const RED = "#E53E3E";
 
 export default function ProfileScreen({ navigation }) {
+  const { logout } = useAuth();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -153,7 +154,9 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
-  // FIX: Clear ALL stored credentials on logout so next login starts fresh
+  // FIX: Use AuthContext logout — clears SecureStore and sets user=null.
+  // App.js sees user=null and automatically shows the Login screen.
+  // No manual navigation needed.
   const handleLogout = () => {
     Alert.alert("Log Out", "Are you sure you want to log out?", [
       { text: "Cancel", style: "cancel" },
@@ -161,13 +164,8 @@ export default function ProfileScreen({ navigation }) {
         text: "Log Out",
         style: "destructive",
         onPress: async () => {
-          try {
-            await SecureStore.deleteItemAsync("token");
-            await SecureStore.deleteItemAsync("userId");
-          } catch (e) {
-            console.warn("SecureStore clear error:", e);
-          }
-          navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+          await logout();
+          // Navigation is automatic — App.js reacts to user=null
         },
       },
     ]);
@@ -201,29 +199,15 @@ export default function ProfileScreen({ navigation }) {
     );
   };
 
-  // FIX: Clear ALL credentials after delete and navigate to Login
+  // FIX: Use AuthContext logout after delete — same clean pattern as logout.
   const performDeleteAccount = async () => {
     setDeletingAccount(true);
     try {
       await api.delete("/users/account");
-      // Clear all stored credentials
-      try {
-        await SecureStore.deleteItemAsync("token");
-        await SecureStore.deleteItemAsync("userId");
-      } catch (e) {
-        console.warn("SecureStore clear error:", e);
-      }
-      // Navigate to Login — reset stack so user can't go back
+      await logout(); // clears credentials and sets user=null → Login shown automatically
       Alert.alert(
         "Account Deleted",
         "Your account has been permanently deleted.",
-        [
-          {
-            text: "OK",
-            onPress: () =>
-              navigation.reset({ index: 0, routes: [{ name: "Login" }] }),
-          },
-        ],
       );
     } catch (error) {
       console.error("Delete account error:", error.response?.data);
