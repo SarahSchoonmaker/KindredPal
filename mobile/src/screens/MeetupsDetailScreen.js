@@ -228,8 +228,6 @@ export default function MeetupDetailsScreen({ route, navigation }) {
   const [rsvpLoading, setRsvpLoading] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
 
-  // FIX: Load userId into a ref so it's available synchronously on the
-  // first render after fetchMeetup — no async race for isCreator check.
   const currentUserIdRef = useRef(null);
   const [currentUserId, setCurrentUserId] = useState(null);
 
@@ -257,17 +255,13 @@ export default function MeetupDetailsScreen({ route, navigation }) {
     fetchMeetupDetails();
   }, [fetchMeetupDetails]);
 
-  // FIX: Set header options once on mount with empty deps [].
-  // Previously this re-ran whenever navigation or anything else changed,
-  // which on React Navigation native stack corrupts the header state and
-  // detaches the back button press handler — causing the "stuck back button".
   useLayoutEffect(() => {
     navigation.setOptions({
       headerBackTitle: "Back",
       headerBackButtonMenuEnabled: false,
       title: "Meetup Details",
     });
-  }, []); // ← empty deps: set once, never touch the header again
+  }, []);
 
   const getUserRSVP = useCallback(() => {
     if (!meetup) return null;
@@ -283,13 +277,10 @@ export default function MeetupDetailsScreen({ route, navigation }) {
   const handleRSVP = async (status) => {
     if (rsvpLoading) return;
     const current = getUserRSVP();
-    if (current === status) return; // already set — no-op
+    if (current === status) return;
     setRsvpLoading(true);
     try {
       const res = await api.post(`/meetups/${meetupId}/rsvp`, { status });
-      // FIX: Only call setMeetup — do NOT call navigation.setOptions here.
-      // Calling setOptions inside an event handler after mount re-corrupts
-      // the native stack header and breaks the back button.
       setMeetup(res.data);
     } catch {
       Alert.alert("Error", "Failed to update RSVP");
@@ -346,19 +337,24 @@ export default function MeetupDetailsScreen({ route, navigation }) {
       </View>
     );
 
-  // FIX: Use ref for isCreator so the edit/delete buttons appear on first render.
   const uid = currentUserIdRef.current || currentUserId;
-  const isCreator =
-    uid?.toString() ===
-    (meetup.creator?._id?.toString() || meetup.creator?.toString());
+  const creatorId =
+    meetup.creator?._id?.toString() || meetup.creator?.toString();
+  const isCreator = uid?.toString() === creatorId;
   const userRSVP = getUserRSVP();
 
-  // FIX: Count organizer as +1 going since they're hosting and aren't in rsvps[].
-  const rsvpGoingCount =
-    meetup.rsvps?.filter((r) => r.status === "going").length || 0;
-  const goingCount = rsvpGoingCount + 1; // +1 for organizer
-  const maybeCount =
-    meetup.rsvps?.filter((r) => r.status === "maybe").length || 0;
+  // FIX: Filter organizer OUT of going RSVPs before counting, then add 1 for them.
+  // Previously: all going RSVPs counted + 1 for organizer = double count if organizer
+  // also has an RSVP entry (which the backend creates automatically on meetup creation).
+  const goingRsvps = (meetup.rsvps || []).filter(
+    (r) =>
+      r.status === "going" &&
+      (r.user?._id?.toString() || r.user?.toString()) !== creatorId,
+  );
+  const goingCount = goingRsvps.length + 1; // +1 for organizer only once
+
+  const maybeRsvps = (meetup.rsvps || []).filter((r) => r.status === "maybe");
+  const maybeCount = maybeRsvps.length;
 
   return (
     <>
@@ -454,7 +450,7 @@ export default function MeetupDetailsScreen({ route, navigation }) {
           </View>
         ) : null}
 
-        {/* Organizer badge (instead of RSVP buttons) */}
+        {/* Organizer badge */}
         {isCreator && (
           <View style={styles.organizerBadge}>
             <Text style={styles.organizerBadgeText}>
@@ -463,7 +459,7 @@ export default function MeetupDetailsScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* RSVP buttons — only for non-creators */}
+        {/* RSVP buttons — non-creators only */}
         {!isCreator && (
           <View style={styles.rsvpSection}>
             <Text style={styles.sectionTitle}>Will you attend?</Text>
@@ -509,9 +505,12 @@ export default function MeetupDetailsScreen({ route, navigation }) {
         {/* Guest list */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Guest List</Text>
+
+          {/* Going */}
           <View style={styles.guestGroup}>
             <Text style={styles.guestGroupTitle}>Going ({goingCount})</Text>
-            {/* Organizer always first */}
+
+            {/* Organizer always first — shown once */}
             <View style={styles.guestRow}>
               <Avatar.Image
                 size={40}
@@ -526,10 +525,28 @@ export default function MeetupDetailsScreen({ route, navigation }) {
                 <Text style={styles.organizerTag}>(organizer)</Text>
               </Text>
             </View>
-            {/* Everyone else who RSVPed going */}
-            {meetup.rsvps
-              ?.filter((r) => r.status === "going")
-              .map((rsvp) => (
+
+            {/* FIX: Use goingRsvps which already excludes the organizer */}
+            {goingRsvps.map((rsvp) => (
+              <View key={rsvp.user?._id || rsvp.user} style={styles.guestRow}>
+                <Avatar.Image
+                  size={40}
+                  source={{
+                    uri:
+                      rsvp.user?.profilePhoto ||
+                      "https://via.placeholder.com/40",
+                  }}
+                />
+                <Text style={styles.guestName}>{rsvp.user?.name}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Maybe */}
+          {maybeCount > 0 && (
+            <View style={styles.guestGroup}>
+              <Text style={styles.guestGroupTitle}>Maybe ({maybeCount})</Text>
+              {maybeRsvps.map((rsvp) => (
                 <View key={rsvp.user?._id || rsvp.user} style={styles.guestRow}>
                   <Avatar.Image
                     size={40}
@@ -542,29 +559,6 @@ export default function MeetupDetailsScreen({ route, navigation }) {
                   <Text style={styles.guestName}>{rsvp.user?.name}</Text>
                 </View>
               ))}
-          </View>
-
-          {maybeCount > 0 && (
-            <View style={styles.guestGroup}>
-              <Text style={styles.guestGroupTitle}>Maybe ({maybeCount})</Text>
-              {meetup.rsvps
-                ?.filter((r) => r.status === "maybe")
-                .map((rsvp) => (
-                  <View
-                    key={rsvp.user?._id || rsvp.user}
-                    style={styles.guestRow}
-                  >
-                    <Avatar.Image
-                      size={40}
-                      source={{
-                        uri:
-                          rsvp.user?.profilePhoto ||
-                          "https://via.placeholder.com/40",
-                      }}
-                    />
-                    <Text style={styles.guestName}>{rsvp.user?.name}</Text>
-                  </View>
-                ))}
             </View>
           )}
         </View>
