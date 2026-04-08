@@ -22,6 +22,7 @@ import {
   MoreVertical,
 } from "lucide-react-native";
 import api from "../services/api";
+import { userAPI } from "../services/api";
 
 const CATEGORY_ICONS = {
   "Caregiver Support": "🤲",
@@ -79,12 +80,13 @@ export default function MemberProfileScreen({ route, navigation }) {
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportSubmitting, setReportSubmitting] = useState(false);
+  // FIX: Track whether this user is blocked so we can show Unblock button
+  const [isBlocked, setIsBlocked] = useState(false);
 
   useLayoutEffect(() => {
     navigation.setOptions({
       headerBackTitle: "Back",
       headerBackButtonMenuEnabled: false,
-      // ... menu in header for report/block
       headerRight: () => (
         <TouchableOpacity
           onPress={handleMoreMenu}
@@ -95,7 +97,7 @@ export default function MemberProfileScreen({ route, navigation }) {
         </TouchableOpacity>
       ),
     });
-  }, [profile]);
+  }, [profile, isBlocked]);
 
   useEffect(() => {
     if (!userId) {
@@ -104,16 +106,25 @@ export default function MemberProfileScreen({ route, navigation }) {
     }
     const fetchData = async () => {
       try {
-        const [profileRes, statusRes] = await Promise.all([
+        const [profileRes, statusRes, blockedRes] = await Promise.all([
           api.get(`/users/profile/${userId}`),
           api
             .get(`/connections/status/${userId}`)
             .catch(() => ({ data: { status: "none" } })),
+          // FIX: Fetch blocked list to check if this user is blocked
+          userAPI.getBlockedUsers().catch(() => ({ data: [] })),
         ]);
         setProfile(profileRes.data);
         setConnectionStatus(statusRes.data.status || "none");
         setConnectionId(statusRes.data.connectionId);
         setIsSender(statusRes.data.isSender);
+
+        // Check if this user is in our blocked list
+        const blockedIds = (blockedRes.data || []).map((u) =>
+          u._id?.toString(),
+        );
+        setIsBlocked(blockedIds.includes(userId?.toString()));
+
         navigation.setOptions({
           title: profileRes.data.name || "Profile",
           headerBackTitle: "Back",
@@ -133,19 +144,23 @@ export default function MemberProfileScreen({ route, navigation }) {
     if (Platform.OS === "ios") {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ["Cancel", "Report User", "Block User"],
+          options: isBlocked
+            ? ["Cancel", "Report User", "Unblock User"]
+            : ["Cancel", "Report User", "Block User"],
           destructiveButtonIndex: 2,
           cancelButtonIndex: 0,
         },
         (buttonIndex) => {
           if (buttonIndex === 1) setShowReportModal(true);
-          if (buttonIndex === 2) handleBlock();
+          if (buttonIndex === 2) isBlocked ? handleUnblock() : handleBlock();
         },
       );
     } else {
       Alert.alert(profile.name, "What would you like to do?", [
         { text: "Report User", onPress: () => setShowReportModal(true) },
-        { text: "Block User", style: "destructive", onPress: handleBlock },
+        isBlocked
+          ? { text: "Unblock User", onPress: handleUnblock }
+          : { text: "Block User", style: "destructive", onPress: handleBlock },
         { text: "Cancel", style: "cancel" },
       ]);
     }
@@ -163,12 +178,38 @@ export default function MemberProfileScreen({ route, navigation }) {
           onPress: async () => {
             try {
               await api.post(`/users/${userId}/block`);
+              setIsBlocked(true);
               Alert.alert("Blocked", `${profile?.name} has been blocked.`);
-              navigation.goBack();
             } catch (err) {
               Alert.alert(
                 "Error",
                 err.response?.data?.message || "Could not block user",
+              );
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  // FIX: Unblock handler — updates state so button changes without navigating away
+  const handleUnblock = () => {
+    Alert.alert(
+      "Unblock User",
+      `Unblock ${profile?.name}? They will be able to see your profile and message you again.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Unblock",
+          onPress: async () => {
+            try {
+              await userAPI.unblockUser(userId);
+              setIsBlocked(false);
+              Alert.alert("Unblocked", `${profile?.name} has been unblocked.`);
+            } catch (err) {
+              Alert.alert(
+                "Error",
+                err.response?.data?.message || "Could not unblock user",
               );
             }
           },
@@ -279,6 +320,22 @@ export default function MemberProfileScreen({ route, navigation }) {
     politicalBeliefs !== "";
 
   const renderConnectionButton = () => {
+    // FIX: If blocked, show blocked banner instead of connection buttons
+    if (isBlocked) {
+      return (
+        <View style={styles.blockedBanner}>
+          <Text style={styles.blockedBannerText}>
+            🚫 You have blocked this user
+          </Text>
+          <TouchableOpacity
+            style={styles.unblockInlineBtn}
+            onPress={handleUnblock}
+          >
+            <Text style={styles.unblockInlineBtnText}>Unblock</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
     if (connectionStatus === "accepted") {
       return (
         <TouchableOpacity style={styles.messageBtn} onPress={handleMessage}>
@@ -361,7 +418,7 @@ export default function MemberProfileScreen({ route, navigation }) {
         {/* Connection action */}
         <View style={styles.actionContainer}>{renderConnectionButton()}</View>
 
-        {/* Report / Block row */}
+        {/* Report / Block row — always visible, shows Unblock if blocked */}
         <View style={styles.safetyRow}>
           <TouchableOpacity
             style={styles.safetyBtn}
@@ -371,10 +428,10 @@ export default function MemberProfileScreen({ route, navigation }) {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.safetyBtn, styles.safetyBtnBlock]}
-            onPress={handleBlock}
+            onPress={isBlocked ? handleUnblock : handleBlock}
           >
             <Text style={[styles.safetyBtnText, { color: "#E53E3E" }]}>
-              🚫 Block
+              {isBlocked ? "✓ Unblock" : "🚫 Block"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -405,7 +462,6 @@ export default function MemberProfileScreen({ route, navigation }) {
           </View>
         ) : null}
 
-        {/* Life Stage */}
         {lifeStage.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Life Stage</Text>
@@ -422,7 +478,6 @@ export default function MemberProfileScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* Family */}
         {familySituation.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Family</Text>
@@ -439,7 +494,6 @@ export default function MemberProfileScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* Core Values */}
         {coreValues.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Core Values</Text>
@@ -451,7 +505,6 @@ export default function MemberProfileScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* Values */}
         {(showReligion || showPolitics) && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Values</Text>
@@ -474,7 +527,6 @@ export default function MemberProfileScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* Interests */}
         {causes.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Interests</Text>
@@ -639,6 +691,26 @@ const styles = StyleSheet.create({
   location: { fontSize: 14, color: "rgba(255,255,255,0.85)", marginBottom: 2 },
   age: { fontSize: 13, color: "rgba(255,255,255,0.7)" },
   actionContainer: { margin: 16, marginBottom: 8 },
+  blockedBanner: {
+    backgroundColor: "#FFF5F5",
+    borderWidth: 1,
+    borderColor: "#FED7D7",
+    borderRadius: 10,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  blockedBannerText: { fontSize: 14, color: "#E53E3E", fontWeight: "600" },
+  unblockInlineBtn: {
+    backgroundColor: "white",
+    borderWidth: 1.5,
+    borderColor: "#E53E3E",
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 8,
+  },
+  unblockInlineBtnText: { color: "#E53E3E", fontWeight: "700", fontSize: 13 },
   safetyRow: {
     flexDirection: "row",
     marginHorizontal: 16,

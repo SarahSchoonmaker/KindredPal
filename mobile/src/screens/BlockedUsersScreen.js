@@ -8,8 +8,8 @@ import {
   Alert,
   Image,
 } from "react-native";
-import { Text, Card, Button, ActivityIndicator } from "react-native-paper";
-import { UserX } from "lucide-react-native";
+import { Text, Button, ActivityIndicator } from "react-native-paper";
+import { UserX, ChevronRight } from "lucide-react-native";
 import { userAPI } from "../services/api";
 
 export default function BlockedUsersScreen({ navigation }) {
@@ -62,6 +62,13 @@ export default function BlockedUsersScreen({ navigation }) {
     );
   };
 
+  const handleViewProfile = (user) => {
+    navigation.navigate("MemberProfile", {
+      userId: user._id,
+      sharedGroups: [],
+    });
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -100,45 +107,49 @@ export default function BlockedUsersScreen({ navigation }) {
       </View>
 
       {blockedUsers.map((user) => (
-        <Card key={user._id} style={styles.card}>
-          <Card.Content style={styles.cardContent}>
-            {/* FIX: Avatar.Image crashes when profilePhoto is null/undefined.
-                Use plain Image with a fallback instead. */}
-            {user.profilePhoto ? (
-              <Image
-                source={{ uri: user.profilePhoto }}
-                style={styles.avatar}
-              />
-            ) : (
-              <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                <Text style={styles.avatarInitial}>
-                  {user.name?.charAt(0)?.toUpperCase() || "?"}
-                </Text>
-              </View>
-            )}
-            <View style={styles.userInfo}>
-              <Text style={styles.userName}>{user.name}</Text>
+        <TouchableOpacity
+          key={user._id}
+          style={styles.row}
+          onPress={() => handleViewProfile(user)}
+          activeOpacity={0.7}
+        >
+          {/* Avatar */}
+          {user.profilePhoto ? (
+            <Image source={{ uri: user.profilePhoto }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarPlaceholder]}>
+              <Text style={styles.avatarInitial}>
+                {user.name?.charAt(0)?.toUpperCase() || "?"}
+              </Text>
             </View>
-            <Button
-              mode="outlined"
-              onPress={() => handleUnblock(user)}
-              textColor="#E53E3E"
-              style={styles.unblockButton}
-            >
-              Unblock
-            </Button>
-          </Card.Content>
-        </Card>
+          )}
+
+          {/* Name */}
+          <View style={styles.userInfo}>
+            <Text style={styles.userName}>{user.name}</Text>
+            <Text style={styles.userHint}>Tap to view profile</Text>
+          </View>
+
+          {/* Unblock button */}
+          <Button
+            mode="outlined"
+            onPress={() => handleUnblock(user)}
+            textColor="#E53E3E"
+            style={styles.unblockButton}
+            compact
+          >
+            Unblock
+          </Button>
+
+          <ChevronRight size={16} color="#CBD5E0" style={{ marginLeft: 4 }} />
+        </TouchableOpacity>
       ))}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F7FAFC",
-  },
+  container: { flex: 1, backgroundColor: "#F7FAFC" },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -159,36 +170,27 @@ const styles = StyleSheet.create({
     marginTop: 24,
     marginBottom: 8,
   },
-  emptyText: {
-    fontSize: 16,
-    color: "#718096",
-    textAlign: "center",
-  },
+  emptyText: { fontSize: 16, color: "#718096", textAlign: "center" },
   header: {
     padding: 20,
     backgroundColor: "white",
     borderBottomWidth: 1,
     borderBottomColor: "#E2E8F0",
   },
-  headerText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#718096",
-  },
-  card: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    backgroundColor: "white",
-  },
-  cardContent: {
+  headerText: { fontSize: 16, fontWeight: "600", color: "#718096" },
+  row: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 12,
+    backgroundColor: "white",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F4F8",
   },
   avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: "#E2E8F0",
   },
   avatarPlaceholder: {
@@ -196,21 +198,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#2B6CB0",
   },
-  avatarInitial: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "white",
-  },
-  userInfo: {
-    flex: 1,
-    marginLeft: 16,
-  },
-  userName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#2D3748",
-  },
-  unblockButton: {
-    borderColor: "#E53E3E",
-  },
+  avatarInitial: { fontSize: 20, fontWeight: "700", color: "white" },
+  userInfo: { flex: 1, marginLeft: 14 },
+  userName: { fontSize: 16, fontWeight: "600", color: "#2D3748" },
+  userHint: { fontSize: 12, color: "#a0aec0", marginTop: 2 },
+  unblockButton: { borderColor: "#E53E3E" },
 });

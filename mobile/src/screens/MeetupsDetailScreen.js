@@ -3,7 +3,6 @@ import React, {
   useEffect,
   useCallback,
   useLayoutEffect,
-  useRef,
 } from "react";
 import {
   View,
@@ -16,8 +15,9 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from "react-native";
-import { Avatar, Divider, ActivityIndicator } from "react-native-paper";
+import { Divider, ActivityIndicator } from "react-native-paper";
 import {
   Calendar,
   MapPin,
@@ -27,10 +27,45 @@ import {
   Trash2,
   X,
 } from "lucide-react-native";
-import * as SecureStore from "expo-secure-store";
+import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 
 const BLUE = "#2B6CB0";
+
+// Safe avatar with letter fallback — no Avatar.Image crash on null photo
+function UserAvatar({ profilePhoto, name, size = 40 }) {
+  if (profilePhoto) {
+    return (
+      <Image
+        source={{ uri: profilePhoto }}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: "#E2E8F0",
+        }}
+      />
+    );
+  }
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: BLUE,
+        justifyContent: "center",
+        alignItems: "center",
+      }}
+    >
+      <Text
+        style={{ color: "white", fontWeight: "700", fontSize: size * 0.38 }}
+      >
+        {name?.charAt(0)?.toUpperCase() || "?"}
+      </Text>
+    </View>
+  );
+}
 
 // ── Edit Modal ────────────────────────────────────────────────────────────────
 function EditMeetupModal({ visible, meetup, onClose, onSaved }) {
@@ -146,7 +181,7 @@ function EditMeetupModal({ visible, meetup, onClose, onSaved }) {
               style={editStyles.input}
               value={dateTime}
               onChangeText={setDateTime}
-              placeholder="YYYY-MM-DD HH:MM  e.g. 2026-04-15 18:30"
+              placeholder="YYYY-MM-DD HH:MM"
               placeholderTextColor="#a0aec0"
             />
             <Text style={editStyles.hint}>Format: YYYY-MM-DD HH:MM (24hr)</Text>
@@ -228,17 +263,8 @@ export default function MeetupDetailsScreen({ route, navigation }) {
   const [rsvpLoading, setRsvpLoading] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
 
-  const currentUserIdRef = useRef(null);
-  const [currentUserId, setCurrentUserId] = useState(null);
-
-  useEffect(() => {
-    SecureStore.getItemAsync("userId").then((id) => {
-      if (id) {
-        currentUserIdRef.current = id;
-        setCurrentUserId(id);
-      }
-    });
-  }, []);
+  const { user } = useAuth();
+  const currentUserId = user?.id?.toString() || user?._id?.toString() || null;
 
   const fetchMeetupDetails = useCallback(async () => {
     try {
@@ -264,20 +290,17 @@ export default function MeetupDetailsScreen({ route, navigation }) {
   }, []);
 
   const getUserRSVP = useCallback(() => {
-    if (!meetup) return null;
-    const uid = currentUserIdRef.current || currentUserId;
-    if (!uid) return null;
+    if (!meetup || !currentUserId) return null;
     const rsvp = meetup.rsvps?.find((r) => {
       const rsvpUserId = r.user?._id?.toString() || r.user?.toString();
-      return rsvpUserId === uid.toString();
+      return rsvpUserId === currentUserId;
     });
     return rsvp ? rsvp.status : null;
   }, [meetup, currentUserId]);
 
   const handleRSVP = async (status) => {
     if (rsvpLoading) return;
-    const current = getUserRSVP();
-    if (current === status) return;
+    if (getUserRSVP() === status) return;
     setRsvpLoading(true);
     try {
       const res = await api.post(`/meetups/${meetupId}/rsvp`, { status });
@@ -311,6 +334,12 @@ export default function MeetupDetailsScreen({ route, navigation }) {
     );
   };
 
+  // FIX: Navigate to a guest's profile — skip if it's the current user
+  const goToProfile = (userId) => {
+    if (!userId || userId.toString() === currentUserId) return;
+    navigation.navigate("MemberProfile", { userId: userId.toString() });
+  };
+
   const formatDate = (d) =>
     new Date(d).toLocaleDateString("en-US", {
       weekday: "long",
@@ -337,21 +366,18 @@ export default function MeetupDetailsScreen({ route, navigation }) {
       </View>
     );
 
-  const uid = currentUserIdRef.current || currentUserId;
   const creatorId =
     meetup.creator?._id?.toString() || meetup.creator?.toString();
-  const isCreator = uid?.toString() === creatorId;
+  const isCreator = currentUserId === creatorId;
   const userRSVP = getUserRSVP();
 
-  // FIX: Filter organizer OUT of going RSVPs before counting, then add 1 for them.
-  // Previously: all going RSVPs counted + 1 for organizer = double count if organizer
-  // also has an RSVP entry (which the backend creates automatically on meetup creation).
+  // Filter organizer out of going RSVPs — they're shown separately
   const goingRsvps = (meetup.rsvps || []).filter(
     (r) =>
       r.status === "going" &&
       (r.user?._id?.toString() || r.user?.toString()) !== creatorId,
   );
-  const goingCount = goingRsvps.length + 1; // +1 for organizer only once
+  const goingCount = goingRsvps.length + 1;
 
   const maybeRsvps = (meetup.rsvps || []).filter((r) => r.status === "maybe");
   const maybeCount = maybeRsvps.length;
@@ -363,19 +389,21 @@ export default function MeetupDetailsScreen({ route, navigation }) {
         <View style={styles.header}>
           <View style={styles.headerContent}>
             <Text style={styles.title}>{meetup.title}</Text>
-            <View style={styles.creatorRow}>
-              <Avatar.Image
+            {/* Organizer row — tappable to their profile */}
+            <TouchableOpacity
+              style={styles.creatorRow}
+              onPress={() => goToProfile(meetup.creator?._id)}
+              activeOpacity={isCreator ? 1 : 0.7}
+            >
+              <UserAvatar
+                profilePhoto={meetup.creator?.profilePhoto}
+                name={meetup.creator?.name}
                 size={36}
-                source={{
-                  uri:
-                    meetup.creator?.profilePhoto ||
-                    "https://via.placeholder.com/36",
-                }}
               />
               <Text style={styles.hostedBy}>
                 Hosted by {meetup.creator?.name}
               </Text>
-            </View>
+            </TouchableOpacity>
           </View>
           {isCreator && (
             <View style={styles.creatorActions}>
@@ -442,7 +470,6 @@ export default function MeetupDetailsScreen({ route, navigation }) {
           </View>
         </View>
 
-        {/* Description */}
         {meetup.description ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>About This Meetup</Text>
@@ -450,7 +477,6 @@ export default function MeetupDetailsScreen({ route, navigation }) {
           </View>
         ) : null}
 
-        {/* Organizer badge */}
         {isCreator && (
           <View style={styles.organizerBadge}>
             <Text style={styles.organizerBadgeText}>
@@ -459,7 +485,6 @@ export default function MeetupDetailsScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* RSVP buttons — non-creators only */}
         {!isCreator && (
           <View style={styles.rsvpSection}>
             <Text style={styles.sectionTitle}>Will you attend?</Text>
@@ -502,63 +527,74 @@ export default function MeetupDetailsScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* Guest list */}
+        {/* Guest list — all rows tappable */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Guest List</Text>
 
-          {/* Going */}
           <View style={styles.guestGroup}>
             <Text style={styles.guestGroupTitle}>Going ({goingCount})</Text>
 
-            {/* Organizer always first — shown once */}
-            <View style={styles.guestRow}>
-              <Avatar.Image
+            {/* Organizer — tappable unless it's you */}
+            <TouchableOpacity
+              style={styles.guestRow}
+              onPress={() => goToProfile(meetup.creator?._id)}
+              activeOpacity={isCreator ? 1 : 0.7}
+            >
+              <UserAvatar
+                profilePhoto={meetup.creator?.profilePhoto}
+                name={meetup.creator?.name}
                 size={40}
-                source={{
-                  uri:
-                    meetup.creator?.profilePhoto ||
-                    "https://via.placeholder.com/40",
-                }}
               />
               <Text style={styles.guestName}>
                 {meetup.creator?.name}{" "}
                 <Text style={styles.organizerTag}>(organizer)</Text>
               </Text>
-            </View>
+            </TouchableOpacity>
 
-            {/* FIX: Use goingRsvps which already excludes the organizer */}
-            {goingRsvps.map((rsvp) => (
-              <View key={rsvp.user?._id || rsvp.user} style={styles.guestRow}>
-                <Avatar.Image
-                  size={40}
-                  source={{
-                    uri:
-                      rsvp.user?.profilePhoto ||
-                      "https://via.placeholder.com/40",
-                  }}
-                />
-                <Text style={styles.guestName}>{rsvp.user?.name}</Text>
-              </View>
-            ))}
+            {/* Other going guests — all tappable */}
+            {goingRsvps.map((rsvp) => {
+              const guestId =
+                rsvp.user?._id?.toString() || rsvp.user?.toString();
+              return (
+                <TouchableOpacity
+                  key={guestId}
+                  style={styles.guestRow}
+                  onPress={() => goToProfile(guestId)}
+                  activeOpacity={guestId === currentUserId ? 1 : 0.7}
+                >
+                  <UserAvatar
+                    profilePhoto={rsvp.user?.profilePhoto}
+                    name={rsvp.user?.name}
+                    size={40}
+                  />
+                  <Text style={styles.guestName}>{rsvp.user?.name}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
-          {/* Maybe */}
           {maybeCount > 0 && (
             <View style={styles.guestGroup}>
               <Text style={styles.guestGroupTitle}>Maybe ({maybeCount})</Text>
-              {maybeRsvps.map((rsvp) => (
-                <View key={rsvp.user?._id || rsvp.user} style={styles.guestRow}>
-                  <Avatar.Image
-                    size={40}
-                    source={{
-                      uri:
-                        rsvp.user?.profilePhoto ||
-                        "https://via.placeholder.com/40",
-                    }}
-                  />
-                  <Text style={styles.guestName}>{rsvp.user?.name}</Text>
-                </View>
-              ))}
+              {maybeRsvps.map((rsvp) => {
+                const guestId =
+                  rsvp.user?._id?.toString() || rsvp.user?.toString();
+                return (
+                  <TouchableOpacity
+                    key={guestId}
+                    style={styles.guestRow}
+                    onPress={() => goToProfile(guestId)}
+                    activeOpacity={guestId === currentUserId ? 1 : 0.7}
+                  >
+                    <UserAvatar
+                      profilePhoto={rsvp.user?.profilePhoto}
+                      name={rsvp.user?.name}
+                      size={40}
+                    />
+                    <Text style={styles.guestName}>{rsvp.user?.name}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           )}
         </View>
@@ -652,7 +688,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingVertical: 6,
+    paddingVertical: 8,
   },
   guestName: { fontSize: 15, fontWeight: "600", color: "#2d3748" },
   organizerTag: { fontSize: 12, fontWeight: "400", color: "#718096" },
