@@ -7,8 +7,9 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
+  Image,
 } from "react-native";
-import { FAB, Card, Avatar } from "react-native-paper";
+import { FAB, Card } from "react-native-paper";
 import { Calendar, MapPin, Users, Clock } from "lucide-react-native";
 import * as SecureStore from "expo-secure-store";
 import { useFocusEffect } from "@react-navigation/native";
@@ -55,13 +56,11 @@ export default function MeetupsScreen({ navigation, route }) {
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
-
   useFocusEffect(
     useCallback(() => {
       fetchAll();
     }, [fetchAll]),
   );
-
   useEffect(() => {
     if (route?.params?.refresh) fetchAll();
   }, [route?.params?.refresh]);
@@ -85,15 +84,14 @@ export default function MeetupsScreen({ navigation, route }) {
   }, [fetchAll]);
 
   const renderMeetup = ({ item }) => {
-    // FIX: Don't count organizer in rsvps — they show separately as host
-    // Filter out the creator from the going count to avoid double-counting
+    // FIX: Filter organizer out of going RSVPs before counting to avoid double-count
+    const creatorId = item.creator?._id?.toString() || item.creator?.toString();
     const goingRsvps = (item.rsvps || []).filter(
       (r) =>
         r.status === "going" &&
-        r.user?._id?.toString() !== item.creator?._id?.toString(),
+        (r.user?._id?.toString() || r.user?.toString()) !== creatorId,
     );
-    // Organizer is always going, so total = going RSVPs + 1 for organizer
-    const totalGoing = goingRsvps.length + 1;
+    const totalGoing = goingRsvps.length + 1; // +1 for organizer
 
     return (
       <TouchableOpacity
@@ -137,11 +135,26 @@ export default function MeetupsScreen({ navigation, route }) {
                 {item.description}
               </Text>
             )}
+            {/* FIX: Avatar.Image crashes when profilePhoto is null.
+                Use plain Image with a letter placeholder fallback instead. */}
             <View style={styles.creator}>
-              <Avatar.Image
-                size={32}
-                source={{ uri: item.creator?.profilePhoto }}
-              />
+              {item.creator?.profilePhoto ? (
+                <Image
+                  source={{ uri: item.creator.profilePhoto }}
+                  style={styles.creatorAvatar}
+                />
+              ) : (
+                <View
+                  style={[
+                    styles.creatorAvatar,
+                    styles.creatorAvatarPlaceholder,
+                  ]}
+                >
+                  <Text style={styles.creatorAvatarInitial}>
+                    {item.creator?.name?.charAt(0)?.toUpperCase() || "?"}
+                  </Text>
+                </View>
+              )}
               <Text style={styles.creatorText}>by {item.creator?.name}</Text>
             </View>
           </Card.Content>
@@ -345,6 +358,18 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#E2E8F0",
   },
+  creatorAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#E2E8F0",
+  },
+  creatorAvatarPlaceholder: {
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#2B6CB0",
+  },
+  creatorAvatarInitial: { fontSize: 13, fontWeight: "700", color: "white" },
   creatorText: { color: "#666", fontSize: 14 },
   emptyState: {
     flex: 1,

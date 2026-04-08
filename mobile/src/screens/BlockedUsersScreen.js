@@ -6,15 +6,10 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
+  Image,
 } from "react-native";
-import {
-  Text,
-  Card,
-  Avatar,
-  Button,
-  ActivityIndicator,
-} from "react-native-paper";
-import { ArrowLeft, UserX } from "lucide-react-native";
+import { Text, Card, Button, ActivityIndicator } from "react-native-paper";
+import { UserX } from "lucide-react-native";
 import { userAPI } from "../services/api";
 
 export default function BlockedUsersScreen({ navigation }) {
@@ -107,7 +102,20 @@ export default function BlockedUsersScreen({ navigation }) {
       {blockedUsers.map((user) => (
         <Card key={user._id} style={styles.card}>
           <Card.Content style={styles.cardContent}>
-            <Avatar.Image size={56} source={{ uri: user.profilePhoto }} />
+            {/* FIX: Avatar.Image crashes when profilePhoto is null/undefined.
+                Use plain Image with a fallback instead. */}
+            {user.profilePhoto ? (
+              <Image
+                source={{ uri: user.profilePhoto }}
+                style={styles.avatar}
+              />
+            ) : (
+              <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                <Text style={styles.avatarInitial}>
+                  {user.name?.charAt(0)?.toUpperCase() || "?"}
+                </Text>
+              </View>
+            )}
             <View style={styles.userInfo}>
               <Text style={styles.userName}>{user.name}</Text>
             </View>
@@ -176,6 +184,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     padding: 12,
+  },
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#E2E8F0",
+  },
+  avatarPlaceholder: {
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#2B6CB0",
+  },
+  avatarInitial: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "white",
   },
   userInfo: {
     flex: 1,
