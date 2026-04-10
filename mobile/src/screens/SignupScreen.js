@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -6,8 +6,10 @@ import {
   Alert,
   TouchableOpacity,
   Image,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
 } from "react-native";
-import Footer from "../components/Footer";
 import { Text, TextInput, Button, Chip, ProgressBar } from "react-native-paper";
 import { Camera } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
@@ -16,6 +18,17 @@ import { authAPI } from "../services/api";
 export default function SignupScreen({ navigation }) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const scrollRef = useRef(null);
+
+  // Refs for each text input to enable "Next" keyboard button chaining
+  const passwordRef = useRef(null);
+  const confirmPasswordRef = useRef(null);
+  const nameRef = useRef(null);
+  const ageRef = useRef(null);
+  const cityRef = useRef(null);
+  const stateRef = useRef(null);
+  const bioRef = useRef(null);
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -44,7 +57,6 @@ export default function SignupScreen({ navigation }) {
     "Prefer not to say",
   ];
 
-  // ✅ Fixed: matches User.js schema enum exactly
   const religionOptions = [
     "Christian",
     "Catholic",
@@ -92,7 +104,6 @@ export default function SignupScreen({ navigation }) {
     "Outdoor Activities",
   ];
 
-  // ✅ Fixed: matches User.js schema enum exactly — removed "Separated", reordered to match
   const lifeStageOptions = [
     "Single",
     "In a Relationship",
@@ -119,7 +130,6 @@ export default function SignupScreen({ navigation }) {
     "Semi-Retired",
   ];
 
-  // ✅ Fixed: matches User.js schema enum exactly — removed "Support Group", "Activity Group"
   const lookingForOptions = [
     "Friendship",
     "Networking",
@@ -137,26 +147,25 @@ export default function SignupScreen({ navigation }) {
         quality: 0.8,
         base64: true,
       });
-
       if (!result.canceled && result.assets[0].base64) {
-        const base64Image = `data:image/jpeg;base64,${result.assets[0].base64}`;
-        setFormData({ ...formData, profilePhoto: base64Image });
+        setFormData({
+          ...formData,
+          profilePhoto: `data:image/jpeg;base64,${result.assets[0].base64}`,
+        });
       }
-    } catch (error) {
+    } catch {
       Alert.alert("Error", "Could not pick image");
     }
   };
 
   const toggleArrayItem = (field, value) => {
     const array = formData[field];
-    if (array.includes(value)) {
-      setFormData({
-        ...formData,
-        [field]: array.filter((item) => item !== value),
-      });
-    } else {
-      setFormData({ ...formData, [field]: [...array, value] });
-    }
+    setFormData({
+      ...formData,
+      [field]: array.includes(value)
+        ? array.filter((item) => item !== value)
+        : [...array, value],
+    });
   };
 
   const validateStep = () => {
@@ -179,7 +188,6 @@ export default function SignupScreen({ navigation }) {
           return false;
         }
         return true;
-
       case 2:
         if (
           !formData.name ||
@@ -197,7 +205,6 @@ export default function SignupScreen({ navigation }) {
           return false;
         }
         return true;
-
       case 3:
         if (formData.lifeStage.length === 0) {
           Alert.alert("Error", "Please select at least one life stage");
@@ -208,7 +215,6 @@ export default function SignupScreen({ navigation }) {
           return false;
         }
         return true;
-
       case 4:
         if (formData.politicalBeliefs.length === 0) {
           Alert.alert("Error", "Please select at least one political belief");
@@ -223,21 +229,36 @@ export default function SignupScreen({ navigation }) {
           return false;
         }
         return true;
-
       case 5:
         if (!formData.profilePhoto) {
           Alert.alert("Error", "Please upload a profile photo");
           return false;
         }
         return true;
-
       default:
         return true;
     }
   };
 
   const handleNext = () => {
-    if (validateStep()) setStep(step + 1);
+    Keyboard.dismiss();
+    if (validateStep()) {
+      setStep(step + 1);
+      // Scroll back to top on step change
+      setTimeout(
+        () => scrollRef.current?.scrollTo({ y: 0, animated: true }),
+        100,
+      );
+    }
+  };
+
+  const handleBack = () => {
+    Keyboard.dismiss();
+    setStep(step - 1);
+    setTimeout(
+      () => scrollRef.current?.scrollTo({ y: 0, animated: true }),
+      100,
+    );
   };
 
   const handleSubmit = async () => {
@@ -258,26 +279,44 @@ export default function SignupScreen({ navigation }) {
     }
   };
 
+  const stepTitles = [
+    "Create Account",
+    "About You",
+    "Life Stage & Goals",
+    "Your Values",
+    "Add Your Photo",
+  ];
+
   return (
-    <View style={styles.container}>
-      <ProgressBar
-        progress={step / 5}
-        color="#2B6CB0"
-        style={styles.progress}
-      />
-      <Text variant="bodyMedium" style={styles.stepText}>
-        Step {step} of 5
-      </Text>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+    >
+      {/* Fixed header — stays visible above keyboard */}
+      <View style={styles.header}>
+        <ProgressBar
+          progress={step / 5}
+          color="#2B6CB0"
+          style={styles.progress}
+        />
+        <Text style={styles.stepText}>
+          Step {step} of 5 — {stepTitles[step - 1]}
+        </Text>
+      </View>
 
       <ScrollView
+        ref={scrollRef}
         style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Step 1: Account */}
+        {/* ── Step 1: Account ── */}
         {step === 1 && (
           <View style={styles.stepContainer}>
-            <Text variant="headlineSmall" style={styles.title}>
-              Create Account
+            <Text style={styles.sectionHint}>
+              Your login credentials — keep these safe.
             </Text>
             <TextInput
               mode="outlined"
@@ -286,9 +325,14 @@ export default function SignupScreen({ navigation }) {
               onChangeText={(text) => setFormData({ ...formData, email: text })}
               keyboardType="email-address"
               autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="next"
+              onSubmitEditing={() => passwordRef.current?.focus()}
+              blurOnSubmit={false}
               style={styles.input}
             />
             <TextInput
+              ref={passwordRef}
               mode="outlined"
               label="Password"
               value={formData.password}
@@ -296,9 +340,13 @@ export default function SignupScreen({ navigation }) {
                 setFormData({ ...formData, password: text })
               }
               secureTextEntry
+              returnKeyType="next"
+              onSubmitEditing={() => confirmPasswordRef.current?.focus()}
+              blurOnSubmit={false}
               style={styles.input}
             />
             <TextInput
+              ref={confirmPasswordRef}
               mode="outlined"
               label="Confirm Password"
               value={formData.confirmPassword}
@@ -306,35 +354,44 @@ export default function SignupScreen({ navigation }) {
                 setFormData({ ...formData, confirmPassword: text })
               }
               secureTextEntry
+              returnKeyType="done"
+              onSubmitEditing={handleNext}
               style={styles.input}
             />
           </View>
         )}
 
-        {/* Step 2: Basic Info */}
+        {/* ── Step 2: Basic Info ── */}
         {step === 2 && (
           <View style={styles.stepContainer}>
-            <Text variant="headlineSmall" style={styles.title}>
-              About You
+            <Text style={styles.sectionHint}>
+              Tell the community a little about yourself.
             </Text>
             <TextInput
+              ref={nameRef}
               mode="outlined"
               label="Full Name"
               value={formData.name}
               onChangeText={(text) => setFormData({ ...formData, name: text })}
+              returnKeyType="next"
+              onSubmitEditing={() => ageRef.current?.focus()}
+              blurOnSubmit={false}
               style={styles.input}
             />
             <TextInput
+              ref={ageRef}
               mode="outlined"
               label="Age"
               value={formData.age}
               onChangeText={(text) => setFormData({ ...formData, age: text })}
-              keyboardType="numeric"
+              keyboardType="number-pad"
+              returnKeyType="next"
+              onSubmitEditing={() => cityRef.current?.focus()}
+              blurOnSubmit={false}
               style={styles.input}
             />
-            <Text variant="bodyMedium" style={styles.label}>
-              Gender
-            </Text>
+
+            <Text style={styles.label}>Gender</Text>
             <View style={styles.chipContainer}>
               {[
                 "Male",
@@ -347,20 +404,30 @@ export default function SignupScreen({ navigation }) {
                   key={g}
                   selected={formData.gender === g}
                   onPress={() => setFormData({ ...formData, gender: g })}
-                  style={styles.chip}
+                  style={[
+                    styles.chip,
+                    formData.gender === g && styles.chipSelected,
+                  ]}
+                  textStyle={formData.gender === g && styles.chipTextSelected}
                 >
                   {g}
                 </Chip>
               ))}
             </View>
+
             <TextInput
+              ref={cityRef}
               mode="outlined"
               label="City"
               value={formData.city}
               onChangeText={(text) => setFormData({ ...formData, city: text })}
+              returnKeyType="next"
+              onSubmitEditing={() => stateRef.current?.focus()}
+              blurOnSubmit={false}
               style={styles.input}
             />
             <TextInput
+              ref={stateRef}
               mode="outlined"
               label="State (e.g., CA)"
               value={formData.state}
@@ -369,54 +436,69 @@ export default function SignupScreen({ navigation }) {
               }
               maxLength={2}
               autoCapitalize="characters"
+              returnKeyType="next"
+              onSubmitEditing={() => bioRef.current?.focus()}
+              blurOnSubmit={false}
               style={styles.input}
             />
             <TextInput
+              ref={bioRef}
               mode="outlined"
-              label="Bio"
+              label="Bio — tell people who you are"
               value={formData.bio}
               onChangeText={(text) => setFormData({ ...formData, bio: text })}
               multiline
               numberOfLines={4}
-              style={styles.input}
+              returnKeyType="done"
+              onSubmitEditing={Keyboard.dismiss}
+              style={[styles.input, styles.bioInput]}
             />
+            <Text style={styles.charCount}>{formData.bio.length}/500</Text>
           </View>
         )}
 
-        {/* Step 3: Life Stage */}
+        {/* ── Step 3: Life Stage ── */}
         {step === 3 && (
           <View style={styles.stepContainer}>
-            <Text variant="headlineSmall" style={styles.title}>
-              Life Stage & Goals
+            <Text style={styles.sectionHint}>
+              Connect with people navigating similar life experiences.
             </Text>
-            <Text variant="bodyMedium" style={styles.sectionDescription}>
-              Connect with people navigating similar life experiences
-            </Text>
-            <Text variant="bodyMedium" style={styles.label}>
-              Life Stage (select all that apply)
-            </Text>
+            <Text style={styles.label}>Life Stage (select all that apply)</Text>
             <View style={styles.chipContainer}>
               {lifeStageOptions.map((stage) => (
                 <Chip
                   key={stage}
                   selected={formData.lifeStage.includes(stage)}
                   onPress={() => toggleArrayItem("lifeStage", stage)}
-                  style={styles.chip}
+                  style={[
+                    styles.chip,
+                    formData.lifeStage.includes(stage) && styles.chipSelected,
+                  ]}
+                  textStyle={
+                    formData.lifeStage.includes(stage) &&
+                    styles.chipTextSelected
+                  }
                 >
                   {stage}
                 </Chip>
               ))}
             </View>
-            <Text variant="bodyMedium" style={styles.label}>
-              Looking For
-            </Text>
+
+            <Text style={styles.label}>Looking For</Text>
             <View style={styles.chipContainer}>
               {lookingForOptions.map((option) => (
                 <Chip
                   key={option}
                   selected={formData.lookingFor.includes(option)}
                   onPress={() => toggleArrayItem("lookingFor", option)}
-                  style={styles.chip}
+                  style={[
+                    styles.chip,
+                    formData.lookingFor.includes(option) && styles.chipSelected,
+                  ]}
+                  textStyle={
+                    formData.lookingFor.includes(option) &&
+                    styles.chipTextSelected
+                  }
                 >
                   {option}
                 </Chip>
@@ -425,44 +507,60 @@ export default function SignupScreen({ navigation }) {
           </View>
         )}
 
-        {/* Step 4: Values */}
+        {/* ── Step 4: Values ── */}
         {step === 4 && (
           <View style={styles.stepContainer}>
-            <Text variant="headlineSmall" style={styles.title}>
-              Your Values
+            <Text style={styles.sectionHint}>
+              Help us find your people. These are never shared publicly.
             </Text>
-            <Text variant="bodyMedium" style={styles.label}>
-              Political Beliefs
-            </Text>
+
+            <Text style={styles.label}>Political Beliefs</Text>
             <View style={styles.chipContainer}>
               {politicalOptions.map((belief) => (
                 <Chip
                   key={belief}
                   selected={formData.politicalBeliefs.includes(belief)}
                   onPress={() => toggleArrayItem("politicalBeliefs", belief)}
-                  style={styles.chip}
+                  style={[
+                    styles.chip,
+                    formData.politicalBeliefs.includes(belief) &&
+                      styles.chipSelected,
+                  ]}
+                  textStyle={
+                    formData.politicalBeliefs.includes(belief) &&
+                    styles.chipTextSelected
+                  }
                 >
                   {belief}
                 </Chip>
               ))}
             </View>
-            <Text variant="bodyMedium" style={styles.label}>
-              Religion/Spirituality
-            </Text>
+
+            <Text style={styles.label}>Religion / Spirituality</Text>
             <View style={styles.chipContainer}>
               {religionOptions.map((religion) => (
                 <Chip
                   key={religion}
                   selected={formData.religion === religion}
                   onPress={() => setFormData({ ...formData, religion })}
-                  style={styles.chip}
+                  style={[
+                    styles.chip,
+                    formData.religion === religion && styles.chipSelected,
+                  ]}
+                  textStyle={
+                    formData.religion === religion && styles.chipTextSelected
+                  }
                 >
                   {religion}
                 </Chip>
               ))}
             </View>
-            <Text variant="bodyMedium" style={styles.label}>
-              Causes (select at least 3) — {formData.causes.length} selected
+
+            <Text style={styles.label}>
+              Interests / Causes — {formData.causes.length} selected
+              {formData.causes.length < 3 && (
+                <Text style={styles.labelHint}> (pick at least 3)</Text>
+              )}
             </Text>
             <View style={styles.chipContainer}>
               {causesOptions.map((cause) => (
@@ -470,7 +568,13 @@ export default function SignupScreen({ navigation }) {
                   key={cause}
                   selected={formData.causes.includes(cause)}
                   onPress={() => toggleArrayItem("causes", cause)}
-                  style={styles.chip}
+                  style={[
+                    styles.chip,
+                    formData.causes.includes(cause) && styles.chipSelected,
+                  ]}
+                  textStyle={
+                    formData.causes.includes(cause) && styles.chipTextSelected
+                  }
                 >
                   {cause}
                 </Chip>
@@ -479,35 +583,52 @@ export default function SignupScreen({ navigation }) {
           </View>
         )}
 
-        {/* Step 5: Photo */}
+        {/* ── Step 5: Photo ── */}
         {step === 5 && (
           <View style={styles.stepContainer}>
-            <Text variant="headlineSmall" style={styles.title}>
-              Add Your Photo
+            <Text style={styles.sectionHint}>
+              A photo helps your community recognize and trust you.
             </Text>
-            <TouchableOpacity onPress={pickImage} style={styles.photoContainer}>
+            <TouchableOpacity
+              onPress={pickImage}
+              style={styles.photoContainer}
+              activeOpacity={0.8}
+            >
               {formData.profilePhoto ? (
-                <Image
-                  source={{ uri: formData.profilePhoto }}
-                  style={styles.photo}
-                />
+                <>
+                  <Image
+                    source={{ uri: formData.profilePhoto }}
+                    style={styles.photo}
+                  />
+                  <Text style={styles.photoChangeText}>
+                    Tap to change photo
+                  </Text>
+                </>
               ) : (
                 <View style={styles.photoPlaceholder}>
-                  <Camera size={40} color="#999" />
+                  <Camera size={48} color="#2B6CB0" />
                   <Text style={styles.photoText}>Tap to upload photo</Text>
+                  <Text style={styles.photoSubtext}>
+                    Square crop works best
+                  </Text>
                 </View>
               )}
             </TouchableOpacity>
           </View>
         )}
+
+        {/* Bottom padding so last field clears the buttons */}
+        <View style={{ height: 120 }} />
       </ScrollView>
 
-      <View style={styles.buttonContainer}>
+      {/* Fixed button bar at bottom */}
+      <View style={styles.buttonBar}>
         {step > 1 && (
           <Button
             mode="outlined"
-            onPress={() => setStep(step - 1)}
+            onPress={handleBack}
             style={styles.backButton}
+            labelStyle={styles.backButtonLabel}
           >
             Back
           </Button>
@@ -517,8 +638,9 @@ export default function SignupScreen({ navigation }) {
             mode="contained"
             onPress={handleNext}
             style={styles.nextButton}
+            buttonColor="#2B6CB0"
           >
-            Next
+            Next →
           </Button>
         ) : (
           <Button
@@ -527,70 +649,130 @@ export default function SignupScreen({ navigation }) {
             loading={loading}
             disabled={loading}
             style={styles.nextButton}
+            buttonColor="#2B6CB0"
           >
             Create Account
           </Button>
         )}
       </View>
 
-      <Button
-        mode="text"
+      <TouchableOpacity
         onPress={() => navigation.navigate("Login")}
-        style={styles.loginButton}
+        style={styles.loginLink}
       >
-        Already have an account? Log In
-      </Button>
-      <Footer />
-    </View>
+        <Text style={styles.loginLinkText}>
+          Already have an account? Log In
+        </Text>
+      </TouchableOpacity>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F7FAFC" },
-  progress: { height: 4 },
-  stepText: { textAlign: "center", marginVertical: 12, color: "#666" },
-  sectionDescription: {
-    textAlign: "center",
-    color: "#666",
-    marginBottom: 20,
+
+  header: {
+    backgroundColor: "#F7FAFC",
+    paddingTop: 8,
     paddingHorizontal: 20,
-    fontStyle: "italic",
+    paddingBottom: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
   },
-  scrollView: { flex: 1 },
-  stepContainer: { padding: 20 },
-  title: {
-    marginBottom: 20,
+  progress: { height: 6, borderRadius: 3 },
+  stepText: {
     textAlign: "center",
-    color: "#2B6CB0",
+    marginTop: 8,
+    marginBottom: 4,
+    color: "#718096",
+    fontSize: 13,
     fontWeight: "600",
   },
-  input: { marginBottom: 12, backgroundColor: "white" },
-  label: {
-    marginTop: 16,
+
+  scrollView: { flex: 1 },
+  scrollContent: { paddingBottom: 20 },
+
+  stepContainer: { padding: 20, paddingTop: 16 },
+
+  sectionHint: {
+    color: "#718096",
+    fontSize: 14,
+    fontStyle: "italic",
+    textAlign: "center",
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+
+  input: { marginBottom: 14, backgroundColor: "white" },
+  bioInput: { minHeight: 100 },
+  charCount: {
+    fontSize: 11,
+    color: "#a0aec0",
+    textAlign: "right",
+    marginTop: -10,
     marginBottom: 8,
-    fontWeight: "600",
-    color: "#2d2d2d",
   },
+
+  label: {
+    marginTop: 8,
+    marginBottom: 10,
+    fontWeight: "700",
+    color: "#2d3748",
+    fontSize: 14,
+  },
+  labelHint: { fontWeight: "400", color: "#e53e3e", fontSize: 13 },
+
   chipContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
-    marginBottom: 16,
+    marginBottom: 20,
   },
-  chip: { marginBottom: 4 },
-  photoContainer: { alignItems: "center", marginTop: 20 },
+  chip: { marginBottom: 2 },
+  chipSelected: { backgroundColor: "#2B6CB0" },
+  chipTextSelected: { color: "white" },
+
+  photoContainer: { alignItems: "center", marginTop: 24 },
   photoPlaceholder: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: "#E2E8F0",
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: "#EBF4FF",
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#2B6CB0",
+    borderStyle: "dashed",
   },
-  photo: { width: 150, height: 150, borderRadius: 75 },
-  photoText: { marginTop: 8, color: "#666" },
-  buttonContainer: { flexDirection: "row", padding: 20, gap: 12 },
-  backButton: { flex: 1 },
-  nextButton: { flex: 2, backgroundColor: "#2B6CB0" },
-  loginButton: { marginBottom: 20 },
+  photo: { width: 160, height: 160, borderRadius: 80 },
+  photoText: {
+    marginTop: 10,
+    color: "#2B6CB0",
+    fontWeight: "700",
+    fontSize: 14,
+  },
+  photoSubtext: { color: "#718096", fontSize: 12, marginTop: 4 },
+  photoChangeText: {
+    marginTop: 12,
+    color: "#2B6CB0",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+
+  // Fixed bottom button bar
+  buttonBar: {
+    flexDirection: "row",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: "white",
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
+    gap: 12,
+  },
+  backButton: { flex: 1, borderColor: "#2B6CB0" },
+  backButtonLabel: { color: "#2B6CB0" },
+  nextButton: { flex: 2 },
+
+  loginLink: { alignItems: "center", paddingVertical: 12 },
+  loginLinkText: { color: "#2B6CB0", fontWeight: "600", fontSize: 14 },
 });
