@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
+  InputAccessoryView,
 } from "react-native";
 import { Text, TextInput, Button, Chip, ProgressBar } from "react-native-paper";
 import { Camera } from "lucide-react-native";
@@ -411,13 +412,32 @@ export default function SignupScreen({ navigation }) {
               value={formData.bio}
               onChangeText={(t) => setFormData({ ...formData, bio: t })}
               multiline
-              numberOfLines={4}
+              numberOfLines={3}
               maxLength={500}
-              returnKeyType="done"
-              onSubmitEditing={Keyboard.dismiss}
+              inputAccessoryViewID="bioToolbar"
               style={[styles.input, styles.bioInput]}
             />
             <Text style={styles.charCount}>{formData.bio.length}/500</Text>
+
+            {/* iOS toolbar above keyboard with Next button */}
+            {Platform.OS === "ios" && (
+              <InputAccessoryView nativeID="bioToolbar">
+                <View style={styles.keyboardToolbar}>
+                  <TouchableOpacity
+                    onPress={Keyboard.dismiss}
+                    style={styles.toolbarDone}
+                  >
+                    <Text style={styles.toolbarDoneText}>Done</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={handleNext}
+                    style={styles.toolbarNext}
+                  >
+                    <Text style={styles.toolbarNextText}>Next →</Text>
+                  </TouchableOpacity>
+                </View>
+              </InputAccessoryView>
+            )}
           </View>
         )}
 
@@ -740,6 +760,25 @@ const styles = StyleSheet.create({
   backButton: { flex: 1, borderColor: "#2B6CB0" },
   backButtonLabel: { color: "#2B6CB0" },
   nextButton: { flex: 2 },
+  keyboardToolbar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#f0f0f0",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#d0d0d0",
+  },
+  toolbarDone: { padding: 6 },
+  toolbarDoneText: { color: "#718096", fontSize: 15, fontWeight: "600" },
+  toolbarNext: {
+    backgroundColor: "#2B6CB0",
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  toolbarNextText: { color: "white", fontSize: 15, fontWeight: "700" },
   loginLink: { alignItems: "center", paddingVertical: 12 },
   loginLinkText: { color: "#2B6CB0", fontWeight: "600", fontSize: 14 },
 });
