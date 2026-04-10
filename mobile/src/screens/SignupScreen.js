@@ -617,53 +617,53 @@ export default function SignupScreen({ navigation }) {
           </View>
         )}
 
-        {/* Bottom padding so last field clears the buttons */}
-        <View style={{ height: 120 }} />
+        {/* Buttons INSIDE the ScrollView so they scroll above the keyboard */}
+        <View style={styles.buttonBar}>
+          {step > 1 && (
+            <Button
+              mode="outlined"
+              onPress={handleBack}
+              style={styles.backButton}
+              labelStyle={styles.backButtonLabel}
+            >
+              Back
+            </Button>
+          )}
+          {step < 5 ? (
+            <Button
+              mode="contained"
+              onPress={handleNext}
+              style={styles.nextButton}
+              buttonColor="#2B6CB0"
+            >
+              Next →
+            </Button>
+          ) : (
+            <Button
+              mode="contained"
+              onPress={handleSubmit}
+              loading={loading}
+              disabled={loading}
+              style={styles.nextButton}
+              buttonColor="#2B6CB0"
+            >
+              Create Account
+            </Button>
+          )}
+        </View>
+
+        <TouchableOpacity
+          onPress={() => navigation.navigate("Login")}
+          style={styles.loginLink}
+        >
+          <Text style={styles.loginLinkText}>
+            Already have an account? Log In
+          </Text>
+        </TouchableOpacity>
+
+        {/* Extra bottom padding so buttons clear the keyboard */}
+        <View style={{ height: 40 }} />
       </ScrollView>
-
-      {/* Fixed button bar at bottom */}
-      <View style={styles.buttonBar}>
-        {step > 1 && (
-          <Button
-            mode="outlined"
-            onPress={handleBack}
-            style={styles.backButton}
-            labelStyle={styles.backButtonLabel}
-          >
-            Back
-          </Button>
-        )}
-        {step < 5 ? (
-          <Button
-            mode="contained"
-            onPress={handleNext}
-            style={styles.nextButton}
-            buttonColor="#2B6CB0"
-          >
-            Next →
-          </Button>
-        ) : (
-          <Button
-            mode="contained"
-            onPress={handleSubmit}
-            loading={loading}
-            disabled={loading}
-            style={styles.nextButton}
-            buttonColor="#2B6CB0"
-          >
-            Create Account
-          </Button>
-        )}
-      </View>
-
-      <TouchableOpacity
-        onPress={() => navigation.navigate("Login")}
-        style={styles.loginLink}
-      >
-        <Text style={styles.loginLinkText}>
-          Already have an account? Log In
-        </Text>
-      </TouchableOpacity>
     </KeyboardAvoidingView>
   );
 }
@@ -759,14 +759,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 
-  // Fixed bottom button bar
+  // Inline button bar — scrolls up with content when keyboard appears
   buttonBar: {
     flexDirection: "row",
     paddingHorizontal: 20,
-    paddingVertical: 12,
-    backgroundColor: "white",
-    borderTopWidth: 1,
-    borderTopColor: "#E2E8F0",
+    paddingTop: 24,
+    paddingBottom: 8,
     gap: 12,
   },
   backButton: { flex: 1, borderColor: "#2B6CB0" },
