@@ -20,10 +20,8 @@ export default function SignupScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef(null);
 
-  // Refs for each text input to enable "Next" keyboard button chaining
   const passwordRef = useRef(null);
   const confirmPasswordRef = useRef(null);
-  const nameRef = useRef(null);
   const ageRef = useRef(null);
   const cityRef = useRef(null);
   const stateRef = useRef(null);
@@ -35,44 +33,68 @@ export default function SignupScreen({ navigation }) {
     confirmPassword: "",
     name: "",
     age: "",
-    gender: "",
     city: "",
     state: "",
     bio: "",
-    politicalBeliefs: [],
-    religion: "",
-    causes: [],
-    lifeStage: [],
-    lookingFor: [],
+    politicalBeliefs: "", // String — schema requires single value
+    religion: "", // String — schema requires single value
+    lookingFor: "", // String — schema requires single value
+    lifeStage: [], // [String] — strict enum, 11 options
+    causes: [], // [String] — no enum restriction
     profilePhoto: "",
   });
 
+  // ── Matches User.js schema EXACTLY ───────────────────────────
+
+  // politicalBeliefs: String enum
   const politicalOptions = [
-    "Liberal",
-    "Moderate",
     "Conservative",
-    "Libertarian",
-    "Independent",
-    "Progressive",
+    "Moderate",
+    "Liberal",
     "Prefer not to say",
   ];
 
+  // religion: String enum — exact values from User.js
   const religionOptions = [
-    "Christian",
-    "Catholic",
-    "Protestant",
+    "None",
+    "Spiritual but not religious",
+    "Christian (Catholic)",
+    "Christian (Protestant)",
+    "Christian (Evangelical)",
+    "Christian (Orthodox)",
     "Jewish",
     "Muslim",
     "Hindu",
     "Buddhist",
-    "Sikh",
-    "Seeking/Undecided",
-    "Agnostic",
-    "Atheist",
+    "Mormon / LDS",
     "Other",
-    "Prefer not to say",
   ];
 
+  // lifeStage: [String] enum — exact 11 values from User.js
+  const lifeStageOptions = [
+    "Single",
+    "In a relationship",
+    "Married",
+    "Divorced",
+    "Widowed",
+    "Empty nester",
+    "Retired",
+    "Caregiver",
+    "Aging Alone",
+    "New Career",
+    "New to Town",
+  ];
+
+  // lookingFor: String — pick one
+  const lookingForOptions = [
+    "Friendship",
+    "Networking",
+    "Activity Partner",
+    "Mentor",
+    "Community",
+  ];
+
+  // causes: [String] — no enum restriction
   const causesOptions = [
     "Environment",
     "Travel & Adventure",
@@ -102,40 +124,6 @@ export default function SignupScreen({ navigation }) {
     "Food & Cooking",
     "Photography",
     "Outdoor Activities",
-  ];
-
-  const lifeStageOptions = [
-    "Single",
-    "In a Relationship",
-    "Engaged",
-    "Married",
-    "Divorced",
-    "Widowed",
-    "It's Complicated",
-    "Single Parent",
-    "Have Children",
-    "Child-free by Choice",
-    "Want Children Someday",
-    "Empty Nester",
-    "Stay-at-Home Parent",
-    "Caregiver",
-    "College Student",
-    "Graduate Student",
-    "Recent Graduate",
-    "Working Professional",
-    "Career Focused",
-    "Entrepreneur",
-    "Career Transition",
-    "Retired",
-    "Semi-Retired",
-  ];
-
-  const lookingForOptions = [
-    "Friendship",
-    "Networking",
-    "Activity Partner",
-    "Mentor",
-    "Community",
   ];
 
   const pickImage = async () => {
@@ -192,7 +180,6 @@ export default function SignupScreen({ navigation }) {
         if (
           !formData.name ||
           !formData.age ||
-          !formData.gender ||
           !formData.city ||
           !formData.state ||
           !formData.bio
@@ -210,14 +197,14 @@ export default function SignupScreen({ navigation }) {
           Alert.alert("Error", "Please select at least one life stage");
           return false;
         }
-        if (formData.lookingFor.length === 0) {
+        if (!formData.lookingFor) {
           Alert.alert("Error", "Please select what you're looking for");
           return false;
         }
         return true;
       case 4:
-        if (formData.politicalBeliefs.length === 0) {
-          Alert.alert("Error", "Please select at least one political belief");
+        if (!formData.politicalBeliefs) {
+          Alert.alert("Error", "Please select a political view");
           return false;
         }
         if (!formData.religion) {
@@ -225,7 +212,7 @@ export default function SignupScreen({ navigation }) {
           return false;
         }
         if (formData.causes.length < 3) {
-          Alert.alert("Error", "Please select at least 3 causes");
+          Alert.alert("Error", "Please select at least 3 interests");
           return false;
         }
         return true;
@@ -244,7 +231,6 @@ export default function SignupScreen({ navigation }) {
     Keyboard.dismiss();
     if (validateStep()) {
       setStep(step + 1);
-      // Scroll back to top on step change
       setTimeout(
         () => scrollRef.current?.scrollTo({ y: 0, animated: true }),
         100,
@@ -269,11 +255,17 @@ export default function SignupScreen({ navigation }) {
       signupData.age = parseInt(signupData.age);
       const response = await authAPI.signup(signupData);
       if (response.data.token) {
-        Alert.alert("Success", "Account created! Please log in.");
-        navigation.navigate("Login");
+        Alert.alert(
+          "Success! 🎉",
+          "Your account has been created. Please log in.",
+          [{ text: "Log In", onPress: () => navigation.navigate("Login") }],
+        );
       }
     } catch (error) {
-      Alert.alert("Error", error.response?.data?.message || "Signup failed");
+      Alert.alert(
+        "Signup Failed",
+        error.response?.data?.message || "Please try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -293,7 +285,6 @@ export default function SignupScreen({ navigation }) {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
     >
-      {/* Fixed header — stays visible above keyboard */}
       <View style={styles.header}>
         <ProgressBar
           progress={step / 5}
@@ -322,7 +313,7 @@ export default function SignupScreen({ navigation }) {
               mode="outlined"
               label="Email"
               value={formData.email}
-              onChangeText={(text) => setFormData({ ...formData, email: text })}
+              onChangeText={(t) => setFormData({ ...formData, email: t })}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
@@ -336,9 +327,7 @@ export default function SignupScreen({ navigation }) {
               mode="outlined"
               label="Password"
               value={formData.password}
-              onChangeText={(text) =>
-                setFormData({ ...formData, password: text })
-              }
+              onChangeText={(t) => setFormData({ ...formData, password: t })}
               secureTextEntry
               returnKeyType="next"
               onSubmitEditing={() => confirmPasswordRef.current?.focus()}
@@ -350,8 +339,8 @@ export default function SignupScreen({ navigation }) {
               mode="outlined"
               label="Confirm Password"
               value={formData.confirmPassword}
-              onChangeText={(text) =>
-                setFormData({ ...formData, confirmPassword: text })
+              onChangeText={(t) =>
+                setFormData({ ...formData, confirmPassword: t })
               }
               secureTextEntry
               returnKeyType="done"
@@ -368,11 +357,10 @@ export default function SignupScreen({ navigation }) {
               Tell the community a little about yourself.
             </Text>
             <TextInput
-              ref={nameRef}
               mode="outlined"
               label="Full Name"
               value={formData.name}
-              onChangeText={(text) => setFormData({ ...formData, name: text })}
+              onChangeText={(t) => setFormData({ ...formData, name: t })}
               returnKeyType="next"
               onSubmitEditing={() => ageRef.current?.focus()}
               blurOnSubmit={false}
@@ -383,44 +371,19 @@ export default function SignupScreen({ navigation }) {
               mode="outlined"
               label="Age"
               value={formData.age}
-              onChangeText={(text) => setFormData({ ...formData, age: text })}
+              onChangeText={(t) => setFormData({ ...formData, age: t })}
               keyboardType="number-pad"
               returnKeyType="next"
               onSubmitEditing={() => cityRef.current?.focus()}
               blurOnSubmit={false}
               style={styles.input}
             />
-
-            <Text style={styles.label}>Gender</Text>
-            <View style={styles.chipContainer}>
-              {[
-                "Male",
-                "Female",
-                "Non-binary",
-                "Other",
-                "Prefer not to say",
-              ].map((g) => (
-                <Chip
-                  key={g}
-                  selected={formData.gender === g}
-                  onPress={() => setFormData({ ...formData, gender: g })}
-                  style={[
-                    styles.chip,
-                    formData.gender === g && styles.chipSelected,
-                  ]}
-                  textStyle={formData.gender === g && styles.chipTextSelected}
-                >
-                  {g}
-                </Chip>
-              ))}
-            </View>
-
             <TextInput
               ref={cityRef}
               mode="outlined"
               label="City"
               value={formData.city}
-              onChangeText={(text) => setFormData({ ...formData, city: text })}
+              onChangeText={(t) => setFormData({ ...formData, city: t })}
               returnKeyType="next"
               onSubmitEditing={() => stateRef.current?.focus()}
               blurOnSubmit={false}
@@ -429,10 +392,10 @@ export default function SignupScreen({ navigation }) {
             <TextInput
               ref={stateRef}
               mode="outlined"
-              label="State (e.g., CA)"
+              label="State (e.g., FL)"
               value={formData.state}
-              onChangeText={(text) =>
-                setFormData({ ...formData, state: text.toUpperCase() })
+              onChangeText={(t) =>
+                setFormData({ ...formData, state: t.toUpperCase() })
               }
               maxLength={2}
               autoCapitalize="characters"
@@ -446,9 +409,10 @@ export default function SignupScreen({ navigation }) {
               mode="outlined"
               label="Bio — tell people who you are"
               value={formData.bio}
-              onChangeText={(text) => setFormData({ ...formData, bio: text })}
+              onChangeText={(t) => setFormData({ ...formData, bio: t })}
               multiline
               numberOfLines={4}
+              maxLength={500}
               returnKeyType="done"
               onSubmitEditing={Keyboard.dismiss}
               style={[styles.input, styles.bioInput]}
@@ -461,7 +425,7 @@ export default function SignupScreen({ navigation }) {
         {step === 3 && (
           <View style={styles.stepContainer}>
             <Text style={styles.sectionHint}>
-              Connect with people navigating similar life experiences.
+              Connect with people in similar life situations.
             </Text>
             <Text style={styles.label}>Life Stage (select all that apply)</Text>
             <View style={styles.chipContainer}>
@@ -475,8 +439,9 @@ export default function SignupScreen({ navigation }) {
                     formData.lifeStage.includes(stage) && styles.chipSelected,
                   ]}
                   textStyle={
-                    formData.lifeStage.includes(stage) &&
-                    styles.chipTextSelected
+                    formData.lifeStage.includes(stage)
+                      ? styles.chipTextSelected
+                      : undefined
                   }
                 >
                   {stage}
@@ -484,20 +449,23 @@ export default function SignupScreen({ navigation }) {
               ))}
             </View>
 
-            <Text style={styles.label}>Looking For</Text>
+            <Text style={styles.label}>Looking For (pick one)</Text>
             <View style={styles.chipContainer}>
               {lookingForOptions.map((option) => (
                 <Chip
                   key={option}
-                  selected={formData.lookingFor.includes(option)}
-                  onPress={() => toggleArrayItem("lookingFor", option)}
+                  selected={formData.lookingFor === option}
+                  onPress={() =>
+                    setFormData({ ...formData, lookingFor: option })
+                  }
                   style={[
                     styles.chip,
-                    formData.lookingFor.includes(option) && styles.chipSelected,
+                    formData.lookingFor === option && styles.chipSelected,
                   ]}
                   textStyle={
-                    formData.lookingFor.includes(option) &&
-                    styles.chipTextSelected
+                    formData.lookingFor === option
+                      ? styles.chipTextSelected
+                      : undefined
                   }
                 >
                   {option}
@@ -511,24 +479,26 @@ export default function SignupScreen({ navigation }) {
         {step === 4 && (
           <View style={styles.stepContainer}>
             <Text style={styles.sectionHint}>
-              Help us find your people. These are never shared publicly.
+              Used for matching only — never shown publicly.
             </Text>
 
-            <Text style={styles.label}>Political Beliefs</Text>
+            <Text style={styles.label}>Political Views (pick one)</Text>
             <View style={styles.chipContainer}>
               {politicalOptions.map((belief) => (
                 <Chip
                   key={belief}
-                  selected={formData.politicalBeliefs.includes(belief)}
-                  onPress={() => toggleArrayItem("politicalBeliefs", belief)}
+                  selected={formData.politicalBeliefs === belief}
+                  onPress={() =>
+                    setFormData({ ...formData, politicalBeliefs: belief })
+                  }
                   style={[
                     styles.chip,
-                    formData.politicalBeliefs.includes(belief) &&
-                      styles.chipSelected,
+                    formData.politicalBeliefs === belief && styles.chipSelected,
                   ]}
                   textStyle={
-                    formData.politicalBeliefs.includes(belief) &&
-                    styles.chipTextSelected
+                    formData.politicalBeliefs === belief
+                      ? styles.chipTextSelected
+                      : undefined
                   }
                 >
                   {belief}
@@ -536,7 +506,7 @@ export default function SignupScreen({ navigation }) {
               ))}
             </View>
 
-            <Text style={styles.label}>Religion / Spirituality</Text>
+            <Text style={styles.label}>Religion / Spirituality (pick one)</Text>
             <View style={styles.chipContainer}>
               {religionOptions.map((religion) => (
                 <Chip
@@ -548,7 +518,9 @@ export default function SignupScreen({ navigation }) {
                     formData.religion === religion && styles.chipSelected,
                   ]}
                   textStyle={
-                    formData.religion === religion && styles.chipTextSelected
+                    formData.religion === religion
+                      ? styles.chipTextSelected
+                      : undefined
                   }
                 >
                   {religion}
@@ -557,10 +529,16 @@ export default function SignupScreen({ navigation }) {
             </View>
 
             <Text style={styles.label}>
-              Interests / Causes — {formData.causes.length} selected
-              {formData.causes.length < 3 && (
-                <Text style={styles.labelHint}> (pick at least 3)</Text>
-              )}
+              Interests{" "}
+              <Text
+                style={
+                  formData.causes.length >= 3
+                    ? styles.labelGood
+                    : styles.labelHint
+                }
+              >
+                ({formData.causes.length} selected — pick at least 3)
+              </Text>
             </Text>
             <View style={styles.chipContainer}>
               {causesOptions.map((cause) => (
@@ -573,7 +551,9 @@ export default function SignupScreen({ navigation }) {
                     formData.causes.includes(cause) && styles.chipSelected,
                   ]}
                   textStyle={
-                    formData.causes.includes(cause) && styles.chipTextSelected
+                    formData.causes.includes(cause)
+                      ? styles.chipTextSelected
+                      : undefined
                   }
                 >
                   {cause}
@@ -617,7 +597,7 @@ export default function SignupScreen({ navigation }) {
           </View>
         )}
 
-        {/* Buttons INSIDE the ScrollView so they scroll above the keyboard */}
+        {/* Buttons inside ScrollView — scroll above keyboard */}
         <View style={styles.buttonBar}>
           {step > 1 && (
             <Button
@@ -661,7 +641,6 @@ export default function SignupScreen({ navigation }) {
           </Text>
         </TouchableOpacity>
 
-        {/* Extra bottom padding so buttons clear the keyboard */}
         <View style={{ height: 40 }} />
       </ScrollView>
     </KeyboardAvoidingView>
@@ -670,7 +649,6 @@ export default function SignupScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F7FAFC" },
-
   header: {
     backgroundColor: "#F7FAFC",
     paddingTop: 8,
@@ -688,12 +666,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
   },
-
   scrollView: { flex: 1 },
   scrollContent: { paddingBottom: 20 },
-
   stepContainer: { padding: 20, paddingTop: 16 },
-
   sectionHint: {
     color: "#718096",
     fontSize: 14,
@@ -702,7 +677,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     lineHeight: 20,
   },
-
   input: { marginBottom: 14, backgroundColor: "white" },
   bioInput: { minHeight: 100 },
   charCount: {
@@ -712,7 +686,6 @@ const styles = StyleSheet.create({
     marginTop: -10,
     marginBottom: 8,
   },
-
   label: {
     marginTop: 8,
     marginBottom: 10,
@@ -720,8 +693,8 @@ const styles = StyleSheet.create({
     color: "#2d3748",
     fontSize: 14,
   },
-  labelHint: { fontWeight: "400", color: "#e53e3e", fontSize: 13 },
-
+  labelHint: { fontWeight: "600", color: "#e53e3e", fontSize: 13 },
+  labelGood: { fontWeight: "600", color: "#38a169", fontSize: 13 },
   chipContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -731,7 +704,6 @@ const styles = StyleSheet.create({
   chip: { marginBottom: 2 },
   chipSelected: { backgroundColor: "#2B6CB0" },
   chipTextSelected: { color: "white" },
-
   photoContainer: { alignItems: "center", marginTop: 24 },
   photoPlaceholder: {
     width: 160,
@@ -758,8 +730,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontSize: 14,
   },
-
-  // Inline button bar — scrolls up with content when keyboard appears
   buttonBar: {
     flexDirection: "row",
     paddingHorizontal: 20,
@@ -770,7 +740,6 @@ const styles = StyleSheet.create({
   backButton: { flex: 1, borderColor: "#2B6CB0" },
   backButtonLabel: { color: "#2B6CB0" },
   nextButton: { flex: 2 },
-
   loginLink: { alignItems: "center", paddingVertical: 12 },
   loginLinkText: { color: "#2B6CB0", fontWeight: "600", fontSize: 14 },
 });
