@@ -98,7 +98,7 @@ export default function LoginScreen({ navigation }) {
         </View>
 
         <View style={styles.formPanel}>
-          <Text style={styles.formTitle}>Welcome back</Text>
+          <Text style={styles.formTitle}>Welcome.</Text>
           <Text style={styles.formSub}>Log in to find your community</Text>
 
           <View style={styles.field}>

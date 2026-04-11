@@ -16,6 +16,7 @@ import {
   Modal,
   Alert,
   Text,
+  SafeAreaView,
 } from "react-native";
 import { ActivityIndicator } from "react-native-paper";
 import { Send, MoreVertical } from "lucide-react-native";
@@ -28,12 +29,10 @@ const BLUE = "#2B6CB0";
 export default function ChatScreen({ route, navigation }) {
   const { match, userId, userName } = route.params;
 
-  // FIX: safe extraction — handle all param shapes passed from different screens
   const chatUserId = (match?._id || match?.id || userId || "").toString();
   const chatUserName = match?.name || userName || "Chat";
 
   const { user } = useAuth();
-  // FIX: get currentUserId from AuthContext synchronously — no async race
   const currentUserId = (user?.id || user?._id || "").toString();
 
   const [messages, setMessages] = useState([]);
@@ -42,6 +41,7 @@ export default function ChatScreen({ route, navigation }) {
   const [sending, setSending] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const flatListRef = useRef(null);
+  const inputRef = useRef(null);
   const { socket } = useSocket();
 
   useLayoutEffect(() => {
@@ -69,7 +69,6 @@ export default function ChatScreen({ route, navigation }) {
     } catch (err) {
       const status = err.response?.status;
       if (status === 403) {
-        // Not connected — show friendly message instead of crash
         Alert.alert(
           "Cannot Message",
           "You can only message users you're connected with.",
@@ -87,13 +86,10 @@ export default function ChatScreen({ route, navigation }) {
     fetchMessages();
   }, [fetchMessages]);
 
-  // FIX: Socket field names match what backend actually emits.
-  // Backend Message model uses senderId/recipientId, not sender/recipient.
   useEffect(() => {
     if (!socket || !chatUserId || !currentUserId) return;
 
     const handleNewMessage = (msg) => {
-      // Backend emits message with senderId and recipientId fields
       const senderId = (
         msg.senderId ||
         msg.sender?._id ||
@@ -127,37 +123,12 @@ export default function ChatScreen({ route, navigation }) {
     return () => socket.off("new-message", handleNewMessage);
   }, [socket, chatUserId, currentUserId]);
 
-  // ── Actions ────────────────────────────────────────────────
   const handleViewProfile = () => {
     setMenuVisible(false);
     navigation.navigate("MemberProfile", {
       userId: chatUserId,
       sharedGroups: [],
     });
-  };
-
-  const handleRemoveConnection = () => {
-    setMenuVisible(false);
-    Alert.alert(
-      "Remove Connection",
-      `Remove ${chatUserName} from your connections?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Remove",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              // FIX: use correct API — unmatch removes from connections
-              await userAPI.blockUser(chatUserId); // fallback if no unmatch
-              navigation.navigate("Messages");
-            } catch {
-              Alert.alert("Error", "Could not remove connection");
-            }
-          },
-        },
-      ],
-    );
   };
 
   const handleReport = () => {
@@ -208,7 +179,6 @@ export default function ChatScreen({ route, navigation }) {
     );
   };
 
-  // ── Send ───────────────────────────────────────────────────
   const handleSend = async () => {
     const text = newMessage.trim();
     if (!text || sending || !chatUserId) return;
@@ -224,17 +194,14 @@ export default function ChatScreen({ route, navigation }) {
     } catch (err) {
       const status = err.response?.status;
       const msg = err.response?.data?.message || "Failed to send message";
-      // FIX: show the actual error — 403 means not connected or blocked
       Alert.alert(status === 403 ? "Cannot Send Message" : "Error", msg);
-      setNewMessage(text); // restore message so user doesn't lose it
+      setNewMessage(text);
     } finally {
       setSending(false);
     }
   };
 
-  // ── Render message ─────────────────────────────────────────
   const renderMessage = ({ item }) => {
-    // FIX: check both senderId (new) and sender (legacy) field
     const senderId = (
       item.senderId ||
       item.sender?._id ||
@@ -269,107 +236,125 @@ export default function ChatScreen({ route, navigation }) {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={90}
-    >
-      {/* ── Three-dot dropdown ── */}
-      <Modal
-        visible={menuVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setMenuVisible(false)}
-        statusBarTranslucent
+    // ✅ FIX: SafeAreaView wraps everything so input bar sits above home indicator
+    // KeyboardAvoidingView moves content up when keyboard appears
+    // keyboardVerticalOffset tuned so input bar clears the keyboard cleanly
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 88 : 0}
       >
-        <TouchableOpacity
-          style={styles.menuOverlay}
-          activeOpacity={1}
-          onPress={() => setMenuVisible(false)}
+        {/* Three-dot dropdown */}
+        <Modal
+          visible={menuVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setMenuVisible(false)}
+          statusBarTranslucent
         >
-          <View style={styles.menuDropdown}>
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={handleViewProfile}
-            >
-              <Text style={styles.menuItemText}>👤 View Profile</Text>
-            </TouchableOpacity>
-            <View style={styles.menuDivider} />
-            <TouchableOpacity style={styles.menuItem} onPress={handleReport}>
-              <Text style={[styles.menuItemText, styles.menuItemDanger]}>
-                🚩 Report User
-              </Text>
-            </TouchableOpacity>
-            <View style={styles.menuDivider} />
-            <TouchableOpacity style={styles.menuItem} onPress={handleBlock}>
-              <Text style={[styles.menuItemText, styles.menuItemDanger]}>
-                🚫 Block User
-              </Text>
-            </TouchableOpacity>
-            <View style={styles.menuDivider} />
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => setMenuVisible(false)}
-            >
-              <Text style={[styles.menuItemText, { color: "#718096" }]}>
-                Cancel
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+          <TouchableOpacity
+            style={styles.menuOverlay}
+            activeOpacity={1}
+            onPress={() => setMenuVisible(false)}
+          >
+            <View style={styles.menuDropdown}>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={handleViewProfile}
+              >
+                <Text style={styles.menuItemText}>👤 View Profile</Text>
+              </TouchableOpacity>
+              <View style={styles.menuDivider} />
+              <TouchableOpacity style={styles.menuItem} onPress={handleReport}>
+                <Text style={[styles.menuItemText, styles.menuItemDanger]}>
+                  🚩 Report User
+                </Text>
+              </TouchableOpacity>
+              <View style={styles.menuDivider} />
+              <TouchableOpacity style={styles.menuItem} onPress={handleBlock}>
+                <Text style={[styles.menuItemText, styles.menuItemDanger]}>
+                  🚫 Block User
+                </Text>
+              </TouchableOpacity>
+              <View style={styles.menuDivider} />
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => setMenuVisible(false)}
+              >
+                <Text style={[styles.menuItemText, { color: "#718096" }]}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
 
-      {/* ── Message list ── */}
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={(item) =>
-          item._id?.toString() || Math.random().toString()
-        }
-        contentContainerStyle={styles.list}
-        onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyText}>
-              No messages yet — say hello! 👋
-            </Text>
-          </View>
-        }
-      />
-
-      {/* ── Input bar ── */}
-      <View style={styles.inputBar}>
-        <TextInput
-          style={styles.input}
-          placeholder="Type a message..."
-          placeholderTextColor="#a0aec0"
-          value={newMessage}
-          onChangeText={setNewMessage}
-          multiline
-          maxLength={1000}
-          returnKeyType="default"
+        {/* Message list */}
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          renderItem={renderMessage}
+          keyExtractor={(item) =>
+            item._id?.toString() || Math.random().toString()
+          }
+          contentContainerStyle={styles.list}
+          onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
+          onContentSizeChange={() =>
+            flatListRef.current?.scrollToEnd({ animated: false })
+          }
+          keyboardDismissMode="interactive"
+          keyboardShouldPersistTaps="handled"
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Text style={styles.emptyText}>
+                No messages yet — say hello! 👋
+              </Text>
+            </View>
+          }
         />
-        <TouchableOpacity
-          style={[
-            styles.sendBtn,
-            (!newMessage.trim() || sending) && styles.sendBtnDisabled,
-          ]}
-          onPress={handleSend}
-          disabled={!newMessage.trim() || sending}
-        >
-          {sending ? (
-            <ActivityIndicator size="small" color="white" />
-          ) : (
-            <Send size={18} color="white" />
-          )}
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+
+        {/* ✅ Input bar — sits above keyboard thanks to KeyboardAvoidingView */}
+        <View style={styles.inputBar}>
+          <TextInput
+            ref={inputRef}
+            style={styles.input}
+            placeholder="Type a message..."
+            placeholderTextColor="#a0aec0"
+            value={newMessage}
+            onChangeText={setNewMessage}
+            multiline
+            maxLength={1000}
+            returnKeyType="default"
+            onFocus={() =>
+              setTimeout(
+                () => flatListRef.current?.scrollToEnd({ animated: true }),
+                300,
+              )
+            }
+          />
+          <TouchableOpacity
+            style={[
+              styles.sendBtn,
+              (!newMessage.trim() || sending) && styles.sendBtnDisabled,
+            ]}
+            onPress={handleSend}
+            disabled={!newMessage.trim() || sending}
+          >
+            {sending ? (
+              <ActivityIndicator size="small" color="white" />
+            ) : (
+              <Send size={18} color="white" />
+            )}
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: "white" },
   container: { flex: 1, backgroundColor: "#F7FAFC" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   menuButton: { paddingHorizontal: 14, paddingVertical: 8 },
@@ -432,10 +417,14 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   bubbleTimeOwn: { color: "rgba(255,255,255,0.65)" },
+
+  // ✅ Input bar with enough padding to breathe above home indicator
   inputBar: {
     flexDirection: "row",
     alignItems: "flex-end",
-    padding: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    paddingBottom: 12,
     backgroundColor: "white",
     borderTopWidth: 1,
     borderTopColor: "#e2e8f0",
@@ -443,21 +432,21 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    minHeight: 42,
+    minHeight: 44,
     maxHeight: 120,
     backgroundColor: "#f8fafc",
     borderWidth: 1.5,
     borderColor: "#e2e8f0",
-    borderRadius: 21,
+    borderRadius: 22,
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 11,
     fontSize: 15,
     color: "#2d3748",
   },
   sendBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: BLUE,
     justifyContent: "center",
     alignItems: "center",
