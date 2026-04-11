@@ -16,7 +16,6 @@ import {
   Modal,
   Alert,
   Text,
-  SafeAreaView,
 } from "react-native";
 import { ActivityIndicator } from "react-native-paper";
 import { Send, MoreVertical } from "lucide-react-native";
@@ -239,123 +238,120 @@ export default function ChatScreen({ route, navigation }) {
     // ✅ FIX: SafeAreaView wraps everything so input bar sits above home indicator
     // KeyboardAvoidingView moves content up when keyboard appears
     // keyboardVerticalOffset tuned so input bar clears the keyboard cleanly
-    <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 88 : 0}
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior="padding"
+      keyboardVerticalOffset={110}
+    >
+      {/* Three-dot dropdown */}
+      <Modal
+        visible={menuVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuVisible(false)}
+        statusBarTranslucent
       >
-        {/* Three-dot dropdown */}
-        <Modal
-          visible={menuVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setMenuVisible(false)}
-          statusBarTranslucent
+        <TouchableOpacity
+          style={styles.menuOverlay}
+          activeOpacity={1}
+          onPress={() => setMenuVisible(false)}
         >
-          <TouchableOpacity
-            style={styles.menuOverlay}
-            activeOpacity={1}
-            onPress={() => setMenuVisible(false)}
-          >
-            <View style={styles.menuDropdown}>
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={handleViewProfile}
-              >
-                <Text style={styles.menuItemText}>👤 View Profile</Text>
-              </TouchableOpacity>
-              <View style={styles.menuDivider} />
-              <TouchableOpacity style={styles.menuItem} onPress={handleReport}>
-                <Text style={[styles.menuItemText, styles.menuItemDanger]}>
-                  🚩 Report User
-                </Text>
-              </TouchableOpacity>
-              <View style={styles.menuDivider} />
-              <TouchableOpacity style={styles.menuItem} onPress={handleBlock}>
-                <Text style={[styles.menuItemText, styles.menuItemDanger]}>
-                  🚫 Block User
-                </Text>
-              </TouchableOpacity>
-              <View style={styles.menuDivider} />
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => setMenuVisible(false)}
-              >
-                <Text style={[styles.menuItemText, { color: "#718096" }]}>
-                  Cancel
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        </Modal>
-
-        {/* Message list */}
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          renderItem={renderMessage}
-          keyExtractor={(item) =>
-            item._id?.toString() || Math.random().toString()
-          }
-          contentContainerStyle={styles.list}
-          onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
-          onContentSizeChange={() =>
-            flatListRef.current?.scrollToEnd({ animated: false })
-          }
-          keyboardDismissMode="interactive"
-          keyboardShouldPersistTaps="handled"
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              <Text style={styles.emptyText}>
-                No messages yet — say hello! 👋
+          <View style={styles.menuDropdown}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={handleViewProfile}
+            >
+              <Text style={styles.menuItemText}>👤 View Profile</Text>
+            </TouchableOpacity>
+            <View style={styles.menuDivider} />
+            <TouchableOpacity style={styles.menuItem} onPress={handleReport}>
+              <Text style={[styles.menuItemText, styles.menuItemDanger]}>
+                🚩 Report User
               </Text>
-            </View>
+            </TouchableOpacity>
+            <View style={styles.menuDivider} />
+            <TouchableOpacity style={styles.menuItem} onPress={handleBlock}>
+              <Text style={[styles.menuItemText, styles.menuItemDanger]}>
+                🚫 Block User
+              </Text>
+            </TouchableOpacity>
+            <View style={styles.menuDivider} />
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => setMenuVisible(false)}
+            >
+              <Text style={[styles.menuItemText, { color: "#718096" }]}>
+                Cancel
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Message list */}
+      <FlatList
+        ref={flatListRef}
+        data={messages}
+        renderItem={renderMessage}
+        keyExtractor={(item) =>
+          item._id?.toString() || Math.random().toString()
+        }
+        contentContainerStyle={styles.list}
+        onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
+        onContentSizeChange={() =>
+          flatListRef.current?.scrollToEnd({ animated: false })
+        }
+        keyboardDismissMode="interactive"
+        keyboardShouldPersistTaps="handled"
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <Text style={styles.emptyText}>
+              No messages yet — say hello! 👋
+            </Text>
+          </View>
+        }
+      />
+
+      {/* ✅ Input bar — sits above keyboard thanks to KeyboardAvoidingView */}
+      <View style={styles.inputBar}>
+        <TextInput
+          ref={inputRef}
+          style={styles.input}
+          placeholder="Type a message..."
+          placeholderTextColor="#a0aec0"
+          value={newMessage}
+          onChangeText={setNewMessage}
+          multiline
+          maxLength={1000}
+          returnKeyType="default"
+          onFocus={() =>
+            setTimeout(
+              () => flatListRef.current?.scrollToEnd({ animated: true }),
+              300,
+            )
           }
         />
-
-        {/* ✅ Input bar — sits above keyboard thanks to KeyboardAvoidingView */}
-        <View style={styles.inputBar}>
-          <TextInput
-            ref={inputRef}
-            style={styles.input}
-            placeholder="Type a message..."
-            placeholderTextColor="#a0aec0"
-            value={newMessage}
-            onChangeText={setNewMessage}
-            multiline
-            maxLength={1000}
-            returnKeyType="default"
-            onFocus={() =>
-              setTimeout(
-                () => flatListRef.current?.scrollToEnd({ animated: true }),
-                300,
-              )
-            }
-          />
-          <TouchableOpacity
-            style={[
-              styles.sendBtn,
-              (!newMessage.trim() || sending) && styles.sendBtnDisabled,
-            ]}
-            onPress={handleSend}
-            disabled={!newMessage.trim() || sending}
-          >
-            {sending ? (
-              <ActivityIndicator size="small" color="white" />
-            ) : (
-              <Send size={18} color="white" />
-            )}
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        <TouchableOpacity
+          style={[
+            styles.sendBtn,
+            (!newMessage.trim() || sending) && styles.sendBtnDisabled,
+          ]}
+          onPress={handleSend}
+          disabled={!newMessage.trim() || sending}
+        >
+          {sending ? (
+            <ActivityIndicator size="small" color="white" />
+          ) : (
+            <Send size={18} color="white" />
+          )}
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "white" },
-  container: { flex: 1, backgroundColor: "#F7FAFC" },
+  container: { flex: 1, backgroundColor: "#F7FAFC", marginBottom: 0 },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   menuButton: { paddingHorizontal: 14, paddingVertical: 8 },
   menuOverlay: {
